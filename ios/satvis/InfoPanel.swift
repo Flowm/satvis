@@ -23,7 +23,7 @@ struct InfoPanel: View {
     @State private var imageryFocus: String?
     /// The Imagery tab's pictures, a layer each, built as the satellite is selected:
     /// centred under it then, so that they do not reload as it moves.
-    @State private var previews: [ImageryLayer: URL] = [:]
+    @State private var previews: [ImageryLayer: ImageryPreviewSource] = [:]
     /// The cards' width, the tab row's, in points.
     @State private var cardsWidth = 0.0
 

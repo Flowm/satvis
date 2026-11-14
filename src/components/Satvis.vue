@@ -71,7 +71,7 @@
       <toolbar-panel v-show="openMenu === 'gs'" title="Locations" class="toolbarPanel--locations" @close="closePanel('gs')">
         <ground-station-list @show-info="onShowInfo" />
       </toolbar-panel>
-      <toolbar-panel v-show="openMenu === 'map'" title="Map" @close="closePanel('map')">
+      <toolbar-panel v-show="openMenu === 'map'" title="Map" class="toolbarPanel--map" @close="closePanel('map')">
         <!-- Both groups bind by provider, not token, so a url layer with an opacity
              (`ArcGis_0.5`) still matches. An inert group is dimmed but stays live. -->
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('layers') }">Basemap</div>
@@ -84,7 +84,7 @@
           <input type="checkbox" :checked="hasOverlay(name)" @change="toggleOverlay(name, ($event.target as HTMLInputElement).checked)" />
           {{ imageryLabel(name) }}
         </label>
-        <map-imagery-layers :open="openMenu === 'map'" :inert="inert.includes('layers')" />
+        <map-imagery-layers :open="openMenu === 'map'" :inert="inert.includes('layers')" @show-info="onShowInfo" />
         <div v-if="inertReason('layers')" class="toolbarNote">{{ inertReason("layers") }}</div>
         <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert.includes('terrain') }">Terrain</div>
         <!-- `:checked` shows the terrain in force, not the stored choice, which an

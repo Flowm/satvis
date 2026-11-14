@@ -110,8 +110,9 @@ only through `SatelliteCatalog.registerGroups`, whose only production caller is
 encodes as `+`, and must never be escaped as `-`.
 
 `layers` items are validated against the segment before `_`. Base layers:
-`NaturalEarth`, `ArcGis`, `VersaTiles`, `OSM`, `BlackMarble`, `GeoMosaic`. Overlays:
-`Tiles`, `Nextrad`. `GeoMosaic` shows the frame for `time` (`FramedImagery`).
+`NaturalEarth`, `ArcGis`, `VersaTiles`, `OSM`, `BlackMarble`. Overlays:
+`Tiles`, `Nextrad`. The geostationary mosaic is instrument imagery,
+`imagery=georing:mosaic` (ADR 0022).
 The Map panel shows one basemap on radios and any number of overlays on checkboxes;
 `base` on the registry entry (`src/modules/CesiumLayerProviders.ts`) decides which is
 which. The optional `_<alpha>` suffix sets the layer's opacity and has no UI control.

@@ -7,7 +7,7 @@ import { nextTick, watch } from "vue";
 
 import { currentPosition } from "@/composables/useGeolocation";
 import { useToastProxy } from "@/composables/useToastProxy";
-import { type DrawnImagery, readImageryList } from "@/config/instrumentImagery";
+import { type DrawnImagery, readImageryList, shortImageryLabel } from "@/config/instrumentImagery";
 import type { FrameRate } from "@/config/rendering";
 import { satelliteModel } from "@/config/satelliteMetadata";
 import { BUILTIN_STAR_MAP, starMapRecovery } from "@/config/starMaps";
@@ -470,9 +470,9 @@ export function startSceneSync(cc: SceneTarget): void {
     const found = new Map<string, { imagery: DrawnImagery; label: string }>();
     if (wanted.length > 0) {
       for (const entry of cc.sats.catalog.entries) {
-        for (const { drawn: imagery, label } of readImageryList(entry.metadata.imagery)) {
+        for (const { drawn: imagery, instrument, label, merged } of readImageryList(entry.metadata.imagery)) {
           if (imagery !== undefined && wanted.includes(imagery.token) && !found.has(imagery.token)) {
-            found.set(imagery.token, { imagery, label: `${entry.name} · ${label}` });
+            found.set(imagery.token, { imagery, label: merged ? label : `${entry.name} ${instrument} ${shortImageryLabel(label)}` });
           }
         }
       }

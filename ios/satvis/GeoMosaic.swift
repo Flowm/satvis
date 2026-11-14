@@ -1,18 +1,26 @@
+import CoreGraphics
 import Foundation
 import Observation
+import SatvisCore
 import SatvisRender
 import os
 
 nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category: "imagery")
 
-/// The geostationary mosaic's frame for the clock, while it is the base map (ADR 0022):
-/// the latest Slot the collection lists at or before the clock, or its earliest before
-/// them all, as the web app's `snapToFrame` picks it.
+/// The geostationary mosaic's frames (ADR 0022), as instrument imagery draws them: the
+/// latest Slot the collection lists at or before the clock, or its earliest before them
+/// all, as the web app's `snapToFrame` picks it, and the newest Slot for the Imagery
+/// tab's picture, the web app's `GeoMosaicImagery.ts`.
 @MainActor
 @Observable
 final class GeoMosaic {
-    /// The frame handed to the globe, nil while none is.
+    /// What fetches a span of a file.
+    typealias Read = @Sendable (URL, ClosedRange<Int>) async throws -> Data
+
+    /// The frame last handed to the globe, nil while none is.
     private(set) var drawn: MosaicFrame?
+    /// Fetches a span of a file.
+    @ObservationIgnored private let read: Read
     /// Each Slot, epoch milliseconds, to its item; nil until the collection is read.
     @ObservationIgnored private var slots: [Double: URL]?
     @ObservationIgnored private var listed = Date.distantPast
@@ -20,6 +28,8 @@ final class GeoMosaic {
     @ObservationIgnored private var frames: [URL: Frame] = [:]
     /// The items of `frames`, the least lately asked for first.
     @ObservationIgnored private var asked: [URL] = []
+    /// The newest Slot's file as last opened for a picture, and until when it is the newest.
+    @ObservationIgnored private var newestFrame: (until: Date, frame: Task<MosaicFrame, any Error>)?
 
     private enum Frame {
         case opening
@@ -35,30 +45,63 @@ final class GeoMosaic {
     /// Frames kept opened, for a clock going back and forth.
     private static let kept = 6
 
+    init(read: @escaping Read) {
+        self.read = read
+    }
+
     /// The attribution the drawn frame asks for, a line a satellite.
     var credit: [String] { drawn?.credit ?? [] }
 
-    /// Keeps `apply` handed the frame for `now` while `shown`, nil otherwise, once a
-    /// second, until cancelled. A frame still opening leaves the last one drawn.
-    /// `read` fetches a span of a file.
-    func follow(
-        shown: @escaping @MainActor () -> Bool, now: @escaping @MainActor () -> Double,
-        read: @escaping @Sendable (URL, ClosedRange<Int>) async throws -> Data, apply: @escaping @MainActor (MosaicFrame?) -> Void
-    ) async {
-        while !Task.isCancelled {
-            let isShown = shown()
-            let wanted = isShown ? frame(at: now(), read: read) : nil
-            if isShown ? wanted.map { $0 != drawn } ?? false : drawn != nil {
-                drawn = wanted
-                apply(drawn)
+    /// The frame for `time`, or while it opens the one drawn before; nil until one has
+    /// opened. Asks for the collection and opens the file when they are due.
+    func frame(at time: Double) -> MosaicFrame? {
+        if let opened = opened(at: time), opened != drawn {
+            drawn = opened
+        }
+        return drawn
+    }
+
+    /// Forgets the frame drawn, as the mosaic was taken off the globe.
+    func hide() {
+        if drawn != nil {
+            drawn = nil
+        }
+    }
+
+    /// The newest Slot's file, opened once for every picture until the collection is due
+    /// again; a failure is not kept, and the next picture asks again.
+    func newest() async throws -> MosaicFrame {
+        if let newestFrame, Date() < newestFrame.until {
+            return try await value(of: newestFrame.frame)
+        }
+        let read = read
+        let frame = Task { try await Self.openNewest(read: read) }
+        newestFrame = (Date() + Self.refresh, frame)
+        return try await value(of: frame)
+    }
+
+    /// A picture of the newest Slot in `bounds`, `width` by `height` pixels.
+    func preview(_ bounds: SatelliteDetails.PreviewBounds, width: Int, height: Int) async throws -> CGImage {
+        let frame = try await newest()
+        let read = read
+        let url = frame.url
+        return try await frame.preview(bounds, width: width, height: height) { try await read(url, $0) }
+    }
+
+    private func value(of frame: Task<MosaicFrame, any Error>) async throws -> MosaicFrame {
+        do {
+            return try await frame.value
+        } catch {
+            if newestFrame?.frame == frame {
+                newestFrame = nil
             }
-            try? await Task.sleep(for: .seconds(1))
+            throw error
         }
     }
 
     /// The frame for `time` once opened, asking for the collection and opening the file
     /// when they are due.
-    private func frame(at time: Double, read: @escaping @Sendable (URL, ClosedRange<Int>) async throws -> Data) -> MosaicFrame? {
+    private func opened(at time: Double) -> MosaicFrame? {
         let since = Date().timeIntervalSince(listed)
         let due = slots == nil ? since >= Self.retry : time > (slots?.keys.max() ?? 0) && since >= Self.refresh
         if !isListing, due {
@@ -92,14 +135,11 @@ final class GeoMosaic {
         }
         frames[item] = .opening
         forgetOldest(keeping: item)
+        let read = read
         Task {
             let opened: Frame
             do {
-                let (data, response) = try await URLSession.shared.data(from: item)
-                guard (response as? HTTPURLResponse)?.statusCode == 200, let file = Mosaic.file(item: data, at: item) else {
-                    throw URLError(.cannotParseResponse)
-                }
-                opened = .ready(try await Mosaic.open(file.url, credit: file.credit) { try await read(file.url, $0) })
+                opened = .ready(try await Self.open(item: item, read: read))
             } catch {
                 log.error("\(item, privacy: .public): \(error, privacy: .public)")
                 opened = .failed(at: Date())
@@ -134,5 +174,22 @@ final class GeoMosaic {
             return nil
         }
         return slots
+    }
+
+    /// The file an item names, its header and tile index read.
+    nonisolated private static func open(item: URL, read: @escaping Read) async throws -> MosaicFrame {
+        let (data, response) = try await URLSession.shared.data(from: item)
+        guard (response as? HTTPURLResponse)?.statusCode == 200, let file = Mosaic.file(item: data, at: item) else {
+            throw URLError(.cannotParseResponse)
+        }
+        return try await Mosaic.open(file.url, credit: file.credit) { try await read(file.url, $0) }
+    }
+
+    /// The newest Slot the collection lists, opened.
+    nonisolated private static func openNewest(read: @escaping Read) async throws -> MosaicFrame {
+        guard let slots = await list(), let newest = slots.max(by: { $0.key < $1.key }) else {
+            throw URLError(.cannotParseResponse)
+        }
+        return try await open(item: newest.value, read: read)
     }
 }

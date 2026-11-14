@@ -49,7 +49,7 @@ export interface ActivationLists {
 type ReadonlyActivationLists = Readonly<Record<keyof ActivationLists, readonly string[]>>;
 
 /** The catalog, as the transitions below read it. */
-interface CatalogLookup {
+export interface CatalogLookup {
   entriesWithTag(tag: string): CatalogEntry[];
   getByName(name: string): CatalogEntry | undefined;
 }
@@ -122,6 +122,13 @@ export function toggledSatellite(lists: ReadonlyActivationLists, name: string, c
   }
   // An explicit enable overrides a stale exclusion.
   return { enabledSatellites: [...lists.enabledSatellites, name], disabledSatellites: lists.disabledSatellites.filter((s) => s !== name) };
+}
+
+/** The lists with the satellite on, or undefined where it is on already. */
+export function activatedSatellite(lists: ReadonlyActivationLists, name: string, catalog: CatalogLookup): Partial<ActivationLists> | undefined {
+  const entry = catalog.getByName(name);
+  const byTag = entry !== undefined && isEnabledByTag(entry, new Set(lists.enabledTags)) && !lists.disabledSatellites.includes(name);
+  return byTag || lists.enabledSatellites.includes(name) ? undefined : toggledSatellite(lists, name, catalog);
 }
 
 /** Tracked satellite first: a large build spreads over frames, and at 5,000 entries last waits seconds. */

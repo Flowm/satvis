@@ -133,10 +133,10 @@ describe("useSatelliteBrowser search-only groups", () => {
     const satStore = useSatStore();
     await catalog.ensureAll();
     browser.toggleGroup("Weather");
-    browser.activateSat("METEO-1");
+    satStore.activateSatellite("METEO-1", catalog);
     expect(satStore.disabledSatellites).toEqual([]);
-    browser.activateSat("SENTINEL-1");
-    browser.activateSat("SENTINEL-1");
+    satStore.activateSatellite("SENTINEL-1", catalog);
+    satStore.activateSatellite("SENTINEL-1", catalog);
     expect(satStore.enabledSatellites).toEqual(["SENTINEL-1"]);
   });
 });

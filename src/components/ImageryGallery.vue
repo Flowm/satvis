@@ -2,7 +2,7 @@
   <div ref="galleryEl" class="gallery">
     <article
       v-for="{ instrument, imagery } in layers"
-      :key="imagery.href"
+      :key="imagery.key"
       class="card"
       :class="{ 'card--drawable': imagery.token, 'card--shown': isShown(imagery) }"
       :data-instrument="instrument"
@@ -10,7 +10,7 @@
       @click="toggle(imagery)"
     >
       <div class="card__preview">
-        <img v-if="previews.get(imagery.href) && !failed.has(imagery.href)" :src="previews.get(imagery.href)" alt="" loading="lazy" @error="failed.add(imagery.href)" />
+        <img v-if="previews.get(imagery.key) && !failed.has(imagery.key)" :src="previews.get(imagery.key)" alt="" loading="lazy" @error="failed.add(imagery.key)" />
         <div v-else class="card__placeholder">
           <UIcon name="lucide:image-off" />
           <span>No preview</span>
@@ -32,7 +32,7 @@
             @click.stop
           />
           <span v-else />
-          <a class="card__open" :href="imagery.href" :title="`Open in ${imagery.viewer}`" target="_blank" rel="noopener" @click.stop>
+          <a v-if="imagery.href" class="card__open" :href="imagery.href" :title="`Open in ${imagery.viewer}`" target="_blank" rel="noopener" @click.stop>
             {{ imagery.viewer }}
             <UIcon name="lucide:external-link" />
           </a>
@@ -43,9 +43,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, useTemplateRef, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, reactive, useTemplateRef, watch } from "vue";
 
-import { imageryPreviewUrl, type PreviewCentre } from "@/config/instrumentImagery";
+import { imageryPreviewUrl, PREVIEW_HEIGHT, PREVIEW_WIDTH, type PreviewCentre, previewBounds } from "@/config/instrumentImagery";
+import { geoMosaicPreview } from "@/modules/GeoMosaicImagery";
 import type { ImageryInfo } from "@/modules/util/entityInfo";
 import { useCesiumStore } from "@/stores/cesium";
 
@@ -63,18 +64,61 @@ const props = defineProps<{
 }>();
 
 const cesiumStore = useCesiumStore();
-/** Previews the provider refused, by link, which show the placeholder instead. */
+/** Previews that could not be had, by card, which show the placeholder instead; forgotten with the satellite. */
 const failed = reactive(new Set<string>());
 
 /**
- * Each card's picture by link, built once per satellite. A geostationary imager sees a disc
+ * Where the pictures are, built once per satellite. A geostationary imager sees a disc
  * about 80° either side; a low one is pictured where it flies.
  */
+const bounds = computed(() => (props.centre ? previewBounds(props.centre, props.geostationary ? 72 : 32) : undefined));
+
+/** The georing mosaic has no WMS: its picture is made here from its file. */
+const isGeoring = (imagery: ImageryInfo) => imagery.preview?.provider === "georing";
+
+/** The pictures made here, by card: object urls. */
+const madePreviews = reactive(new Map<string, string>());
+/** Revokes the pictures made here, and lets every card try again. */
+function forgetPreviews(): void {
+  madePreviews.forEach((url) => URL.revokeObjectURL(url));
+  madePreviews.clear();
+  failed.clear();
+}
+watch(
+  [() => props.layers, bounds],
+  ([layers, where], _, onCleanup) => {
+    forgetPreviews();
+    const reading = new AbortController();
+    onCleanup(() => reading.abort());
+    if (where === undefined) return;
+    for (const { imagery } of layers.filter((layer) => isGeoring(layer.imagery))) {
+      geoMosaicPreview(where, PREVIEW_WIDTH, PREVIEW_HEIGHT, reading.signal)
+        .then((blob) => {
+          if (!reading.signal.aborted) madePreviews.set(imagery.key, URL.createObjectURL(blob));
+        })
+        .catch((error: unknown) => {
+          if (!reading.signal.aborted) {
+            console.warn("[ImageryGallery]", error);
+            failed.add(imagery.key);
+          }
+        });
+    }
+  },
+  { immediate: true },
+);
+onUnmounted(forgetPreviews);
+
+/** Each card's picture by card: a provider's WMS answer, or one made here. */
 const previews = computed(() => {
-  const { centre, layers } = props;
-  const halfWidthDeg = props.geostationary ? 72 : 32;
+  const where = bounds.value;
   const now = new Date();
-  return new Map(layers.flatMap(({ imagery }) => (imagery.preview && centre ? [[imagery.href, imageryPreviewUrl(imagery.preview, centre, halfWidthDeg, now)] as const] : [])));
+  return new Map(
+    props.layers.flatMap(({ imagery }) => {
+      if (!imagery.preview || where === undefined) return [];
+      const url = isGeoring(imagery) ? madePreviews.get(imagery.key) : imageryPreviewUrl(imagery.preview, where, now);
+      return url === undefined ? [] : [[imagery.key, url] as const];
+    }),
+  );
 });
 
 /** A press anywhere on a card the globe can draw shows it or takes it off; its switch is the keyboard's way. */

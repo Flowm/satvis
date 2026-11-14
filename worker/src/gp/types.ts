@@ -253,7 +253,7 @@ export interface SatelliteImagery {
   end?: string;
   /** ISO 8601 duration: the provider keeps frames this long and no longer, so it has no `start`. */
   window?: string;
-  /** It shows other satellites too, not told apart. */
+  /** It shows other satellites too, not told apart: it is a composite's (ImageryComposite). */
   merged?: true;
   /**
    * The deepest level worth asking for, in 256-pixel Web Mercator tiles; with `format`
@@ -263,8 +263,11 @@ export interface SatelliteImagery {
    */
   maxLevel?: number;
   /** The type of its tiles. */
-  format?: "png" | "jpeg";
+  format?: TileFormat;
 }
+
+/** The types of tile an app can draw (src/config/instrumentImagery.ts, TILE_FORMATS). */
+export type TileFormat = "png" | "jpeg" | "webp";
 
 /**
  * The imagery manifest (ADR 0019): worker/src/config/satvis.imagery.yaml. The generator
@@ -272,6 +275,7 @@ export interface SatelliteImagery {
  */
 export interface ImageryManifest {
   satellites?: ImagerySatellite[];
+  composites?: ImageryComposite[];
 }
 
 /** A satellite's instruments, by CEOS short name, each with the imagery that shows it. */
@@ -287,11 +291,33 @@ export interface ImagerySatellite {
 }
 
 /**
- * SatelliteImagery's fields, where each is described, without the one the manifest's
- * shape gives. `merged` is required on a layer listed under several satellites, and
- * refused on one listed under one.
+ * SatelliteImagery's fields, where each is described, without the ones the manifest's
+ * shape gives: the instrument, and `merged`, which a composite's entries carry.
  */
-export type ImageryEntry = Omit<SatelliteImagery, "instrument">;
+export type ImageryEntry = Omit<SatelliteImagery, "instrument" | "merged">;
+
+/**
+ * A layer that shows several satellites at once, not told apart: a geostationary ring, a
+ * constellation's scenes. Listed once; each satellite it names gets it as a `merged`
+ * entry, after its own. Its `start` and `end` are each satellite's unless it gives its own.
+ */
+export interface ImageryComposite extends ImageryEntry {
+  /** Two or more. */
+  satellites: ImageryCompositeMember[];
+}
+
+/** A satellite a composite shows. */
+export interface ImageryCompositeMember {
+  noradId: number;
+  /** Documentation only, as a satellite table entry's. */
+  name?: string;
+  /** Its instrument the composite shows, spelled as CEOS's short name. */
+  instrument: string;
+  /** ISO date of the composite's first frame that shows it: the day it took over its position. */
+  start?: string;
+  /** ISO date of the composite's last frame that shows it. */
+  end?: string;
+}
 
 /** One CEOS mission that names a NORAD id and carries instruments (ceos.ts). Not served. */
 export interface CeosMission {

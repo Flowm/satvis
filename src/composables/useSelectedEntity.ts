@@ -220,6 +220,15 @@ export function useSelectedEntity(instance: CesiumController) {
     cc().viewer.selectedEntity = undefined;
   }
 
+  /** Selects the satellite, turning it on if need be, as its info panel needs it built; at `tab` when given one. */
+  function showSatellite(name: string, tab?: InfoTab): void {
+    useSatStore().activateSatellite(name, cc().sats.catalog);
+    if (tab !== undefined) {
+      openTab(tab);
+    }
+    cc().sats.select(name);
+  }
+
   /** By start time, not index: the list shifts whenever a pass ends or past passes are toggled. */
   function pickPass(startMs: number): void {
     pickedPassMs.value = pickedPassMs.value === startMs ? null : startMs;
@@ -267,6 +276,7 @@ export function useSelectedEntity(instance: CesiumController) {
     preferredTab,
     infoCollapsed,
     openTab,
+    showSatellite,
     groundStationAvailable,
     elements,
     staleNotice,

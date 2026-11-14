@@ -10,7 +10,7 @@ import Testing
         #expect(Credit.map(baseLayer: .naturalEarth, terrain: false).map(\.text) == ["Imagery courtesy Natural Earth"])
         #expect(Credit.map(baseLayer: .versaTiles, terrain: false).map(\.text) == ["Imagery courtesy Natural Earth", "VersaTiles sources"])
         let lines = ["GOES-19 imagery: NOAA.", "Contains modified EUMETSAT Meteosat data 2026"]
-        #expect(Credit.map(baseLayer: .geoMosaic, terrain: false, mosaic: lines).map(\.text) == ["Imagery courtesy Natural Earth"] + lines)
+        #expect(Credit.map(baseLayer: .naturalEarth, terrain: false, instrumentImagery: [.georing], mosaic: lines).map(\.text) == ["Imagery courtesy Natural Earth"] + lines)
         #expect(Credit.map(baseLayer: .naturalEarth, terrain: false, mosaic: lines).count == 1)
         let terrain = Credit.map(baseLayer: .blackMarble, terrain: true).map(\.text)
         #expect(terrain.prefix(3) == ["Imagery courtesy Natural Earth", "NASA Global Imagery Browse Services for EOSDIS", "Re:Earth Terrain · Mapterhorn (CC BY 4.0)"])

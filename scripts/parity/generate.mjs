@@ -247,7 +247,7 @@ try {
     centre,
     halfWidthDeg,
     nowMs: Date.parse(now),
-    url: instrumentImagery.imageryPreviewUrl(preview, centre, halfWidthDeg, new Date(now)),
+    url: instrumentImagery.imageryPreviewUrl(preview, instrumentImagery.previewBounds(centre, halfWidthDeg), new Date(now)),
   }));
 
   // The Instruments tab's band strips, each once: the records' instruments', then
@@ -385,7 +385,7 @@ try {
   const { STAR_MAPS } = await runner.import("/src/config/starMaps.ts");
   const vocabulary = {
     components: ["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model", "Ground station link"],
-    layers: ["NaturalEarth", "VersaTiles", "BlackMarble", "GeoMosaic"],
+    layers: ["NaturalEarth", "VersaTiles", "BlackMarble"],
     terrain: ["None", "ReEarth"],
     // Whole, Tycho1K included: the app draws it as DeepStar1K, and a link keeps it.
     stars: [...STAR_MAPS],

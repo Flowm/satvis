@@ -162,6 +162,14 @@ final class CatalogModel {
         changed()
     }
 
+    /// Turns the satellite on, never off: opening its info panel needs it built. The web
+    /// app's `activateSatellite`.
+    func activate(_ entry: CatalogEntry) {
+        if !activation.isActive(entry) {
+            setSatellite(entry, enabled: true)
+        }
+    }
+
     func clearAll() {
         activation.clear()
         changed()

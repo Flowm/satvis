@@ -6,7 +6,7 @@ import type { Page } from "@playwright/test";
 
 import { openApp, PIXEL, setClock, waitTicks } from "../support/app";
 import { expect, test } from "../support/test";
-import { menuSwitch, openMenu } from "../support/ui";
+import { imageryRow, openMenu } from "../support/ui";
 
 const VIIRS = "VIIRS_NOAA20_CorrectedReflectance_TrueColor";
 
@@ -79,7 +79,7 @@ test("a daily layer requests the frame for the clock, and nothing once taken off
   const tickListeners = () => page.evaluate(() => window.cc!.viewer.clock.onTick.numberOfListeners);
   const listenersWithLayer = await tickListeners();
   await openMenu(page, "Map");
-  await menuSwitch(page, "NOAA 20 · True colour").click();
+  await imageryRow(page, "NOAA 20 (JPSS-1) VIIRS True colour").click();
   await expect.poll(() => new URL(page.url()).searchParams.get("imagery")).toBeNull();
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.imageryLayers.length)).toBe(1);
   // The layer followed the viewer's clock with one listener.

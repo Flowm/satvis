@@ -36,11 +36,6 @@ private final class RecordingGlobe: Globe {
         didSet { calls.append("passthrough \(passthrough.map { "\($0.tanHalfLongSide)" } ?? "-")") }
     }
     func setImagery(_ layer: BaseLayer, site: URL) { calls.append("imagery \(layer.rawValue)") }
-    func setMosaic(_ frame: MosaicFrame?) {
-        if let frame {
-            calls.append("mosaic \(frame.url.lastPathComponent)")
-        }
-    }
     func setInstrumentImagery(_ overlays: [ImageryOverlay]) {
         if !overlays.isEmpty {
             calls.append("instrument imagery \(overlays.map(\.layer.token))")

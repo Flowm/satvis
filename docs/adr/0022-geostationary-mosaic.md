@@ -2,7 +2,7 @@
 status: accepted
 ---
 
-# The geostationary mosaic as a basemap
+# The geostationary mosaic as instrument imagery
 
 The georing-mosaic project joins one hour's scans of GOES-East, GOES-West, Meteosat at
 0° and Himawari into one picture of the Earth, day and night, and publishes it hourly to
@@ -13,9 +13,20 @@ every overview level, and no tile service in front of it.
 
 ## Decision
 
-**A basemap of the Map panel, `GeoMosaic`, that follows the clock** as instrument
-imagery does (ADR 0020): one Cesium layer a frame (`FramedImagery.ts`), the Slot at or before the
-clock's time. Not instrument imagery: it is no one satellite's.
+**A composite of the imagery manifest (ADR 0019), `georing:mosaic`, that follows the
+clock** as instrument imagery does (ADR 0020): one Cesium layer a frame
+(`FramedImagery.ts`), the Slot at or before the clock's time. `georing` is an imagery
+provider with no viewer of its own, so its cards have no link. The composite names the
+satellites of the georing plan: GOES-19, GOES-18, Meteosat-12 and Himawari-9. Each of
+their Imagery tabs has it, and the Map panel lists it once among the GEO satellites'
+imagery (ADR 0021), beside EUMETSAT's 3-hourly natural colour of the ring. It was a
+basemap of the Map panel at first, `GeoMosaic`, which no satellite knew of; it was
+retired before it shipped, and drawn with the instrument imagery a LEO swath lies over it.
+
+**Its Imagery tab card pictures the newest Slot** (`geoMosaicPreview`), as the other
+cards picture a provider's WMS answer, in the same plate carrée box: the collection's
+newest item, the blocks of the coarsest level with a pixel for each of the card's (four or six at
+level 2), resampled to the nearest pixel in the browser. About 50 kB and under a second.
 
 **The browser reads the COG itself, one range request a tile** (`CogImageryProvider.ts`,
 on `@cogeotiff/core`). A Cesium tile at level z of 512-pixel Web Mercator tiles is one
@@ -36,7 +47,9 @@ read while the clock is past the newest Slot.
 **The frame on the globe reads its own item**: the COG is the item's cloud-optimized
 asset, and the credit its `georing:attribution` lines, which name only the satellites
 that took part. One small request a frame, before its header. Where the collection
-cannot be read, `latest.json` names the item to show.
+cannot be read, nothing is drawn and no card is pictured until it can be: the bucket's
+`latest.json` is not read, so that the globe, the previews and the native app have one
+source for which Slots there are.
 
 ## Consequences
 
@@ -47,18 +60,20 @@ cannot be read, `latest.json` names the item to show.
 - **The link's `datetime` is a contract with the producer**: georing-mosaic writes it
   there for this reader.
 - **Transparent where no satellite sees**: the polar caps and, where the plan's India
-  seam leaves a gap, part of the Indian Ocean. A basemap is alone (CONTEXT.md, "Basemap
-  and overlay"), so the globe's own colour shows there.
+  seam leaves a gap, part of the Indian Ocean. The basemap shows there.
 - **A Slot rebuilt after a late Disk** keeps its name; a frame already drawn keeps the
   first build until the clock leaves it.
-- **The native app reads it the same way** (`ios/SatvisKit/Sources/SatvisRender/Mosaic.swift`),
+- **The native app reads it the same way**, as instrument imagery with its own card
+  picture (`ios/SatvisKit/Sources/SatvisRender/Mosaic.swift`, `ios/satvis/GeoMosaic.swift`),
   with a TIFF reader of its own, as no system framework reads a COG by ranges. With no
   CORS to answer, the bucket's policy does not reach it. Over its own Natural Earth,
   which it draws under every base map, the polar caps show that rather than the
-  globe's colour; and with no `latest.json` fallback, a collection that cannot be
-  read is asked again a minute later, Natural Earth showing meanwhile.
+  globe's colour.
 
 ## Alternatives rejected
+
+- **A Map panel layer linked to its satellites in the app**: two places for what a
+  satellite has, and the Imagery tabs would have read both.
 
 - **A tile endpoint on the Worker** that cuts the COG into XYZ tiles: rejected in the
   georing plan. The COG's blocks already are the tiles.

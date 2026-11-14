@@ -1,4 +1,6 @@
+import CoreGraphics
 import Foundation
+import ImageIO
 import Testing
 
 @testable import SatvisRender
@@ -81,6 +83,68 @@ import Testing
         // Left out of the file, or finer than it goes.
         #expect(source.range?(TileKey(level: 1, x: 1, y: 1)) == nil)
         #expect(source.range?(TileKey(level: 2, x: 0, y: 0)) == nil)
+    }
+
+    /// A tile of one colour, as PNG, which ImageIO reads as it reads the file's WebP.
+    private static func tile(red: UInt8) -> Data {
+        var pixels = [UInt8](repeating: 255, count: 512 * 512 * 4)
+        for index in stride(from: 0, to: pixels.count, by: 4) {
+            pixels[index] = red
+            pixels[index + 1] = 0
+            pixels[index + 2] = 0
+        }
+        let image = pixels.withUnsafeMutableBytes {
+            CGContext(
+                data: $0.baseAddress, width: 512, height: 512, bitsPerComponent: 8, bytesPerRow: 512 * 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!.makeImage()!
+        }
+        let data = NSMutableData()
+        let destination = CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil)!
+        CGImageDestinationAddImage(destination, image, nil)
+        CGImageDestinationFinalize(destination)
+        return data as Data
+    }
+
+    /// The colour at `x`, `y` of `image`, from its top left.
+    private static func pixel(_ image: CGImage, x: Int, y: Int) -> [UInt8] {
+        var pixel = [UInt8](repeating: 0, count: 4)
+        pixel.withUnsafeMutableBytes {
+            let context = CGContext(
+                data: $0.baseAddress, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            context.draw(image, in: CGRect(x: -x, y: y - image.height + 1, width: image.width, height: image.height))
+        }
+        return pixel
+    }
+
+    // GeoMosaicImagery.ts's geoMosaicPreview: the coarsest level that has a pixel for each
+    // of the picture's, its tiles wrapped across the antimeridian.
+    @Test func picturesTheFrameInPlateCarree() async throws {
+        let bytes = Self.file()
+        let frame = try await Mosaic.open(URL(string: "https://example.org/mosaic.tif")!) { Data(bytes[$0.clamped(to: 0...(bytes.count - 1))]) }
+        let reads = Reads()
+        let whole = try await frame.preview(.init(west: -170, south: -60, east: 170, north: 60), width: 64, height: 32) { range in
+            await reads.add(range)
+            return Self.tile(red: 200)
+        }
+        #expect(await reads.ranges == [40_000...40_399])
+        #expect(whole.width == 64 && whole.height == 32)
+        #expect(Self.pixel(whole, x: 32, y: 16) == [200, 0, 0, 255])
+
+        // The full image's tiles, east of the antimeridian in its first column; its last
+        // tile, left out of the file, is not asked for and stays transparent.
+        let tiles: [ClosedRange<Int>: UInt8] = [30_000...30_099: 10, 31_000...31_199: 20, 32_000...32_299: 30]
+        let wrapped = Reads()
+        let across = try await frame.preview(.init(west: 170, south: -40, east: 190, north: 40), width: 400, height: 400) { range in
+            await wrapped.add(range)
+            return Self.tile(red: tiles[range] ?? 0)
+        }
+        #expect(Set(await wrapped.ranges) == Set(tiles.keys))
+        // West of the antimeridian the second column, east of it the first, wrapped round.
+        #expect(Self.pixel(across, x: 100, y: 100) == [20, 0, 0, 255])
+        #expect(Self.pixel(across, x: 300, y: 100) == [10, 0, 0, 255])
+        #expect(Self.pixel(across, x: 300, y: 300) == [30, 0, 0, 255])
+        #expect(Self.pixel(across, x: 100, y: 300) == [0, 0, 0, 0])
     }
 
     @Test func refusesAFileThatIsNotTheWholeWorld() async {

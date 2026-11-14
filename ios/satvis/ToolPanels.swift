@@ -483,12 +483,14 @@ struct ComponentsPanel: View {
 /// satellite's imagery under its own heading (ADR 0021).
 struct MapPanel: View {
     @Bindable var session: Session
+    /// Opens a satellite's info panel, which its imagery button has turned on.
+    let onShow: (CatalogEntry) -> Void
 
     var body: some View {
         PanelSection("Basemap") {
             Choices(selection: $session.baseLayer, options: BaseLayer.allCases.map { ($0.title, $0) })
         }
-        SatelliteImagerySection(catalog: session.catalog, imagery: session.instrumentImagery)
+        SatelliteImagerySection(catalog: session.catalog, imagery: session.instrumentImagery, onShow: onShow)
         // The web app's names for the two.
         PanelSection("Terrain") {
             Segments(title: "Terrain", selection: $session.terrain, options: [("None", false), ("Re:Earth", true)])
@@ -513,19 +515,34 @@ struct MapPanel: View {
 private struct SatelliteImagerySection: View {
     let catalog: CatalogModel
     let imagery: InstrumentImagery
+    let onShow: (CatalogEntry) -> Void
     @State private var isLoading = false
+    /// The info panel's tab, the Imagery tab once a row's button is pressed.
+    @AppStorage("infoPanelTab") private var tab = InfoTab.orbit
 
     var body: some View {
         // Worked out here, where only the catalog is read, so that a switch flipped in the
         // list does not go through every record again.
         SatelliteImageryList(
-            listings: SatelliteDetails.imageryListings(catalog.catalog.entries.values.map(\.record)), imagery: imagery, isLoading: isLoading
+            listings: SatelliteDetails.imageryListings(catalog.catalog.entries.values.map(\.record)), imagery: imagery, isLoading: isLoading,
+            onShow: show
         )
         .task {
             isLoading = true
             await catalog.loadAll()
             isLoading = false
         }
+    }
+
+    /// Opens the satellite's info panel at its Imagery tab, turning it on if need be, as
+    /// the satellite browser does.
+    private func show(_ satellite: SatelliteDetails.ImageryListing.Satellite) {
+        guard let entry = catalog.catalog.entry(orSuccessorOf: satellite.id) else {
+            return
+        }
+        catalog.activate(entry)
+        tab = .imagery
+        onShow(entry)
     }
 }
 
@@ -534,6 +551,7 @@ private struct SatelliteImageryList: View {
     let listings: [Listing]
     let imagery: InstrumentImagery
     let isLoading: Bool
+    let onShow: (Listing.Satellite) -> Void
     /// The group the user opened, or `.some(nil)` for none; nil until they choose, when
     /// the first group with a layer on is open.
     @State private var chosen: Listing.Group??
@@ -604,10 +622,88 @@ private struct SatelliteImageryList: View {
         }
     }
 
-    /// A layer's switch, named satellite first, "GOES 19 · GeoColor", so that a narrow
-    /// panel cuts the picture's name; "METEOSAT-12", not "METEOSAT-12 (MTG-I1)".
+    /// A layer's switch: the satellite, "METEOSAT-12", not "METEOSAT-12 (MTG-I1)", its
+    /// instrument, and what the picture is, short; a composite's
+    /// name and cadence in their place. Then the button that opens the satellite's
+    /// Imagery tab, or a composite's menu of its satellites.
     private func row(_ layer: Listing, open: Listing.Group?) -> some View {
-        Toggle("\(layer.satellite.replacing(/\s*\(.*\)$/, with: "")) · \(layer.imagery.label)", isOn: shown(layer.token, open: open))
+        let (name, aside, spoken): (String, String?, String) =
+            switch layer.kind {
+            case .satellite(let satellite, let instrument):
+                (satellite.name.replacing(/\s*\(.*\)$/, with: ""), instrument, "\(satellite.name) \(instrument) \(layer.imagery.label)")
+            case .composite(let name, _, let cadence): (name, cadence, layer.imagery.label)
+            }
+        return HStack(spacing: 0) {
+            Toggle(isOn: shown(layer.token, open: open)) {
+                let detail = HStack(spacing: 5) {
+                    if let aside {
+                        Text(aside)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(layer.product)
+                        .font(.caption)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(Color.panelSelected, in: .capsule)
+                }
+                .fixedSize()
+                // One line where it fits; on a panel as narrow as a phone's, the instrument
+                // and the picture under the name, as the web app's rows wrap there.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 5) {
+                        Text(name)
+                            .fixedSize()
+                        Spacer(minLength: 4)
+                        detail
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(name)
+                            .truncationMode(.tail)
+                        detail
+                    }
+                    .padding(.vertical, 6)
+                }
+                // Ahead of the row's own spacer, which would take half the width the name needs.
+                .layoutPriority(1)
+            }
+            .accessibilityLabel(spoken)
+            imageryButton(layer)
+        }
+    }
+
+    /// Opens the Imagery tab of the layer's satellite, or a composite's menu of them.
+    @ViewBuilder private func imageryButton(_ layer: Listing) -> some View {
+        let mark = Image(systemName: "photo")
+            .foregroundStyle(.secondary)
+            .frame(width: 40)
+            .frame(maxHeight: .infinity)
+            .contentShape(.rect)
+        switch layer.kind {
+        case .satellite(let satellite, _):
+            Button {
+                onShow(satellite)
+            } label: {
+                mark
+            }
+            .buttonStyle(PanelRowStyle())
+            .accessibilityLabel("Show the imagery of \(satellite.name)")
+        case .composite(let name, let satellites, _):
+            Menu {
+                Section("Show the imagery of") {
+                    ForEach(satellites, id: \.id) { satellite in
+                        Button(satellite.name, systemImage: "satellite") {
+                            onShow(satellite)
+                        }
+                    }
+                }
+            } label: {
+                mark
+            }
+            .menuStyle(.button)
+            .buttonStyle(PanelRowStyle())
+            .accessibilityLabel("Show the imagery of a satellite of the \(name)")
+        }
     }
 
     /// Whether the layer `token` names is on the globe, and a switch's way to set it,

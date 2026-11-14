@@ -159,11 +159,6 @@ satellites:
           format: png
           start: 2020-09-01
 
-  # A Copernicus Browser `layer` is a dataset id of
-  # https://browser.dataspace.copernicus.eu/datasets.txt. A dataset is the whole
-  # constellation's, so it is listed under each unit as `merged`: a link, never one
-  # unit's layer.
-
   - noradId: 41335
     name: SENTINEL-3A
     instruments:
@@ -176,11 +171,6 @@ satellites:
           maxLevel: 8
           format: png
           start: 2020-02-17
-        - provider: copernicus-browser
-          layer: S3OLCI_CDAS
-          label: True colour scenes
-          kind: rgb
-          merged: true
 
   - noradId: 43437
     name: SENTINEL-3B
@@ -193,61 +183,6 @@ satellites:
           maxLevel: 8
           format: png
           start: 2020-02-17
-        - provider: copernicus-browser
-          layer: S3OLCI_CDAS
-          label: True colour scenes
-          kind: rgb
-          merged: true
-
-  - noradId: 40697
-    name: SENTINEL-2A
-    instruments:
-      MSI (Sentinel-2):
-        - provider: copernicus-browser
-          layer: S2_L2A_CDAS
-          label: True colour scenes
-          kind: rgb
-          merged: true
-
-  - noradId: 42063
-    name: SENTINEL-2B
-    instruments:
-      MSI (Sentinel-2):
-        - provider: copernicus-browser
-          layer: S2_L2A_CDAS
-          label: True colour scenes
-          kind: rgb
-          merged: true
-
-  - noradId: 60989
-    name: SENTINEL-2C
-    instruments:
-      MSI (Sentinel-2):
-        - provider: copernicus-browser
-          layer: S2_L2A_CDAS
-          label: True colour scenes
-          kind: rgb
-          merged: true
-
-  - noradId: 39084
-    name: LANDSAT 8
-    instruments:
-      OLI:
-        - provider: copernicus-browser
-          layer: CDAS_L8_L9_LOTL1
-          label: True colour scenes
-          kind: rgb
-          merged: true
-
-  - noradId: 49260
-    name: LANDSAT 9
-    instruments:
-      OLI-2:
-        - provider: copernicus-browser
-          layer: CDAS_L8_L9_LOTL1
-          label: True colour scenes
-          kind: rgb
-          merged: true
 
   # The layers below are named for a service, not a satellite: GOES-East, Meteosat's
   # full disc. Each is listed under the satellite that provides the service now, and
@@ -352,3 +287,74 @@ satellites:
           format: png
           period: PT5M
           start: 2023-03-28
+
+# Composites: layers that show several satellites at once, not told apart. Each is listed
+# once, with the satellites it shows; each of them gets it, `merged`, after its own entries.
+# A satellite's `start` is the day it took over its position, where the layer is older.
+composites:
+  # A Copernicus Browser `layer` is a dataset id of
+  # https://browser.dataspace.copernicus.eu/datasets.txt: the whole constellation's, a
+  # link, never one unit's layer.
+  - provider: copernicus-browser
+    layer: S3OLCI_CDAS
+    label: True colour scenes
+    kind: rgb
+    satellites:
+      - { noradId: 41335, name: SENTINEL-3A, instrument: OLCI }
+      - { noradId: 43437, name: SENTINEL-3B, instrument: OLCI }
+
+  - provider: copernicus-browser
+    layer: S2_L2A_CDAS
+    label: True colour scenes
+    kind: rgb
+    satellites:
+      - { noradId: 40697, name: SENTINEL-2A, instrument: MSI (Sentinel-2) }
+      - { noradId: 42063, name: SENTINEL-2B, instrument: MSI (Sentinel-2) }
+      - { noradId: 60989, name: SENTINEL-2C, instrument: MSI (Sentinel-2) }
+
+  - provider: copernicus-browser
+    layer: CDAS_L8_L9_LOTL1
+    label: True colour scenes
+    kind: rgb
+    satellites:
+      - { noradId: 39084, name: LANDSAT 8, instrument: OLI }
+      - { noradId: 49260, name: LANDSAT 9, instrument: OLI-2 }
+
+  # The geostationary ring, day and night, every hour for the last week: GOES-East,
+  # GOES-West, Meteosat at 0° and Himawari joined on one Web Mercator grid by the
+  # georing-mosaic project (ADR 0022). A cloud-optimized GeoTIFF of 512-pixel WebP blocks
+  # to Web Mercator zoom 8. Nothing poleward of about 81°. Its satellites are its plan's;
+  # each frame's credit names those that took part.
+  - provider: georing
+    layer: mosaic
+    label: Day/Night, Geostationary Ring
+    kind: rgb
+    maxLevel: 8
+    format: webp
+    period: PT1H
+    window: P7D
+    satellites:
+      - { noradId: 60133, name: GOES 19, instrument: ABI }
+      - { noradId: 51850, name: GOES 18, instrument: ABI }
+      - { noradId: 54743, name: METEOSAT-12 (MTG-I1), instrument: FCI }
+      - { noradId: 41836, name: HIMAWARI-9, instrument: AHI }
+
+  # EUMETSAT's natural colour of the five geostationary imagers in one picture every 3
+  # hours (Data Store EO:EUM:DAT:0336). Its pixels are about 0.025°.
+  - provider: eumetview
+    layer: mumi:wideareacoverage_rgb_natural
+    label: Natural colour, Geostationary Ring
+    kind: rgb
+    maxLevel: 6
+    format: png
+    period: PT3H
+    satellites:
+      # GOES-East since 2025-04-07: https://www.ospo.noaa.gov/data/messages/2025/04/MSG_20250407_1510.html
+      - { noradId: 60133, name: GOES 19, instrument: ABI, start: 2025-04-07 }
+      # GOES-West since 2023-01-04: https://ospo.noaa.gov/data/messages/2023/01/MSG_20230104_1805.html
+      - { noradId: 51850, name: GOES 18, instrument: ABI, start: 2023-01-04 }
+      - { noradId: 38552, name: METEOSAT-10 (MSG-3), instrument: SEVIRI, start: 2023-03-21 }
+      - { noradId: 28912, name: METEOSAT-9 (MSG-2), instrument: SEVIRI, start: 2022-06-01 }
+      # Himawari at 140.7°E since 2022-12-13: https://ds.data.jma.go.jp/mscweb/en/oper/status.html
+      # Himawari-8 stood in from 2025-10-12 to 2025-11-26 (WMO OSCAR).
+      - { noradId: 41836, name: HIMAWARI-9, instrument: AHI, start: 2022-12-13 }

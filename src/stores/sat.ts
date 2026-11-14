@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
 import { SATELLITE_COMPONENTS } from "@/config/components";
+import { activatedSatellite, type CatalogLookup } from "@/modules/satelliteActivation";
 import { sameValue } from "@/modules/util/equality";
 import {
   moved,
@@ -70,6 +71,14 @@ export const useSatStore = defineStore(
       }
       if (!sameValue(nextExcluded, excluded.value)) {
         excluded.value = nextExcluded;
+      }
+    }
+
+    /** Turns the satellite on, where neither its name nor one of its groups already does. */
+    function activateSatellite(name: string, catalog: CatalogLookup): void {
+      const patch = activatedSatellite({ enabledTags: tags.value, enabledSatellites: satellites.value, disabledSatellites: excluded.value }, name, catalog);
+      if (patch) {
+        setActivation(patch);
       }
     }
 
@@ -196,6 +205,7 @@ export const useSatStore = defineStore(
       groundStations,
       observerStation,
       setActivation,
+      activateSatellite,
       setGroundStations,
       setObserverStation,
       addGroundStation,

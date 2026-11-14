@@ -31,9 +31,10 @@ satellite an `imagery` field through the satellite table. The schema is
 **The manifest is written as the record is read: a satellite, its instruments, each
 one's imagery.** A satellite is named by NORAD id, an instrument by its CEOS short
 name, and an entry spells out its provider, its layer and the rest, a field a line.
-A layer that shows several satellites is listed under each and says `merged` there;
-one listed twice without it fails the build, since a copied entry would read as a
-shared layer.
+A layer that shows several satellites is a **composite**, listed once under
+`composites` with the satellites it shows, each with its instrument and the day it took
+over its position. The build gives each of them the entry, `merged`, after its own; a
+record reads as before. A layer listed in two places fails the build.
 
 **A layer named for a service is listed under the satellite that provides it now.**
 GOES-East is GOES-19's, and Meteosat has two services at 0°: the full disc of the
@@ -57,8 +58,9 @@ file and not where models are served:
   last frame of a layer that stopped, `window` a rolling history: GIBS keeps a
   geostationary layer 90 days, whatever its time domain lists. A later slice that draws
   the layer needs them as much as the panel does.
-- `merged` where it shows other satellites too. A layer that covers less than the
-  instrument sees says so in its label: "Natural colour, Europe".
+- `merged` on a record's entry where it shows other satellites too: a composite's. A
+  layer that covers less than the instrument sees says so in its label: "Natural colour,
+  Europe"; a composite's label names what it covers: "Natural colour, Geostationary Ring".
 - An instrument's first entry is its default.
 - `maxLevel` and `format` came later, with drawing the layer (ADR 0020).
 
@@ -145,8 +147,11 @@ the whole constellation's.
   and the layers. Compact for 126 layers, but a satellite's imagery lay in one section
   per provider, and which entry was an instrument's default depended on the order of
   those sections.
-- **A section of merged layers**, each naming the satellites it shows. Written once
-  per dataset, at the cost of a third kind of entry for three datasets.
+- **Each satellite's copy of a merged layer**, the first form. Rejected on 2026-11-14,
+  when the geostationary rings came: EUMETSAT's is one entry under five satellites and
+  the georing mosaic's under four, a handover moved five copies, and nothing held the
+  copies alike. The section of composites it had beaten, as a third kind of entry for
+  three datasets, took its place.
 - **Every colour layer a provider has of an instrument**: 14 for VIIRS, 20 for MISR,
   133 entries in all, most of them composites few would look for.
 - **A `since` beside `start`**, the handover day apart from the layer's first frame.

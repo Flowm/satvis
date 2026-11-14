@@ -226,7 +226,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import { SHOW_CAP, useCatalogFilters } from "@/composables/useCatalogFilters";
 import { useController } from "@/composables/useController";
-import { useSelectedEntity } from "@/composables/useSelectedEntity";
+import { type InfoTab, useSelectedEntity } from "@/composables/useSelectedEntity";
 import { ORBIT_CLASS_HINT, orbitColor, orbitKindHint, SUN_SYNC_COLOR } from "@/config/orbitClass";
 import { FACET_BY_KEY, FACETS, type FacetDef, type FacetKey, facetBranches, facetItems, NO_KIND, NO_INSTRUMENT_KIND, NO_PROGRAM, parseOrbitLeaf } from "@/modules/catalogFacets";
 import { formatInteger } from "@/modules/util/formats";
@@ -248,7 +248,7 @@ const emit = defineEmits<{ back: []; close: []; expand: []; "show-info": [name: 
 // The catalog, the sheet's state, and the revision that grows as groups load.
 const controller = useController();
 const { sats } = controller;
-const { openTab } = useSelectedEntity(controller);
+const { showSatellite } = useSelectedEntity(controller);
 const sheet = useCatalogFilters(sats.catalog);
 const { catalogRevision } = storeToRefs(useSatStore());
 
@@ -344,18 +344,16 @@ function add(): void {
   sheet.add(sheet.matched.value);
   full.value = false;
 }
-/** Selects the satellite and shrinks the sheet, so its info panel shows beside it. */
-function showInfo(name: string): void {
-  sheet.activateSat(name);
-  sats.select(name);
+/** Selects the satellite and shrinks the sheet, so its info panel shows beside it, at `tab` when given one. */
+function showInfo(name: string, tab?: InfoTab): void {
+  showSatellite(name, tab);
   full.value = false;
   emit("show-info", name);
 }
 
 /** Like showInfo, at the Imagery tab, as the Instruments tab's imagery button opens it. */
 function showImagery(name: string): void {
-  openTab("imagery");
-  showInfo(name);
+  showInfo(name, "imagery");
 }
 
 /** The custom satellites dialog is open. */

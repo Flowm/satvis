@@ -155,11 +155,8 @@ final class Surface {
     private var tiles: [TileKey: Tile] = [:]
     /// The tiles past the roots that hold a texture.
     private var texturedTiles = 0
-    /// The mosaic and the instrument imagery over the base map, the last on top.
+    /// The instrument imagery over the base map, the last on top.
     private var overlays: [Overlay] = []
-    // The geostationary mosaic's frame, laid first, and the instrument imagery.
-    private var mosaic: MosaicFrame?
-    private var instrumentImagery: [ImageryOverlay] = []
     private var terrainTiles: [TileKey: TerrainTile] = [:]
     /// When each terrain tile was last wanted, by frame.
     private var terrainUsed: [TileKey: Int] = [:]
@@ -220,49 +217,19 @@ final class Surface {
 
     /// A layer over the base map, and the tiles of its frame.
     private final class Overlay {
-        /// What it lays at one of its frames: the mosaic or an instrument's layer.
-        enum Frame: Equatable {
-            case mosaic(MosaicFrame)
-            case instrument(ImageryOverlay)
-
-            /// Names the layer, whatever its frame.
-            var token: String {
-                switch self {
-                case .mosaic: BaseLayer.geoMosaic.rawValue
-                case .instrument(let imagery): imagery.layer.token
-                }
-            }
-
-            /// Where its tiles come from.
-            var source: ImagerySource {
-                switch self {
-                case .mosaic(let frame): frame.source
-                case .instrument(let imagery): imagery.source
-                }
-            }
-
-            /// Where the service says the layer ends.
-            var limits: Bounds? {
-                guard case .instrument(let imagery) = self else {
-                    return nil
-                }
-                return imagery.bounds.flatMap { $0.count == 4 ? Bounds(west: $0[0], south: $0[1], east: $0[2], north: $0[3]) : nil }
-            }
-        }
-
-        var imagery: Frame
+        var imagery: ImageryOverlay
         let sources: SourceTiles
         /// The last frame's tiles, drawn where this frame's have not come yet, so that
         /// a frame change does not show the base map meanwhile.
         var previous: [TileKey: MTLTexture] = [:]
         /// The frame asked for while this one was loading, shown once it has.
-        var next: Frame?
+        var next: ImageryOverlay?
         /// When this frame was first shown.
         var since = Date()
 
-        init(_ imagery: Frame) {
+        init(_ imagery: ImageryOverlay) {
             self.imagery = imagery
-            sources = SourceTiles(imagery.source, name: imagery.token, keepsStandIns: true)
+            sources = SourceTiles(imagery.source, name: imagery.layer.token, keepsStandIns: true)
         }
 
         /// Whether any of this frame's tiles is on its way.
@@ -296,26 +263,13 @@ final class Surface {
     /// a clock faster than the service skips frames, as on the web, rather than
     /// cancelling each before it arrives.
     func setOverlays(_ imagery: [ImageryOverlay]) {
-        instrumentImagery = imagery
-        layOverlays()
-    }
-
-    /// Lays the mosaic's `frame` under the instrument imagery, as `setOverlays` lays
-    /// those; nil takes it off.
-    func setMosaic(_ frame: MosaicFrame?) {
-        mosaic = frame
-        layOverlays()
-    }
-
-    private func layOverlays() {
-        let imagery = (mosaic.map { [Overlay.Frame.mosaic($0)] } ?? []) + instrumentImagery.map(Overlay.Frame.instrument)
         guard imagery != overlays.map({ $0.next ?? $0.imagery }) else {
             return
         }
-        let layersChanged = imagery.map(\.token) != overlays.map(\.imagery.token)
-        let kept = Dictionary(overlays.map { ($0.imagery.token, $0) }) { first, _ in first }
+        let layersChanged = imagery.map(\.layer.token) != overlays.map(\.imagery.layer.token)
+        let kept = Dictionary(overlays.map { ($0.imagery.layer.token, $0) }) { first, _ in first }
         overlays = imagery.map { wanted in
-            guard let overlay = kept[wanted.token] else {
+            guard let overlay = kept[wanted.layer.token] else {
                 return Overlay(wanted)
             }
             overlay.next = wanted == overlay.imagery ? nil : wanted
@@ -735,7 +689,7 @@ final class Surface {
         }
         for overlay in overlays {
             var area = tile.bounds
-            if let limits = overlay.imagery.limits {
+            if let limits = overlay.imagery.bounds.flatMap({ $0.count == 4 ? Bounds(west: $0[0], south: $0[1], east: $0[2], north: $0[3]) : nil }) {
                 area = Bounds(
                     west: max(area.west, limits.west), south: max(area.south, limits.south), east: min(area.east, limits.east), north: min(area.north, limits.north))
                 guard area.west < area.east, area.south < area.north else {
@@ -1004,7 +958,7 @@ final class Surface {
 
     /// The frame each instrument's overlay shows.
     var overlayFrames: [String?] {
-        overlays.compactMap { if case .instrument(let imagery) = $0.imagery { imagery.frame } else { nil } }
+        overlays.compactMap { $0.imagery.layer.provider == .georing ? nil : $0.imagery.frame }
     }
 
     /// The base map's source tiles and each overlay's.

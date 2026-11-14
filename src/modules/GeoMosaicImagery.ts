@@ -3,7 +3,11 @@
 // georing-mosaic project and read straight from its bucket. Its static STAC collection
 // lists the Slots, an item each.
 
-import { type CogFile, CogImageryProvider } from "./CogImageryProvider";
+import { Tiff } from "@cogeotiff/core";
+
+import type { PreviewBounds } from "@/config/instrumentImagery";
+
+import { type CogFile, CogImageryProvider, rangeSource } from "./CogImageryProvider";
 import type { FrameList, FrameSource } from "./FramedImagery";
 
 const BUCKET = "https://s.satvis.space/geo";
@@ -44,7 +48,7 @@ async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
 }
 
 /** Each Slot the collection lists, in epoch milliseconds, to its item's url. A link without a time is skipped. */
-async function fetchItems(signal: AbortSignal): Promise<Map<number, string>> {
+async function fetchItems(signal?: AbortSignal): Promise<Map<number, string>> {
   const collection = await fetchJson<StacDocument>(COLLECTION, signal);
   const items = new Map<number, string>();
   for (const { rel, href, datetime } of collection.links ?? []) {
@@ -66,10 +70,29 @@ export async function itemFile(itemUrl: string): Promise<CogFile> {
   return { url: new URL(asset.href!, itemUrl).href, credits: item.properties?.["georing:attribution"] ?? [] };
 }
 
-/** The newest complete Slot's item, which `latest.json` names. */
-async function latestFile(): Promise<CogFile> {
-  const latest = await fetchJson<{ item: string }>(`${BUCKET}/latest.json`);
-  return itemFile(new URL(latest.item, `${BUCKET}/`).href);
+/** The newest Slot the collection lists, as the globe would show it with the clock past it. */
+async function newestFile(): Promise<CogFile> {
+  const items = await fetchItems();
+  const newest = items.get(Math.max(...items.keys()));
+  if (newest === undefined) {
+    throw new Error(`${COLLECTION}: no Slot`);
+  }
+  return itemFile(newest);
+}
+
+/** The newest Slot's file as last opened, and until when it is the newest. */
+let newestTiff: { until: number; tiff: Promise<Tiff> } | undefined;
+/** The newest Slot's file, opened once for every preview until the collection is due again. */
+function openNewest(): Promise<Tiff> {
+  if (newestTiff === undefined || Date.now() > newestTiff.until) {
+    const tiff = newestFile().then(({ url }) => Tiff.create(rangeSource(url)));
+    newestTiff = { until: Date.now() + REFRESH_MS, tiff };
+    // A failure is not kept: the next preview asks again.
+    tiff.catch(() => {
+      if (newestTiff?.tiff === tiff) newestTiff = undefined;
+    });
+  }
+  return newestTiff.tiff;
 }
 
 /** The Mosaic's frames: the collection's Slots, each drawn from its item's COG. */
@@ -88,13 +111,74 @@ export function geoMosaicFrames(): FrameSource<CogImageryProvider> {
       items = listed;
       return { ranges: [...items.keys()].toSorted((a, b) => a - b).map((slot) => ({ start: slot, end: slot, step: 0 })) };
     },
-    show: (frame) => {
-      const item = frame === undefined ? undefined : items.get(frame);
-      return new CogImageryProvider({
-        file: item ? itemFile(item) : latestFile(),
-        tileSize: TILE_SIZE,
-        maximumLevel: MAXIMUM_LEVEL,
-      });
-    },
+    // As the previews, it reads only the collection, not the bucket's latest.json.
+    listedOnly: true,
+    // Always a frame of the list `items` is.
+    show: (frame) => new CogImageryProvider({ file: itemFile(items.get(frame!)!), tileSize: TILE_SIZE, maximumLevel: MAXIMUM_LEVEL }),
   };
+}
+
+/** A longitude's Web Mercator pixel column in an image `size` pixels square. */
+const mercatorX = (longitude: number, size: number) => ((longitude + 180) / 360) * size;
+/** A latitude's Web Mercator pixel row in an image `size` pixels square. */
+const mercatorY = (latitude: number, size: number) => ((1 - Math.log(Math.tan(Math.PI / 4 + (latitude * Math.PI) / 360)) / Math.PI) / 2) * size;
+
+/**
+ * The newest Slot in `bounds`, `width` by `height` pixels in plate carrée, as the WMS
+ * previews of the other layers are: the blocks of the coarsest level with a pixel for
+ * each of the picture's, a request each, resampled to the nearest pixel. Transparent
+ * where the Mosaic is not. Across the antimeridian the blocks wrap. `signal` stops the
+ * blocks; the file's header is every preview's.
+ */
+export async function geoMosaicPreview(bounds: PreviewBounds, width: number, height: number, signal?: AbortSignal): Promise<Blob> {
+  const tiff = await openNewest();
+  const url = tiff.source.url.href;
+  const levels = tiff.images.filter((image) => image.size.width === image.size.height && image.tileSize.width === TILE_SIZE).toSorted((a, b) => a.size.width - b.size.width);
+  const image = levels.find((level) => (level.size.width * (bounds.east - bounds.west)) / 360 >= width) ?? levels.at(-1);
+  if (!image) {
+    throw new Error(`${url}: no level of ${TILE_SIZE}-pixel blocks`);
+  }
+  const size = image.size.width;
+  const blocks = image.tileCount.x;
+  const firstX = Math.floor(mercatorX(bounds.west, size) / TILE_SIZE);
+  const lastX = Math.floor(mercatorX(bounds.east, size) / TILE_SIZE);
+  const row = (latitude: number) => Math.max(0, Math.min(blocks - 1, Math.floor(mercatorY(latitude, size) / TILE_SIZE)));
+  const firstY = row(bounds.north);
+  const lastY = row(bounds.south);
+
+  const stitched = new OffscreenCanvas((lastX - firstX + 1) * TILE_SIZE, (lastY - firstY + 1) * TILE_SIZE);
+  const context = stitched.getContext("2d")!;
+  const reads: Promise<void>[] = [];
+  for (let x = firstX; x <= lastX; x++) {
+    for (let y = firstY; y <= lastY; y++) {
+      reads.push(
+        image.getTile(((x % blocks) + blocks) % blocks, y, { signal }).then(async (tile) => {
+          // A sparse block, poleward of what any satellite sees, is left transparent.
+          if (tile) {
+            const bitmap = await createImageBitmap(new Blob([tile.bytes], { type: tile.mimeType }));
+            context.drawImage(bitmap, (x - firstX) * TILE_SIZE, (y - firstY) * TILE_SIZE);
+            bitmap.close();
+          }
+        }),
+      );
+    }
+  }
+  await Promise.all(reads);
+
+  const source = context.getImageData(0, 0, stitched.width, stitched.height);
+  const picture = new ImageData(width, height);
+  const columns = Array.from({ length: width }, (_, px) => Math.floor(mercatorX(bounds.west + ((px + 0.5) / width) * (bounds.east - bounds.west), size)) - firstX * TILE_SIZE);
+  for (let py = 0; py < height; py++) {
+    const sy = Math.floor(mercatorY(bounds.north - ((py + 0.5) / height) * (bounds.north - bounds.south), size)) - firstY * TILE_SIZE;
+    if (sy < 0 || sy >= source.height) continue;
+    for (let px = 0; px < width; px++) {
+      const sx = columns[px]!;
+      if (sx < 0 || sx >= source.width) continue;
+      const from = (sy * source.width + sx) * 4;
+      picture.data.set(source.data.subarray(from, from + 4), (py * width + px) * 4);
+    }
+  }
+  const out = new OffscreenCanvas(width, height);
+  out.getContext("2d")!.putImageData(picture, 0, 0);
+  return out.convertToBlob({ type: "image/webp", quality: 0.85 });
 }

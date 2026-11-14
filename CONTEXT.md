@@ -88,12 +88,14 @@ discussion; sharpen them here when they drift.
   catalog facet whose picks are all-of (`docs/adr/0021-finding-imagery.md`).
 - **Kind family**: one of ten groups of CEOS's instrument **kinds** ("Optical imagers",
   "Radar"), the instrument kind tree's parents in the catalog sheet. Satvis's, not CEOS's.
-- **Imagery provider**: a service that holds instrument imagery and has its own viewer
-  for it (`gibs`, `eumetview`, `copernicus-browser`). A record names it; each app has a
+- **Imagery provider**: a service that holds instrument imagery, and mostly has its own
+  viewer for it (`gibs`, `eumetview`, `copernicus-browser`; `georing` has none). A record names it; each app has a
   table of the ones it knows (`src/config/instrumentImagery.ts`). Not
   `imageryProviders` in `CesiumLayerProviders.ts`, the Map panel's layers.
-- **Merged layer**: instrument imagery that shows several satellites, not told apart:
-  a Copernicus Browser dataset is the whole constellation's. Listed under each of them.
+- **Composite**: instrument imagery that shows several satellites, not told apart: a
+  Copernicus Browser dataset, a geostationary ring. Listed once in the imagery manifest's
+  `composites` with its satellites; each record carries it as `merged`. The Map panel
+  lists it once. _Avoid_: merged layer.
 - **Bus**: a spacecraft design, as GCAT names it (`Starlink V2M`, `A2100`); one
   bus serves many satellites.
 - **Satellite metadata**: the bag of static facts a GP record carries beside its
@@ -284,10 +286,10 @@ discussion; sharpen them here when they drift.
   of the world, so at most one is drawn; any number of overlays lie on top. The
   kind is a fact about the layer (`base` in `imageryProviders`), and it decides
   both the invariant and the menu control.
-- **Geostationary mosaic**: the `GeoMosaic` basemap, an hour's scans of the four
-  geostationary imagers joined on one Web Mercator grid. Made by the separate
-  georing-mosaic project, whose glossary calls one hour a **Slot** and its picture a
-  **Mosaic**; read straight from its bucket (`docs/adr/0022-geostationary-mosaic.md`).
+- **Geostationary mosaic**: the georing mosaic, `georing:mosaic`, a composite of the
+  four geostationary imagers joined on one Web Mercator grid every hour. Made by the
+  separate georing-mosaic project, whose glossary calls one hour a **Slot** and its
+  picture a **Mosaic**; read straight from its bucket (`docs/adr/0022-geostationary-mosaic.md`).
 - **Offline base map**: the `NaturalEarth` basemap, which ships with the app.
   Levels 0–3 are precached, so it is the only basemap guaranteed with no network;
   levels 4–5 are cached as they are viewed.

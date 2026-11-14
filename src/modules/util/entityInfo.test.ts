@@ -170,15 +170,17 @@ describe("getSatelliteInfo", () => {
     expect(info.instruments.map((instrument) => instrument.imagery)).toEqual([
       [
         {
+          key: "gibs:MODIS_Terra_CorrectedReflectance_TrueColor",
           label: "True colour",
           detail: "daily since 2000",
           viewer: "NASA Worldview",
           href: "https://worldview.earthdata.nasa.gov/?l=MODIS_Terra_CorrectedReflectance_TrueColor",
         },
-        { label: "Natural colour", viewer: "EUMETView", href: "https://view.eumetsat.int/productviewer?v=msg_fes:rgb%20natural" },
+        { key: "eumetview:msg_fes:rgb natural", label: "Natural colour", viewer: "EUMETView", href: "https://view.eumetsat.int/productviewer?v=msg_fes:rgb%20natural" },
       ],
       [
         {
+          key: "gibs:MISR_AM1_Ellipsoid_Radiance_RGB_AN",
           label: "True colour, camera An",
           detail: "daily, 2017–2022",
           viewer: "NASA Worldview",
@@ -196,6 +198,18 @@ describe("getSatelliteInfo", () => {
       { ...geocolor, layer: "Linked" },
       { ...geocolor, layer: "Ended", maxLevel: 7, format: "jpeg", period: "P1D", end: "2026-11-02" },
     ];
+    // A provider with no viewer: a layer the globe draws has no link, one it cannot is left out.
+    const mosaic = { ...geocolor, provider: "georing", layer: "mosaic", maxLevel: 8, format: "webp", period: "PT1H", window: "P7D", merged: true as const };
+    const [ring] = getSatelliteInfo(ISS, "GEO", { instruments: [{ name: "ABI" }], imagery: [mosaic, { ...mosaic, layer: "Undrawn", format: "gif" }] }).instruments;
+    expect(ring!.imagery).toEqual([
+      {
+        key: "georing:mosaic",
+        label: "GeoColor",
+        detail: "hourly, last 7 days, with other satellites",
+        token: "georing:mosaic",
+        preview: { provider: "georing", layer: "mosaic", format: "webp", daily: false },
+      },
+    ]);
     const [abi] = getSatelliteInfo(ISS, "LEO", { instruments: [{ name: "ABI" }], imagery }).instruments;
 
     expect(abi!.imagery.map((entry) => entry.token)).toEqual(["gibs:GOES-East_ABI_GeoColor", undefined, "gibs:Ended"]);
@@ -217,7 +231,7 @@ describe("getSatelliteInfo", () => {
     ];
     const [modis] = getSatelliteInfo(ISS, "LEO", { instruments: [{ name: "MODIS" }], imagery: malformed as never }).instruments;
 
-    expect(modis!.imagery).toEqual([{ label: "A", viewer: "NASA Worldview", href: "https://worldview.earthdata.nasa.gov/?l=a" }]);
+    expect(modis!.imagery).toEqual([{ key: "gibs:a", label: "A", viewer: "NASA Worldview", href: "https://worldview.earthdata.nasa.gov/?l=a" }]);
     expect(getSatelliteInfo(ISS, "LEO", { instruments: [{ name: "MODIS" }], imagery: "gibs" as never }).instruments[0]!.imagery).toEqual([]);
   });
 

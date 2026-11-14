@@ -56,6 +56,8 @@ export interface FrameSource<Shown> {
    * the service's latest. Not called before `fetchRanges` settles.
    */
   show: (frame?: number) => Shown;
+  /** It has no latest frame of its own: nothing shows until its frames are listed, and `show` is always given one. */
+  listedOnly?: boolean;
 }
 
 /** One frame on the globe. */
@@ -212,7 +214,9 @@ export function showFramedImagery<Layer>(
     if (signal.aborted) {
       return;
     }
-    if (!answer) {
+    if (!answer && source.listedOnly) {
+      console.warn(`[FramedImagery] no time domain for ${source.name}; showing nothing until it has one`);
+    } else if (!answer) {
       // The imagery stays usable, just not in time, until the service answers.
       console.warn(`[FramedImagery] no time domain for ${source.name}; showing its latest frame`);
       shown = add();

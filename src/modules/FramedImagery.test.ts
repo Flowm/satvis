@@ -18,7 +18,7 @@ const RANGES: TimeRange[] = [{ start: START, end: START + 60 * MINUTE, step: 10 
  * is the globe's word on all its tiles, `requests.answered` each frame's on its own;
  * `ranges` null for a service that cannot be reached, `covers` the times a partial list covers.
  */
-function shown(ranges: TimeRange[] | null = RANGES, covers?: FrameList["covers"]) {
+function shown(ranges: TimeRange[] | null = RANGES, covers?: FrameList["covers"], listedOnly = false) {
   const stack: Layer[] = [{ frame: undefined }];
   const layers = {
     add: (layer: Layer, index = stack.length) => void stack.splice(index, 0, layer),
@@ -39,7 +39,7 @@ function shown(ranges: TimeRange[] | null = RANGES, covers?: FrameList["covers"]
   const globe = { loaded: false };
   const requests = { answered: false };
   const fetchRanges = vi.fn((_signal: AbortSignal, _around: number): Promise<FrameList | undefined> => Promise.resolve(ranges ? { ranges, covers } : undefined));
-  const source = { name: "GeoColor", refreshMs: 30 * MINUTE, fetchRanges, show: (frame?: number) => ({ layer: { frame }, loaded: () => requests.answered }) };
+  const source = { name: "GeoColor", refreshMs: 30 * MINUTE, fetchRanges, show: (frame?: number) => ({ layer: { frame }, loaded: () => requests.answered }), listedOnly };
   const imagery = showFramedImagery<Layer>(source, layers, () => 1, {
     clock,
     requestRender: () => {},
@@ -222,6 +222,22 @@ describe("showFramedImagery", () => {
     await vi.advanceTimersByTimeAsync(1000);
     tick();
     expect(fetchRanges).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(0);
+    globe.loaded = true;
+    tick(4);
+    expect(frames()).toEqual([10]);
+    warn.mockRestore();
+  });
+
+  test("shows nothing while the list cannot be read when the service has no latest frame", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { frames, tick, globe, fetchRanges } = shown(null, undefined, true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(frames()).toEqual([]);
+
+    fetchRanges.mockResolvedValueOnce({ ranges: RANGES });
+    await vi.advanceTimersByTimeAsync(60_000);
+    tick();
     await vi.advanceTimersByTimeAsync(0);
     globe.loaded = true;
     tick(4);

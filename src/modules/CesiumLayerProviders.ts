@@ -12,21 +12,19 @@ import {
   WebMapServiceImageryProvider,
 } from "@cesium/engine";
 
-import type { FrameSource } from "./FramedImagery";
-import { geoMosaicFrames } from "./GeoMosaicImagery";
-
 /**
  * Always present (see data/imagery/.gitignore). Its depth is `__IMAGERY_MAX_LEVEL__` in vite.config.ts.
  */
 const NATURAL_EARTH = "data/imagery/NaturalEarthII";
 
-/** A layer of the Map panel: one that stays as it is, or one that follows the simulation time frame by frame (FramedImagery.ts). */
-export type ImageryProviderEntry = {
+/** A layer of the Map panel. */
+export interface ImageryProviderEntry {
   /** The Map panel's name for it; the key stays the url's and the store's (ADR 0001). */
   label: string;
   alpha: number;
   base: boolean;
-} & ({ create: () => ImageryProvider | Promise<ImageryProvider> } | { frames: () => FrameSource<ImageryProvider> });
+  create: () => ImageryProvider | Promise<ImageryProvider>;
+}
 
 export interface TerrainProviderEntry {
   /** The Map panel's name for it. */
@@ -98,16 +96,6 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
         tileHeight: 512,
         credit: "NASA Global Imagery Browse Services for EOSDIS",
       }),
-    alpha: 1,
-    base: true,
-  },
-  /**
-   * Hourly colour of the geostationary ring, day and night, for the last week. Nothing
-   * poleward of about 81°, where no geostationary satellite sees.
-   */
-  GeoMosaic: {
-    label: "Hourly (geostationary)",
-    frames: geoMosaicFrames,
     alpha: 1,
     base: true,
   },

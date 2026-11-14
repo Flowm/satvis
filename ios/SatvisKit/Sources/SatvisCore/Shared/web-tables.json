@@ -138,7 +138,8 @@
     "copernicus-browser": {
       "viewer": "Copernicus Browser",
       "link": "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId={layer}"
-    }
+    },
+    "georing": {}
   },
   "wavebandColumns": [
     {

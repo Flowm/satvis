@@ -52,8 +52,6 @@ import simd
         #expect(BaseLayer.versaTiles.source(site: site)?.url(TileKey(level: 5, x: 17, y: 11))?.absoluteString == "https://tiles.versatiles.org/tiles/satellite/5/17/11")
         let gibs = BaseLayer.blackMarble.source(site: site)?.url(TileKey(level: 0, x: 1, y: 0))?.absoluteString ?? ""
         #expect(gibs.contains("layers=VIIRS_Black_Marble") && gibs.contains("bbox=0.0,-90.0,180.0,90.0") && gibs.contains("srs=EPSG:4326"))
-        // Laid as an overlay, over the shipped Natural Earth alone.
-        #expect(BaseLayer.geoMosaic.source(site: site) == nil)
         // GibsImagery.ts's domain over a day either side of the clock, or all of it.
         let goes = ImageryOverlay(
             layer: SatelliteDetails.ImageryPreview(provider: .gibs, layer: "GOES-East_ABI_GeoColor", maxLevel: 7, format: .png, isDaily: false, end: nil), frame: nil, bounds: nil)

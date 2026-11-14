@@ -2004,6 +2004,7 @@
             ],
             "imagery": [
               {
+                "key": "eumetview:eps:m03_rgb_natural_fog",
                 "label": "Natural colour and fog, six orbits stacked",
                 "detail": "since 2020",
                 "viewer": "EUMETView",
@@ -2372,6 +2373,7 @@
             ],
             "imagery": [
               {
+                "key": "gibs:GOES-East_ABI_GeoColor",
                 "label": "GeoColor",
                 "detail": "every 10 min, last 90 days",
                 "viewer": "NASA Worldview",
@@ -9961,8 +9963,7 @@
       "layers": [
         "NaturalEarth",
         "VersaTiles",
-        "BlackMarble",
-        "GeoMosaic"
+        "BlackMarble"
       ],
       "terrain": [
         "None",
