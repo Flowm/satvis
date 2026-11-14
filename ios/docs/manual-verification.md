@@ -729,8 +729,11 @@ instrument with imagery.
 **Procedure.** Open the Map panel on an iPhone and an iPad, with no layer on. Check
 that "Satellite imagery" lists GEO satellites and LEO satellites, each with its icon
 and its count of layers, all closed, with no viewer link and no layer that stopped, and
-that the names fit. Open LEO satellites: its layers list under it, "TERRA · True colour"
-with the satellite's name first. Switch one on: the globe draws it, the group's count
+that the names fit. Open LEO satellites: its layers list under it, TERRA with "MODIS"
+after its name and a "True" pill at the row's end, and a picture button that opens
+TERRA's Imagery tab. Open GEO satellites: the GEO ring's two composites come first,
+with their cadence in the instrument's place, and each one's button opens a menu of
+its satellites, one of which opens that satellite's Imagery tab. Switch one on: the globe draws it, the group's count
 reads "1 on" in cyan and the group stays open. Switch it off: the group stays open too.
 Open GEO satellites: LEO satellites closes. Launch on a link with `imagery=`: the group with that layer opens on its own.
 Turn the network off before the first
@@ -755,6 +758,16 @@ catalog, shot by a UI test not kept: GEO satellites with 3 layers (GOES 19, METE
 two) and LEO satellites with 2, TERRA's stopped MISR layer left out, the names on one
 line. `testNamesAStoppedLayerALinkDraws` holds that a link's stopped layer is switched off
 above the groups by its label. The iPad was not looked at.
+
+**Result, 2026-11-14, rows, buttons and composites.** iPhone 18 Pro simulator, iOS 27.2,
+test catalog with the network on, shot by a UI test not kept. GEO satellites listed "GEO
+ring" first, "hourly" and a "Day + night" pill under it, then GOES 19 "ABI GeoColor" and
+METEOSAT-12's two, each on two lines, as the phone's panel is too narrow for one; TERRA
+"MODIS True" fit on one. The ring's button opened a menu of GOES 19 and METEOSAT-12
+(MTG-I1), and METEOSAT-12 opened its Imagery tab, whose mosaic card had a picture made
+from the newest Slot and no viewer link; switched on, the ring drew over the globe.
+`testShowsTheImageryOfACompositesSatellite` holds the menu and the buttons. The iPad and
+the Mac were not looked at.
 
 **Result, 2026-11-13, tile loading.** iPhone 18 Pro simulator, iOS 27.2, on the test
 catalog with the network on, shot by UI tests not kept, with the overlay tiles logged

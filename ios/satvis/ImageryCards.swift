@@ -7,6 +7,13 @@ struct ImageryLayer: Hashable {
     let imagery: SatelliteDetails.Imagery
 }
 
+/// Where a card's picture comes from: a provider's WMS answer, or, for the geostationary
+/// mosaic, which has no WMS, its newest Slot's file in these bounds.
+enum ImageryPreviewSource: Hashable {
+    case url(URL)
+    case mosaic(SatelliteDetails.PreviewBounds)
+}
+
 /// The Imagery tab, the web app's ImageryGallery: a card a layer, with a picture of its
 /// latest frame around the satellite, what it is, and a link to it in its provider's
 /// viewer, in as many columns as fit cards 220 pt wide, as the web app's grid. A row of
@@ -15,7 +22,7 @@ struct ImageryLayer: Hashable {
 struct ImageryCards: View {
     let layers: [ImageryLayer]
     /// A picture a layer, as `previews` builds them.
-    let previews: [ImageryLayer: URL]
+    let previews: [ImageryLayer: ImageryPreviewSource]
     let columns: Int
     let drawn: InstrumentImagery
 
@@ -38,13 +45,19 @@ struct ImageryCards: View {
     /// A picture of each layer, `halfWidthDeg` either side of `centre`, at `now` in
     /// milliseconds since 1970; none for a layer with no preview, nor any where the
     /// satellite has no position.
-    static func previews(_ layers: [ImageryLayer], centre: LivePosition?, halfWidthDeg: Double, now: Double) -> [ImageryLayer: URL] {
+    static func previews(_ layers: [ImageryLayer], centre: LivePosition?, halfWidthDeg: Double, now: Double) -> [ImageryLayer: ImageryPreviewSource] {
         guard let centre else {
             return [:]
         }
         return layers.reduce(into: [:]) { previews, layer in
-            previews[layer] = layer.imagery.preview.flatMap {
-                URL(string: SatelliteDetails.imageryPreviewUrl($0, latitude: centre.latitude, longitude: centre.longitude, halfWidthDeg: halfWidthDeg, now: now))
+            guard let preview = layer.imagery.preview else {
+                return
+            }
+            if preview.provider == .georing {
+                previews[layer] = .mosaic(SatelliteDetails.previewBounds(latitude: centre.latitude, longitude: centre.longitude, halfWidthDeg: halfWidthDeg))
+            } else {
+                previews[layer] = SatelliteDetails.imageryPreviewUrl(preview, latitude: centre.latitude, longitude: centre.longitude, halfWidthDeg: halfWidthDeg, now: now)
+                    .flatMap(URL.init(string:)).map(ImageryPreviewSource.url)
             }
         }
     }
@@ -77,7 +90,7 @@ struct ImageryCards: View {
 /// A layer's card: its picture, what it is, and its provider's viewer.
 private struct ImageryCard: View {
     let layer: ImageryLayer
-    let preview: URL?
+    let preview: ImageryPreviewSource?
     let drawn: InstrumentImagery
 
     var body: some View {
@@ -85,7 +98,7 @@ private struct ImageryCard: View {
         let token = imagery.preview?.token
         let isShown = token.map(drawn.isShown) ?? false
         VStack(alignment: .leading, spacing: 0) {
-            ImageryPicture(instrument: layer.instrument, label: imagery.label, url: preview, end: imagery.preview?.end)
+            ImageryPicture(instrument: layer.instrument, label: imagery.label, source: preview, mosaic: drawn.mosaic, end: imagery.preview?.end)
             VStack(alignment: .leading, spacing: 2) {
                 Text(imagery.label)
                     .font(.subheadline.weight(.semibold))
@@ -137,12 +150,12 @@ private struct ImageryCard: View {
         }
     }
 
-    /// The provider's viewer, which opens the layer there.
+    /// The provider's viewer, which opens the layer there; none for a provider without one.
     @ViewBuilder private func link(_ imagery: SatelliteDetails.Imagery) -> some View {
-        if let href = URL(string: imagery.href) {
+        if let href = imagery.href.flatMap(URL.init(string:)), let viewer = imagery.viewer {
             Link(destination: href) {
                 HStack(spacing: 4) {
-                    Text(imagery.viewer)
+                    Text(viewer)
                     Image(systemName: "arrow.up.right")
                         .font(.caption2.weight(.semibold))
                 }
@@ -152,7 +165,7 @@ private struct ImageryCard: View {
                 .padding(.vertical, 8)
                 .contentShape(.rect)
             }
-            .accessibilityLabel("Open in \(imagery.viewer)")
+            .accessibilityLabel("Open in \(viewer)")
         }
     }
 }
@@ -162,16 +175,32 @@ private struct ImageryCard: View {
 private struct ImageryPicture: View {
     let instrument: String
     let label: String
-    let url: URL?
+    let source: ImageryPreviewSource?
+    /// Makes the mosaic's picture.
+    let mosaic: GeoMosaic
     let end: String?
     /// Showing the placeholder, which the picture's accessibility value says.
     @State private var isMissing = false
+    /// The mosaic's picture once made, for its bounds, or nil where it could not be.
+    @State private var made: (bounds: SatelliteDetails.PreviewBounds, image: CGImage?)?
 
     var body: some View {
         Color(red: 0x0B / 255, green: 0x0D / 255, blue: 0x10 / 255)
             .aspectRatio(16 / 9, contentMode: .fit)
             .overlay {
-                if let url {
+                switch source {
+                case .mosaic(let bounds):
+                    if let made, made.bounds == bounds {
+                        if let image = made.image {
+                            Image(decorative: image, scale: 1).resizable().scaledToFill()
+                                .onAppear { isMissing = false }
+                        } else {
+                            placeholder
+                        }
+                    } else {
+                        ProgressView()
+                    }
+                case .url(let url):
                     AsyncImage(url: url) { phase in
                         switch phase {
                         case .success(let image):
@@ -183,11 +212,20 @@ private struct ImageryPicture: View {
                             ProgressView()
                         }
                     }
-                } else {
+                case nil:
                     placeholder
                 }
             }
             .clipped()
+            .task(id: source) {
+                guard case .mosaic(let bounds) = source, made?.bounds != bounds else {
+                    return
+                }
+                let image = try? await mosaic.preview(bounds, width: Int(SatelliteDetails.previewWidth), height: Int(SatelliteDetails.previewHeight))
+                if !Task.isCancelled {
+                    made = (bounds, image)
+                }
+            }
             .overlay(alignment: .topLeading) {
                 badge(instrument)
             }

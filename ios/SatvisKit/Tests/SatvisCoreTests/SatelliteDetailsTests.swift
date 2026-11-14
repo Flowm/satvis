@@ -26,10 +26,11 @@ import Testing
 
         /// The web app's `ImageryInfo`.
         struct Imagery: Decodable, Equatable {
+            let key: String
             let label: String
             let detail: String?
-            let viewer: String
-            let href: String
+            let viewer: String?
+            let href: String?
             let preview: Preview?
         }
 
@@ -95,7 +96,7 @@ import Testing
                     name: $0.name, fullName: $0.fullName, retired: $0.isRetired, rows: $0.rows.map { [$0.0, $0.1] }, bands: $0.bands,
                     imagery: $0.imagery.map {
                         Details.Imagery(
-                            label: $0.label, detail: $0.detail, viewer: $0.viewer, href: $0.href,
+                            key: $0.key, label: $0.label, detail: $0.detail, viewer: $0.viewer, href: $0.href,
                             preview: $0.preview.map { .init(provider: $0.provider.rawValue, layer: $0.layer, format: $0.format.rawValue, daily: $0.isDaily, end: $0.end) })
                     })
             }
@@ -183,11 +184,13 @@ import Testing
             record("TERRA", [.object(daily), .object(ended)]), goes, record("SENTINEL-2A", [.object(scenes)]),
         ])
         #expect(
-            listings.map { [$0.satellite, $0.imagery.label, $0.group.rawValue, $0.token] } == [
+            listings.map { [$0.name, $0.imagery.label, $0.group.rawValue, $0.token] } == [
                 ["GOES 19", "GeoColor", "geo", "gibs:GOES-East_ABI_GeoColor"],
                 ["TERRA", "True colour", "leo", "gibs:MODIS_Terra_CorrectedReflectance_TrueColor"],
             ])
         #expect(listings[0].imagery.detail == "every 10 min")
+        #expect(listings[0].kind == .satellite(.init(id: Catalog.id(of: goes), name: "GOES 19"), instrument: "ABI"))
+        #expect(listings[0].product == "GeoColor")
         #expect(listings[0].imagery.href == "https://worldview.earthdata.nasa.gov/?l=GOES-East_ABI_GeoColor")
 
         let once = SatelliteDetails.imageryListings([
@@ -201,6 +204,65 @@ import Testing
             record("NO IMAGERY", []),
         ])
         #expect(once.map(\.key) == ["\(base.satnum):gibs:GOES-East_ABI_GeoColor"])
+    }
+
+    // instrumentImagery.test.ts's composite cases: a layer of several satellites is listed once.
+    @Test func listsACompositeOnceFirst() throws {
+        let base = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first)
+        func record(_ name: String, _ satnum: String, _ imagery: [[String: JSONValue]]) -> GPRecord {
+            var record = base
+            record.name = name
+            if case .omm(var omm) = record.elements {
+                omm.noradCatID = satnum
+                record.elements = .omm(omm)
+            }
+            record.meanElements.meanMotion = 1.0027
+            record.meanElements.eccentricity = 0.0001
+            record.metadata["imagery"] = .array(imagery.map(JSONValue.object))
+            return record
+        }
+        let ring: [String: JSONValue] = [
+            "provider": .string("eumetview"), "layer": .string("mumi:wideareacoverage_rgb_natural"), "label": .string("Natural colour, GEO ring"),
+            "kind": .string("rgb"), "period": .string("PT3H"), "maxLevel": .number(6), "format": .string("png"), "merged": .bool(true),
+        ]
+        let mosaic: [String: JSONValue] = [
+            "provider": .string("georing"), "layer": .string("mosaic"), "label": .string("Day and night, GEO ring"), "kind": .string("rgb"),
+            "period": .string("PT1H"), "window": .string("P7D"), "maxLevel": .number(8), "format": .string("webp"), "merged": .bool(true),
+        ]
+        let goes: [String: JSONValue] = [
+            "provider": .string("gibs"), "layer": .string("GOES-East_ABI_GeoColor"), "label": .string("GeoColor"), "kind": .string("rgb"),
+            "period": .string("PT10M"), "window": .string("P90D"), "maxLevel": .number(7), "format": .string("png"), "instrument": .string("ABI"),
+        ]
+        let with = { (entry: [String: JSONValue], more: [String: JSONValue]) in entry.merging(more) { $1 } }
+        let goes19 = record("GOES 19", "60133", [goes, with(ring, ["instrument": .string("ABI"), "start": .string("2025-04-07")]), with(mosaic, ["instrument": .string("ABI")])])
+        let meteosat = record("METEOSAT-9 (MSG-2)", "28912", [with(ring, ["instrument": .string("SEVIRI"), "start": .string("2022-06-01")])])
+        let listings = SatelliteDetails.imageryListings([goes19, meteosat, goes19])
+        let satellite = { (record: GPRecord) in SatelliteDetails.ImageryListing.Satellite(id: Catalog.id(of: record), name: record.name) }
+        #expect(listings.map(\.key) == ["georing:mosaic", "eumetview:mumi:wideareacoverage_rgb_natural", "60133:gibs:GOES-East_ABI_GeoColor"])
+        #expect(listings.map(\.product) == ["Day + night", "Natural", "GeoColor"])
+        #expect(listings.map(\.imagery.detail) == ["hourly, last 7 days", "every 3 h since 2022", "every 10 min, last 90 days"])
+        #expect(listings[0].kind == .composite(name: "GEO ring", satellites: [satellite(goes19)], cadence: "hourly"))
+        #expect(listings[1].kind == .composite(name: "GEO ring", satellites: [satellite(goes19), satellite(meteosat)], cadence: "3-hourly"))
+        // No viewer, but drawn.
+        #expect(listings[0].imagery.href == nil && listings[0].imagery.viewer == nil)
+
+        let untitled = SatelliteDetails.imageryListings([
+            record("A", "1", [with(ring, ["label": .string("Natural colour"), "instrument": .string("X")])]),
+            record("B", "2", [with(ring, ["label": .string("Natural colour"), "instrument": .string("Y")])]),
+        ])
+        #expect(untitled.map(\.name) == [SatelliteDetails.composite])
+    }
+
+    // instrumentImagery.test.ts's shortImageryLabel cases.
+    @Test func shortensLabelsAsTheWebAppDoes() {
+        #expect(SatelliteDetails.shortImageryLabel("True colour") == "True")
+        #expect(SatelliteDetails.shortImageryLabel("True colour, one swath per orbit") == "True")
+        #expect(SatelliteDetails.shortImageryLabel("Natural colour, Europe") == "Natural")
+        #expect(SatelliteDetails.shortImageryLabel("Natural colour and fog, six orbits stacked") == "Natural + fog")
+        #expect(SatelliteDetails.shortImageryLabel("GeoColor") == "GeoColor")
+        #expect(SatelliteDetails.shortImageryLabel("GeoColour") == "GeoColour")
+        // One it would empty stays.
+        #expect(SatelliteDetails.shortImageryLabel("Colour") == "Colour")
     }
 
     // entityInfo.test.ts's cases: a provider this app does not know, an instrument the satellite lacks, a layer that stopped.
@@ -224,13 +286,15 @@ import Testing
             imagery == [
                 [
                     .init(
-                        label: "True colour", detail: "daily since 2000", viewer: "NASA Worldview",
+                        key: "gibs:MODIS_Terra_CorrectedReflectance_TrueColor", label: "True colour", detail: "daily since 2000", viewer: "NASA Worldview",
                         href: "https://worldview.earthdata.nasa.gov/?l=MODIS_Terra_CorrectedReflectance_TrueColor"),
-                    .init(label: "Natural colour", detail: nil, viewer: "EUMETView", href: "https://view.eumetsat.int/productviewer?v=msg_fes:rgb%20natural"),
+                    .init(
+                        key: "eumetview:msg_fes:rgb natural", label: "Natural colour", detail: nil, viewer: "EUMETView",
+                        href: "https://view.eumetsat.int/productviewer?v=msg_fes:rgb%20natural"),
                 ],
                 [
                     .init(
-                        label: "True colour, camera An", detail: "daily, 2017–2022", viewer: "NASA Worldview",
+                        key: "gibs:MISR_AM1_Ellipsoid_Radiance_RGB_AN", label: "True colour, camera An", detail: "daily, 2017–2022", viewer: "NASA Worldview",
                         href: "https://worldview.earthdata.nasa.gov/?l=MISR_AM1_Ellipsoid_Radiance_RGB_AN&t=2022-10-12")
                 ],
                 [],
@@ -253,7 +317,10 @@ import Testing
                     "merged": .string("yes"),
                 ]) { $1 }),
         ])
-        #expect(SatelliteDetails.instruments(record)[0].imagery == [.init(label: "A", detail: nil, viewer: "NASA Worldview", href: "https://worldview.earthdata.nasa.gov/?l=a")])
+        #expect(
+            SatelliteDetails.instruments(record)[0].imagery == [
+                .init(key: "gibs:a", label: "A", detail: nil, viewer: "NASA Worldview", href: "https://worldview.earthdata.nasa.gov/?l=a")
+            ])
         record.metadata["imagery"] = .string("gibs")
         #expect(SatelliteDetails.instruments(record)[0].imagery.isEmpty)
     }
@@ -305,7 +372,7 @@ import Testing
             trueColour.merging(["provider": .string("copernicus-browser")]) { $1 },
             trueColour.filter { $0.key != "maxLevel" },
             trueColour.merging(["maxLevel": .number(9.5)]) { $1 },
-            trueColour.merging(["format": .string("webp")]) { $1 },
+            trueColour.merging(["format": .string("gif")]) { $1 },
             trueColour.merging(["period": .string("P1M")]) { $1 },
             trueColour.filter { $0.key != "period" },
         ] {

@@ -71,8 +71,6 @@ final class Session {
     }
     /// The instrument imagery drawn over the base map (ADR 0020), kept in links as `imagery`.
     let instrumentImagery = InstrumentImagery()
-    /// The geostationary mosaic's frame for the clock, while it is the base map.
-    let geoMosaic = GeoMosaic()
     /// Whether the globe follows Re:Earth's terrain: off by default, as on the web.
     var terrain = UserDefaults.standard.bool(forKey: "terrain") {
         didSet {
@@ -107,7 +105,7 @@ final class Session {
         Credit.map(
             baseLayer: baseLayer, terrain: terrain,
             instrumentImagery: instrumentImagery.tokens.compactMap { SatelliteDetails.ImageryPreview.Provider(rawValue: String($0.prefix { $0 != ":" })) },
-            mosaic: geoMosaic.credit)
+            mosaic: instrumentImagery.mosaic.credit)
     }
 
     /// The site's privacy policy, which covers the app.
@@ -263,12 +261,6 @@ final class Session {
             Task { await watchInstrumentImagery() },
             Task {
                 await instrumentImagery.follow(now: { self.clock.now() }) { self.globe.instrumentImagery = $0 }
-            },
-            Task { [tiles] in
-                await geoMosaic.follow(
-                    shown: { self.baseLayer == .geoMosaic }, now: { self.clock.now() },
-                    read: { url, bytes in try await tiles.tile(url, contentType: "image/tiff", bytes: bytes, isDated: true) }
-                ) { self.globe.mosaic = $0 }
             },
             Task { await countViews() },
         ]

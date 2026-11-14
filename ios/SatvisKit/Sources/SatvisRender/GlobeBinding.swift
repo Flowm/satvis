@@ -18,7 +18,6 @@ public protocol Globe: AnyObject {
     var passthrough: CameraLens? { get set }
     func setImagery(_ layer: BaseLayer, site: URL)
     func setInstrumentImagery(_ overlays: [ImageryOverlay])
-    func setMosaic(_ frame: MosaicFrame?)
     func setTerrain(_ enabled: Bool)
     func setStations(_ stations: [StationMarker])
     func setLinks(_ links: [StationLink])
@@ -74,10 +73,6 @@ public final class GlobeBinding {
     /// The instrument imagery over the base map (`GlobeRenderer.setInstrumentImagery`).
     public var instrumentImagery: [ImageryOverlay] = [] {
         didSet { globe?.setInstrumentImagery(instrumentImagery) }
-    }
-    /// The geostationary mosaic's frame under it (`GlobeRenderer.setMosaic`).
-    public var mosaic: MosaicFrame? {
-        didSet { globe?.setMosaic(mosaic) }
     }
     /// Whether the globe follows the terrain.
     public var terrain = false {
@@ -149,7 +144,6 @@ public final class GlobeBinding {
             globe.setImagery(imagery.layer, site: imagery.site)
         }
         globe.setInstrumentImagery(instrumentImagery)
-        globe.setMosaic(mosaic)
         globe.setTerrain(terrain)
         globe.unseen = unseen
         globe.cameraFrame = cameraFrame

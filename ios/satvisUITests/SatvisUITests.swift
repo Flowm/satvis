@@ -179,8 +179,8 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(button.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Imagery of LI"].exists)
         button.tap()
-        XCTAssert(app.buttons["Imagery (2)"].waitForExistence(timeout: 5))
-        XCTAssert(app.buttons["Imagery (2)"].isSelected)
+        XCTAssert(app.buttons["Imagery (3)"].waitForExistence(timeout: 5))
+        XCTAssert(app.buttons["Imagery (3)"].isSelected)
         let show = app.switches["Show GeoColour on the globe"]
         XCTAssert(show.waitForExistence(timeout: 5))
         XCTAssertEqual(show.value as? String, "0")
@@ -212,11 +212,11 @@ nonisolated class SatvisUITests: XCTestCase {
         app.navigationBars.buttons["Close"].firstMatch.tap()
         openMenu(app)
         app.buttons["Map"].tap()
-        let listed = app.switches["METEOSAT-12 · GeoColour"]
+        let listed = app.switches["METEOSAT-12 (MTG-I1) FCI GeoColour"]
         XCTAssert(listed.waitForExistence(timeout: 10))
         XCTAssertEqual(listed.value as? String, "1")
         XCTAssertEqual(app.buttons["GEO satellites"].value as? String, "1 on")
-        flip(app, "METEOSAT-12 · GeoColour")
+        flip(app, "METEOSAT-12 (MTG-I1) FCI GeoColour")
         XCTAssert(waitForValue(listed, "0"))
     }
 
@@ -230,14 +230,57 @@ nonisolated class SatvisUITests: XCTestCase {
         let leo = app.buttons["LEO satellites"]
         XCTAssert(leo.waitForExistence(timeout: 10))
         // Closed until one is opened, with no layer on.
-        XCTAssertFalse(app.switches["TERRA · True colour"].exists)
+        XCTAssertFalse(app.switches["TERRA MODIS True colour"].exists)
         leo.tap()
-        flip(app, "TERRA · True colour")
-        XCTAssert(waitForValue(app.switches["TERRA · True colour"], "1"))
+        flip(app, "TERRA MODIS True colour")
+        XCTAssert(waitForValue(app.switches["TERRA MODIS True colour"], "1"))
         XCTAssertEqual(leo.value as? String, "1 on")
         app.buttons["GEO satellites"].tap()
-        XCTAssert(app.switches["GOES 19 · GeoColor"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.switches["TERRA · True colour"].exists)
+        XCTAssert(app.switches["GOES 19 ABI GeoColor"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.switches["TERRA MODIS True colour"].exists)
+    }
+
+    // A composite is one row, first in its group, named by its label's qualifier; its
+    // button's menu lists its satellites, and one opens that satellite's Imagery tab
+    // (ADR 0021). A satellite's own row opens its Imagery tab at once.
+    @MainActor
+    func testShowsTheImageryOfACompositesSatellite() {
+        let app = launch()
+        openMenu(app)
+        app.buttons["Map"].tap()
+        let geo = app.buttons["GEO satellites"]
+        XCTAssert(geo.waitForExistence(timeout: 10))
+        geo.tap()
+        let ring = app.switches["Day and night, GEO ring"]
+        XCTAssert(ring.waitForExistence(timeout: 5))
+        XCTAssertEqual(ring.value as? String, "0")
+        XCTAssertLessThan(ring.frame.minY, app.switches["GOES 19 ABI GeoColor"].frame.minY)
+        app.buttons["Show the imagery of a satellite of the GEO ring"].tap()
+        XCTAssert(app.buttons["GOES 19"].waitForExistence(timeout: 5))
+        let meteosat = app.buttons["METEOSAT-12 (MTG-I1)"]
+        XCTAssert(meteosat.exists)
+        meteosat.tap()
+        XCTAssert(app.navigationBars["METEOSAT-12 (MTG-I1)"].waitForExistence(timeout: 10))
+        XCTAssert(app.buttons["Imagery (3)"].waitForExistence(timeout: 5))
+        XCTAssert(app.buttons["Imagery (3)"].isSelected)
+        // The third card, under a phone's half-height sheet, in a lazy list.
+        let mosaic = app.images["FCI, Day and night, GEO ring"]
+        for _ in 0..<3 where !mosaic.waitForExistence(timeout: 2) {
+            app.collectionViews.firstMatch.swipeUp()
+        }
+        XCTAssert(mosaic.exists)
+
+        app.navigationBars.buttons["Close"].firstMatch.tap()
+        openMenu(app)
+        app.buttons["Map"].tap()
+        // Open again on no group, as no layer is on.
+        XCTAssert(geo.waitForExistence(timeout: 10))
+        geo.tap()
+        let goes = app.buttons["Show the imagery of GOES 19"]
+        XCTAssert(goes.waitForExistence(timeout: 5))
+        goes.tap()
+        XCTAssert(app.navigationBars["GOES 19"].waitForExistence(timeout: 10))
+        XCTAssert(app.buttons["Imagery (2)"].isSelected)
     }
 
     // A link's `imagery` draws its layers once a loaded record carries them (ADR 0020).
@@ -246,7 +289,7 @@ nonisolated class SatvisUITests: XCTestCase {
         let app = launch(link: "/?imagery=eumetview:mtg_fd:rgb_geocolour")
         openMenu(app)
         app.buttons["Map"].tap()
-        let listed = app.switches["METEOSAT-12 · GeoColour"]
+        let listed = app.switches["METEOSAT-12 (MTG-I1) FCI GeoColour"]
         XCTAssert(listed.waitForExistence(timeout: 10))
         XCTAssertEqual(listed.value as? String, "1")
     }

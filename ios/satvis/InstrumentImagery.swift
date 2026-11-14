@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import SatvisCore
+import SatvisData
 import SatvisRender
 import os
 
@@ -9,7 +10,7 @@ nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category:
 /// The instrument imagery drawn on the globe (ADR 0020), each layer by its token,
 /// `provider:layer`, as a link names it, drawn from the entry of whichever loaded record
 /// carries it, at the clock's frame: the web app's `instrumentImagery` and its frame
-/// sources (`GibsImagery.ts`, `EumetViewImagery.ts`).
+/// sources (`GibsImagery.ts`, `EumetViewImagery.ts`, `GeoMosaicImagery.ts`).
 @MainActor
 @Observable
 final class InstrumentImagery {
@@ -23,6 +24,13 @@ final class InstrumentImagery {
     @ObservationIgnored private var layers: [String: SatelliteDetails.ImageryPreview] = [:]
     @ObservationIgnored private var frames: [String: Frames] = [:]
     @ObservationIgnored private var drawn: [ImageryOverlay] = []
+    /// The geostationary mosaic's frames, each a file read by ranges.
+    let mosaic = GeoMosaic(read: InstrumentImagery.readFile)
+
+    /// A span of a file, through the tile cache: a frame's file never changes.
+    nonisolated private static func readFile(_ url: URL, _ bytes: ClosedRange<Int>) async throws -> Data {
+        try await TileFetcher.shared().tile(url, contentType: "image/tiff", bytes: bytes, isDated: true)
+    }
 
     /// A layer's frames as its service last listed them.
     private struct Frames {
@@ -98,6 +106,9 @@ final class InstrumentImagery {
             frames = frames.filter { tokens.contains($0.key) }
             let time = now()
             let overlays = tokens.compactMap { token in layers[token].flatMap { overlay($0, at: time) } }
+            if !overlays.contains(where: { $0.layer.provider == .georing }) {
+                mosaic.hide()
+            }
             if overlays != drawn {
                 drawn = overlays
                 apply(overlays)
@@ -110,6 +121,9 @@ final class InstrumentImagery {
     /// until its service first answers, as on the web: its latest frame drawn
     /// meanwhile would be loaded in full before the clock's.
     private func overlay(_ layer: SatelliteDetails.ImageryPreview, at time: Double) -> ImageryOverlay? {
+        if layer.provider == .georing {
+            return mosaic.frame(at: time).map { ImageryOverlay(layer: layer, frame: nil, bounds: nil, mosaic: $0) }
+        }
         let known = frames[layer.token]
         let refresh: TimeInterval = layer.provider == .gibs ? 30 * 60 : 5 * 60
         // A list that could not be read is asked for again; one that was, at once when
@@ -213,6 +227,9 @@ final class InstrumentImagery {
             let capabilities = EumetViewCapabilities(text)
             ranges = capabilities.ranges
             bounds = capabilities.bounds
+        case .georing:
+            // Listed by `mosaic`.
+            return nil
         }
         return (ranges, bounds)
     }

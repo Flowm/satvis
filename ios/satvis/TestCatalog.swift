@@ -11,7 +11,8 @@
     /// index and the default preset's groups as satvis.space served them on
     /// 2026-10-07, GCAT's facts included, and METOP-C's, GOES 19's, Meteosat-12's and
     /// INSAT-3D's instruments as CEOS lists them since (ADR 0018), the first three with
-    /// their imagery as the imagery manifest gives it (ADR 0019), and TERRA, whose two
+    /// their imagery as the imagery manifest gives it (ADR 0019), GOES 19 and Meteosat-12
+    /// with the geostationary mosaic's composite as well, and TERRA, whose two
     /// imagers have a layer each, as satvis.space served it on 2026-11-13; with only the
     /// core config's groups and presets, since the plugins' stay out of the repository,
     /// and the default preset's featured bookmarks and benchmark scenes as the core

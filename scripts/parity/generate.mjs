@@ -1040,8 +1040,7 @@ try {
     // `{satnum}` stands where the catalog number goes.
     externalLinks: externalLinks("{satnum}"),
     // By the name a record's `imagery` entry carries; `{layer}` and `{end}` stand where its own go.
-    // Those with a viewer: the native app does not draw the georing mosaic yet, and needs a link for the rest.
-    imageryProviders: Object.fromEntries(Object.entries(IMAGERY_PROVIDERS).filter(([, provider]) => provider.link !== undefined)),
+    imageryProviders: IMAGERY_PROVIDERS,
     // The Instruments tab's band strip, shortest wavelength first.
     wavebandColumns: WAVEBAND_COLUMNS,
     bookmarks: {

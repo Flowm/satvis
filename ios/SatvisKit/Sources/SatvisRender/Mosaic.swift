@@ -1,4 +1,7 @@
+import CoreGraphics
 import Foundation
+import ImageIO
+import SatvisCore
 
 /// The geostationary mosaic (ADR 0022): an hour's scans of the four geostationary imagers
 /// joined on one Web Mercator grid by the georing-mosaic project, a cloud-optimized
@@ -113,6 +116,94 @@ public struct MosaicFrame: Sendable, Equatable {
                 let index = key.y * (1 << key.level) + key.x
                 return index < level.count ? level[index] : nil
             })
+    }
+}
+
+extension MosaicFrame {
+    /// The frame in `bounds`, `width` by `height` pixels in plate carrée, as the WMS
+    /// previews of the other layers are: the tiles of the coarsest level with a pixel for
+    /// each of the picture's, read with `read`, resampled to the nearest pixel, as the web
+    /// app's `geoMosaicPreview` makes it. Transparent where the mosaic is not; across the
+    /// antimeridian the tiles wrap.
+    public func preview(
+        _ bounds: SatelliteDetails.PreviewBounds, width: Int, height: Int, read: @escaping @Sendable (ClosedRange<Int>) async throws -> Data
+    ) async throws -> CGImage {
+        let zooms = levels.keys.sorted()
+        guard let zoom = zooms.first(where: { Double(Mosaic.tileSize << $0) * (bounds.east - bounds.west) / 360 >= Double(width) }) ?? zooms.last,
+            let level = levels[zoom]
+        else {
+            throw MosaicError.noLevels
+        }
+        let size = Double(Mosaic.tileSize << zoom)
+        let columns = 1 << zoom
+        let tile = Double(Mosaic.tileSize)
+        // Web Mercator pixel coordinates in the level's square.
+        let mercatorX = { (longitude: Double) in (longitude + 180) / 360 * size }
+        let mercatorY = { (latitude: Double) in (1 - Foundation.log(tan(Double.pi / 4 + latitude * Double.pi / 360)) / Double.pi) / 2 * size }
+        let firstX = Int((mercatorX(bounds.west) / tile).rounded(.down))
+        let lastX = Int((mercatorX(bounds.east) / tile).rounded(.down))
+        let row = { (latitude: Double) in max(0, min(columns - 1, Int((mercatorY(latitude) / tile).rounded(.down)))) }
+        let firstY = row(bounds.north)
+        let lastY = row(bounds.south)
+
+        let tiles = try await withThrowingTaskGroup(of: (x: Int, y: Int, image: CGImage?).self) { group in
+            for x in firstX...lastX {
+                for y in firstY...lastY {
+                    let index = y * columns + ((x % columns) + columns) % columns
+                    // A sparse tile, poleward of what any satellite sees, is left transparent.
+                    guard index < level.count, let range = level[index] else {
+                        continue
+                    }
+                    group.addTask {
+                        let data = try await read(range)
+                        return (x, y, CGImageSourceCreateWithData(data as CFData, nil).flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) })
+                    }
+                }
+            }
+            return try await group.reduce(into: []) { $0.append($1) }
+        }
+
+        let stitchedWidth = (lastX - firstX + 1) * Mosaic.tileSize
+        let stitchedHeight = (lastY - firstY + 1) * Mosaic.tileSize
+        var stitched = [UInt8](repeating: 0, count: stitchedWidth * stitchedHeight * 4)
+        var picture = [UInt8](repeating: 0, count: width * height * 4)
+        let space = CGColorSpaceCreateDeviceRGB()
+        let info = CGImageAlphaInfo.premultipliedLast.rawValue
+        stitched.withUnsafeMutableBytes { bytes in
+            let context = CGContext(
+                data: bytes.baseAddress, width: stitchedWidth, height: stitchedHeight, bitsPerComponent: 8, bytesPerRow: stitchedWidth * 4, space: space, bitmapInfo: info)
+            for case (let x, let y, let image?) in tiles {
+                // A bitmap's first row is the top of the picture; Core Graphics counts from the bottom.
+                context?.draw(
+                    image,
+                    in: CGRect(x: (x - firstX) * Mosaic.tileSize, y: stitchedHeight - (y - firstY + 1) * Mosaic.tileSize, width: Mosaic.tileSize, height: Mosaic.tileSize))
+            }
+        }
+        let columnsFrom = (0..<width).map { px in
+            Int(mercatorX(bounds.west + (Double(px) + 0.5) / Double(width) * (bounds.east - bounds.west)).rounded(.down)) - firstX * Mosaic.tileSize
+        }
+        for py in 0..<height {
+            let sy = Int(mercatorY(bounds.north - (Double(py) + 0.5) / Double(height) * (bounds.north - bounds.south)).rounded(.down)) - firstY * Mosaic.tileSize
+            guard sy >= 0, sy < stitchedHeight else {
+                continue
+            }
+            for px in 0..<width {
+                let sx = columnsFrom[px]
+                guard sx >= 0, sx < stitchedWidth else {
+                    continue
+                }
+                let from = (sy * stitchedWidth + sx) * 4
+                let to = (py * width + px) * 4
+                picture[to..<(to + 4)] = stitched[from..<(from + 4)]
+            }
+        }
+        let image = picture.withUnsafeMutableBytes { bytes in
+            CGContext(data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: space, bitmapInfo: info)?.makeImage()
+        }
+        guard let image else {
+            throw MosaicError.noLevels
+        }
+        return image
     }
 }
 

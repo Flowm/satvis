@@ -120,9 +120,6 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
     case naturalEarth = "NaturalEarth"
     case versaTiles = "VersaTiles"
     case blackMarble = "BlackMarble"
-    /// Hourly, from the geostationary ring (`Mosaic`): laid as an overlay at the
-    /// clock's frame, over the shipped Natural Earth where it has no tile.
-    case geoMosaic = "GeoMosaic"
 
     /// The Map panel's name for it, the web app's (`CesiumLayerProviders.ts`).
     public var title: String {
@@ -130,18 +127,14 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
         case .naturalEarth: "Natural Earth"
         case .versaTiles: "Satellite (VersaTiles)"
         case .blackMarble: "Night (Black Marble)"
-        case .geoMosaic: "Hourly (geostationary)"
         }
     }
 
     /// Where its tiles come from. Natural Earth is the site's own, levels 3 to 5:
     /// the app ships level 2 and draws everything over it, and keeps each finer
     /// tile once fetched, 17 MB for the lot, so that a place seen once shows offline.
-    /// None for the mosaic, an overlay with the shipped level alone under it.
     func source(site: URL) -> ImagerySource? {
         switch self {
-        case .geoMosaic:
-            nil
         case .naturalEarth:
             ImagerySource(projection: .geographic, tileSize: 256, maximumLevel: 5, contentType: "image/", keeps: true) { key in
                 // A TMS pyramid: rows counted from the south.
@@ -218,16 +211,20 @@ enum Bake {
 /// An instrument's layer laid over the base map (ADR 0020), at one of its frames.
 public struct ImageryOverlay: Sendable, Equatable {
     public var layer: SatelliteDetails.ImageryPreview
-    /// The frame, as the service names it in a request; nil for the service's latest.
+    /// The frame, as the service names it in a request; nil for the service's latest,
+    /// and for the geostationary mosaic, whose frame is `mosaic`.
     public var frame: String?
     /// West, south, east and north in degrees, where the service says the layer ends;
     /// no tile outside them is asked for.
     public var bounds: [Double]?
+    /// The geostationary mosaic's frame, its file opened (ADR 0022), for a `georing` layer.
+    public var mosaic: MosaicFrame?
 
-    public init(layer: SatelliteDetails.ImageryPreview, frame: String?, bounds: [Double]?) {
+    public init(layer: SatelliteDetails.ImageryPreview, frame: String?, bounds: [Double]?, mosaic: MosaicFrame? = nil) {
         self.layer = layer
         self.frame = frame
         self.bounds = bounds
+        self.mosaic = mosaic
     }
 
     static let eumetView = "https://view.eumetsat.int/geoserver/ows"
@@ -235,11 +232,14 @@ public struct ImageryOverlay: Sendable, Equatable {
     /// Where its tiles come from, as the web app's `gibsFrames` and `eumetViewFrames` ask
     /// for them: GIBS's Web Mercator WMTS set, `GoogleMapsCompatible_Level<maxLevel>`;
     /// EUMETView's WMS in 512-pixel geographic tiles, which have the detail of a
-    /// 256-pixel Web Mercator one two levels down.
+    /// 256-pixel Web Mercator one two levels down; the mosaic's file, a range a tile.
     var source: ImagerySource {
         let layer = layer
         let frame = frame
         switch layer.provider {
+        case .georing:
+            // Not laid without its frame (`InstrumentImagery`): this asks for no tile.
+            return mosaic?.source ?? ImagerySource(projection: .webMercator, tileSize: Mosaic.tileSize, maximumLevel: 0, contentType: "image/tiff") { _ in nil }
         case .gibs:
             return ImagerySource(
                 projection: .webMercator, tileSize: 256, maximumLevel: layer.maxLevel, contentType: "image/", isDated: frame.map(GIBS.isWhole) ?? false
@@ -268,9 +268,11 @@ public struct ImageryOverlay: Sendable, Equatable {
 
     /// Where its frames are listed: GIBS's WMTS domain for the layer, over `covering`
     /// (epoch milliseconds) or all of it, or the layer's own WMS capabilities, which
-    /// list all of EUMETView's and give its bounds too.
+    /// list all of EUMETView's and give its bounds too, or the mosaic's STAC collection.
     public func framesURL(covering: ClosedRange<Double>? = nil) -> URL? {
         switch layer.provider {
+        case .georing:
+            return Mosaic.collection
         case .gibs:
             let name = { (time: Double) in Date(timeIntervalSince1970: time / 1000).formatted(.iso8601) }
             let range = covering.map { "\(name($0.lowerBound))--\(name($0.upperBound))" } ?? "all"

@@ -385,7 +385,11 @@ struct ContentView: View {
                                     clearTheGlobe()
                                 }
                             case .components: ComponentsPanel(catalog: session.catalog)
-                            case .map: MapPanel(session: session)
+                            case .map:
+                                MapPanel(session: session) {
+                                    session.select(.satellite($0.id))
+                                    clearTheGlobe()
+                                }
                             case .locations:
                                 LocationsPanel(passes: session.passes, onPick: pickFromLocations) {
                                     session.select(.station($0))
