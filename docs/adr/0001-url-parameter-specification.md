@@ -110,9 +110,8 @@ only through `SatelliteCatalog.registerGroups`, whose only production caller is
 encodes as `+`, and must never be escaped as `-`.
 
 `layers` items are validated against the segment before `_`. Base layers:
-`NaturalEarth`, `ArcGis`, `VersaTiles`, `OSM`, `BlackMarble`, `VIIRS`, `GeoMosaic`.
-Overlays: `Tiles`, `Nextrad`. `VIIRS` and `GeoMosaic` show the frame for `time`
-(`FramedImagery`).
+`NaturalEarth`, `ArcGis`, `VersaTiles`, `OSM`, `BlackMarble`, `GeoMosaic`. Overlays:
+`Tiles`, `Nextrad`. `GeoMosaic` shows the frame for `time` (`FramedImagery`).
 The Map panel shows one basemap on radios and any number of overlays on checkboxes;
 `base` on the registry entry (`src/modules/CesiumLayerProviders.ts`) decides which is
 which. The optional `_<alpha>` suffix sets the layer's opacity and has no UI control.
@@ -123,7 +122,9 @@ names a removed member of a closed vocabulary, so it is dropped and the basemap 
 back to the default. A link older than the registry can therefore open on a
 different map. `Offline` and `OfflineHighres` were retired when they merged into
 `NaturalEarth`; both resolve to the default, which is that layer, so those links
-land on the map they meant.
+land on the map they meant. `VIIRS`, NOAA-20's daily true colour, was retired for the
+same layer as instrument imagery (`imagery=gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor`,
+ADR 0020): a link that names it opens on the default basemap.
 
 At most one base layer is active. When a URL supplies several, the **last in list
 order wins** and earlier base layers are dropped; all overlays are kept. Last-wins

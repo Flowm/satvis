@@ -138,9 +138,7 @@ final class Surface {
     /// Fetches a tile's bytes: the app's tile fetcher, nil when it has none.
     var loader: (@Sendable (TileRequest) async -> Data?)?
     private(set) var layer = BaseLayer.naturalEarth
-    /// A daily layer's day.
-    private(set) var day: String?
-    /// Counts the changes of base map, day or overlays, for `Tile.generation`.
+    /// Counts the changes of base map or overlays, for `Tile.generation`.
     private var generation = 0
     /// Whether the surface follows Re:Earth's terrain or the ellipsoid.
     private(set) var terrainEnabled = false
@@ -200,18 +198,16 @@ final class Surface {
         sampler = device.makeSamplerState(descriptor: samplerDescriptor)!
     }
 
-    /// Changes the base map, or a daily one's day, and bakes every tile again, the
-    /// nearest first.
-    func setLayer(_ layer: BaseLayer, site: URL, frame: String? = nil) {
-        guard layer != self.layer || site != self.site || frame != day else {
+    /// Changes the base map and bakes every tile again, the nearest first.
+    func setLayer(_ layer: BaseLayer, site: URL) {
+        guard layer != self.layer || site != self.site else {
             return
         }
         self.layer = layer
         self.site = site
-        day = frame
         generation += 1
         baseMap.clear()
-        baseMap.source = layer.source(site: site, frame: frame)
+        baseMap.source = layer.source(site: site)
         baseMap.name = layer.rawValue
         for tile in tiles.values {
             tile.needsBake = true

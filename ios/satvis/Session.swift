@@ -66,7 +66,7 @@ final class Session {
     var baseLayer: BaseLayer = UserDefaults.standard.string(forKey: "baseLayer").flatMap(BaseLayer.init(rawValue:)) ?? .naturalEarth {
         didSet {
             UserDefaults.standard.set(baseLayer.rawValue, forKey: "baseLayer")
-            globe.setImagery(baseLayer, site: site, frame: imageryFrame)
+            globe.setImagery(baseLayer, site: site)
         }
     }
     /// The instrument imagery drawn over the base map (ADR 0020), kept in links as `imagery`.
@@ -90,12 +90,6 @@ final class Session {
     }
     @ObservationIgnored private let tiles = TileFetcher.shared()
     @ObservationIgnored private let keptTiles = KeptTiles.applicationSupport()
-    /// The days GIBS has VIIRS for, and when it was last asked.
-    @ObservationIgnored private var viirsDays: [ClosedRange<String>]?
-    @ObservationIgnored private var viirsDaysAsked: Date?
-    /// A daily base map's day, as the globe was given it: the clock's, within
-    /// GIBS's days; nil, GIBS's latest, until they are known.
-    @ObservationIgnored private var imageryFrame: String?
     let analytics = Analytics()
     let bookmarks: BookmarkModel = {
         #if DEBUG
@@ -236,7 +230,7 @@ final class Session {
             }
         }
         globe.modelLoader = modelLoader
-        globe.setImagery(baseLayer, site: site, frame: imageryFrame)
+        globe.setImagery(baseLayer, site: site)
         globe.terrain = terrain
         globe.unseen = unseen
         globe.cameraFrame = cameraFrame
@@ -263,7 +257,6 @@ final class Session {
             Task { await aim.watchCameraPlace { self.observer.flatMap(self.passes.station) } },
             Task { await loadFeaturedPictures() },
             Task { await predictPasses() },
-            Task { await followImageryDay() },
             Task { await watchInstrumentImagery() },
             Task {
                 await instrumentImagery.follow(now: { self.clock.now() }) { self.globe.instrumentImagery = $0 }
@@ -858,30 +851,6 @@ final class Session {
     private func watchEntries() async {
         for await lost in Observations({ self.focus.hasLost(in: self.catalog.catalog) }) where lost {
             perform(focus.catalogChanged(to: catalog.catalog))
-        }
-    }
-
-    /// Keeps a daily base map (VIIRS) on the clock's day, once a second, as the web
-    /// app's GibsImagery moves it with the clock, asking GIBS which days it has
-    /// finished every half hour, as long as GIBS lets its answer be cached.
-    private func followImageryDay() async {
-        while !Task.isCancelled {
-            if baseLayer.isDaily {
-                if viirsDaysAsked.map({ Date().timeIntervalSince($0) >= 1800 }) ?? true {
-                    viirsDaysAsked = Date()
-                    if let (data, _) = try? await URLSession.shared.data(from: GIBS.viirsDomain),
-                        let days = GIBS.days(inDomain: String(decoding: data, as: UTF8.self))
-                    {
-                        viirsDays = days
-                    }
-                }
-                let frame = viirsDays.map { GIBS.frame(at: clock.now(), within: $0) }
-                if frame != imageryFrame {
-                    imageryFrame = frame
-                    globe.setImagery(baseLayer, site: site, frame: frame)
-                }
-            }
-            try? await Task.sleep(for: .seconds(1))
         }
     }
 

@@ -21,7 +21,7 @@ public struct Credit: Hashable, Sendable {
             credits.append(Credit("VersaTiles sources", link: "https://versatiles.org/sources/"))
         }
         // The base map's or the instrument imagery's, once, as the web app's layers credit them.
-        if [.blackMarble, .viirs].contains(baseLayer) || instrumentImagery.contains(.gibs) {
+        if baseLayer == .blackMarble || instrumentImagery.contains(.gibs) {
             credits.append(Credit("NASA Global Imagery Browse Services for EOSDIS", link: "https://earthdata.nasa.gov/gibs"))
         }
         if instrumentImagery.contains(.eumetview) {

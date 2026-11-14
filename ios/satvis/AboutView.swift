@@ -42,7 +42,7 @@ struct AboutView: View {
         (.lucideEye, "See which satellites you could spot: the sky view dims those in Earth's shadow, too far away or in a daylit sky"),
         (
             .lucideLayers,
-            "View the globe in 3D or flattened to 2D, over the base map, star field and terrain you choose: satellite imagery, Earth at night or the day's VIIRS imagery"
+            "View the globe in 3D or flattened to 2D, over the base map, star field and terrain you choose: satellite imagery or Earth at night"
         ),
         (.lucideBookmark, "Start from the featured views, bookmark your own, and share any view as a link: it opens the same view on satvis.space"),
         (.lucideLink, "Open satvis.space links straight in the app"),

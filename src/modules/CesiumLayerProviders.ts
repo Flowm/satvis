@@ -14,7 +14,6 @@ import {
 
 import type { FrameSource } from "./FramedImagery";
 import { geoMosaicFrames } from "./GeoMosaicImagery";
-import { gibsFrames } from "./GibsImagery";
 
 /**
  * Always present (see data/imagery/.gitignore). Its depth is `__IMAGERY_MAX_LEVEL__` in vite.config.ts.
@@ -99,16 +98,6 @@ export const imageryProviders: Record<string, ImageryProviderEntry> = {
         tileHeight: 512,
         credit: "NASA Global Imagery Browse Services for EOSDIS",
       }),
-    alpha: 1,
-    base: true,
-  },
-  /**
-   * Daily true colour since 2018. A composite of swaths, so the gaps near the equator are
-   * black. NOAA-20 rather than Suomi NPP, whose recent days miss more swaths.
-   */
-  VIIRS: {
-    label: "Daily (VIIRS)",
-    frames: () => gibsFrames({ layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor", maximumLevel: 9, format: "jpeg", daily: true }),
     alpha: 1,
     base: true,
   },

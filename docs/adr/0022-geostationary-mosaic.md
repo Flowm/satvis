@@ -13,8 +13,8 @@ every overview level, and no tile service in front of it.
 
 ## Decision
 
-**A basemap of the Map panel, `GeoMosaic`, that follows the clock** as `VIIRS` does
-(ADR 0020): one Cesium layer a frame (`FramedImagery.ts`), the Slot at or before the
+**A basemap of the Map panel, `GeoMosaic`, that follows the clock** as instrument
+imagery does (ADR 0020): one Cesium layer a frame (`FramedImagery.ts`), the Slot at or before the
 clock's time. Not instrument imagery: it is no one satellite's.
 
 **The browser reads the COG itself, one range request a tile** (`CogImageryProvider.ts`,

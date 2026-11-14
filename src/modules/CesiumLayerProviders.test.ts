@@ -17,7 +17,7 @@ describe("the NaturalEarth base map", () => {
   });
 
   test("is the only offline basemap — every other one needs the network", () => {
-    expect(baseLayerNames()).toEqual(["NaturalEarth", "ArcGis", "VersaTiles", "OSM", "BlackMarble", "VIIRS", "GeoMosaic"]);
+    expect(baseLayerNames()).toEqual(["NaturalEarth", "ArcGis", "VersaTiles", "OSM", "BlackMarble", "GeoMosaic"]);
   });
 
   test("opacity-only overlays stay overlays", () => {

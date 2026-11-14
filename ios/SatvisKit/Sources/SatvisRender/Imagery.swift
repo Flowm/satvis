@@ -117,7 +117,6 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
     case naturalEarth = "NaturalEarth"
     case versaTiles = "VersaTiles"
     case blackMarble = "BlackMarble"
-    case viirs = "VIIRS"
 
     /// The Map panel's name for it, the web app's (`CesiumLayerProviders.ts`).
     public var title: String {
@@ -125,18 +124,13 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
         case .naturalEarth: "Natural Earth"
         case .versaTiles: "Satellite (VersaTiles)"
         case .blackMarble: "Night (Black Marble)"
-        case .viirs: "Daily (VIIRS)"
         }
     }
 
-    /// Whether it shows the clock's day (`frame`), as VIIRS's daily true colour does.
-    public var isDaily: Bool { self == .viirs }
-
     /// Where its tiles come from. Natural Earth is the site's own, levels 3 to 5:
     /// the app ships level 2 and draws everything over it, and keeps each finer
-    /// tile once fetched, 17 MB for the lot, so that a place seen once shows offline. `frame` is a daily
-    /// layer's day, `YYYY-MM-DD`; nil asks GIBS for its latest.
-    func source(site: URL, frame: String? = nil) -> ImagerySource {
+    /// tile once fetched, 17 MB for the lot, so that a place seen once shows offline.
+    func source(site: URL) -> ImagerySource {
         switch self {
         case .naturalEarth:
             ImagerySource(projection: .geographic, tileSize: 256, maximumLevel: 5, contentType: "image/", keeps: true) { key in
@@ -162,20 +156,11 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
                 ]
                 return components?.url
             }
-        case .viirs:
-            // GIBS's daily true colour from NOAA-20 since 2018, as the web app's
-            // GibsImagery asks for it: Web Mercator WMTS, 256-pixel tiles to level 9,
-            // a frame a day. A composite of swaths, so the gaps near the equator are black.
-            ImagerySource(projection: .webMercator, tileSize: 256, maximumLevel: 9, contentType: "image/", isDated: frame.map(GIBS.isWhole) ?? false) { key in
-                URL(
-                    string:
-                        "\(GIBS.wmts)/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/\(frame ?? "default")/GoogleMapsCompatible_Level9/\(key.level)/\(key.y)/\(key.x).jpg")
-            }
         }
     }
 }
 
-/// NASA's Global Imagery Browse Services, for the daily layers' frames.
+/// NASA's Global Imagery Browse Services, for the instrument imagery's frames.
 public enum GIBS {
     static let wmts = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best"
 
@@ -189,62 +174,6 @@ public enum GIBS {
             return false
         }
         return Date().timeIntervalSince(day) >= 2 * 86_400
-    }
-
-    /// Where VIIRS's frames are listed: the capabilities the web app's
-    /// GibsImagery reads its domain from.
-    public static let viirsDomain = URL(string: "\(wmts)/1.0.0/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/GoogleMapsCompatible_Level9/all/all.xml")!
-
-    /// The finished days a layer's `<Domain>` lists, sorted (`timeDomain.ts`'s
-    /// `parseDomain` and `withoutLatestFrame`, for a daily layer): ranges
-    /// `start/end/P1D` or single days, by commas. GIBS lists a day while it is still
-    /// imaging it, and serves what is missing as opaque black, so the newest is left
-    /// out. Nil where it lists nothing usable.
-    public static func days(inDomain xml: String) -> [ClosedRange<String>]? {
-        guard let open = xml.range(of: "<Domain>"), let close = xml.range(of: "</Domain>", range: open.upperBound..<xml.endIndex) else {
-            return nil
-        }
-        let ranges = xml[open.upperBound..<close.lowerBound].split(separator: ",").compactMap { entry -> (start: String, end: String)? in
-            let days = entry.split(separator: "/").prefix(2).map { String($0.trimmingCharacters(in: .whitespaces).prefix(10)) }
-            guard let start = days.first, let end = days.last, days.allSatisfy({ $0.wholeMatch(of: /\d{4}-\d{2}-\d{2}/) != nil }), start <= end else {
-                return nil
-            }
-            return (start, end)
-        }
-        .sorted { $0.start < $1.start }
-        .map { $0.start...$0.end }
-        guard let last = ranges.last else {
-            return nil
-        }
-        let finished = ranges.dropLast() + (last.lowerBound < last.upperBound ? [last.lowerBound...day(before: last.upperBound)] : [])
-        return finished.isEmpty ? nil : Array(finished)
-    }
-
-    /// The UTC day before `day`, both `yyyy-MM-dd`.
-    static func day(before day: String) -> String {
-        guard let date = try? Date("\(day)T00:00:00Z", strategy: .iso8601) else {
-            return day
-        }
-        return utcDay(of: date.addingTimeInterval(-86_400))
-    }
-
-    /// An instant's UTC date, `yyyy-MM-dd`.
-    static func utcDay(of date: Date) -> String {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
-        let parts = calendar.dateComponents([.year, .month, .day], from: date)
-        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 1, parts.day ?? 1)
-    }
-
-    /// The day a daily layer shows at an instant (`timeDomain.ts`'s `snapToFrame`):
-    /// its UTC date, or the latest listed day before it, so a gap holds the day
-    /// before it; the first day before them all.
-    public static func frame(at epochMilliseconds: Double, within days: [ClosedRange<String>]) -> String {
-        let day = utcDay(of: Date(timeIntervalSince1970: epochMilliseconds / 1000))
-        guard let range = days.last(where: { $0.lowerBound <= day }) else {
-            return days.first?.lowerBound ?? day
-        }
-        return min(day, range.upperBound)
     }
 }
 

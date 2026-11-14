@@ -356,10 +356,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         models.keep(only: Set(prepared.modelled.flatMap { prepared.satellites[$0].model?.files ?? [] }))
     }
 
-    /// The base map, the site the shipped one's finer levels come from, and a
-    /// daily one's day (`GIBS.frame`).
-    public func setImagery(_ layer: BaseLayer, site: URL, frame: String? = nil) {
-        surface.setLayer(layer, site: site, frame: frame)
+    /// The base map, and the site the shipped one's finer levels come from.
+    public func setImagery(_ layer: BaseLayer, site: URL) {
+        surface.setLayer(layer, site: site)
         pacer.needsDraw = true
     }
 

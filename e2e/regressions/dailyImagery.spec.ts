@@ -1,5 +1,6 @@
-// The Map panel's daily basemap (VIIRS) follows the clock frame by frame. GIBS is
-// stubbed: the layer's time domain is fixed here, and every tile is one transparent pixel.
+// A daily instrument layer (NOAA-20's VIIRS true colour) follows the clock frame by
+// frame. GIBS is stubbed: the layer's time domain is fixed here, and every tile is one
+// transparent pixel.
 
 import type { Page } from "@playwright/test";
 
@@ -20,7 +21,7 @@ function stubGibs(page: Page) {
   const install = async () => {
     await page.route("https://gibs.earthdata.nasa.gov/**", (route) => {
       const path = new URL(route.request().url()).pathname;
-      if (path.endsWith("/all.xml")) {
+      if (path.endsWith(".xml")) {
         domainRequests += 1;
         return route.fulfill({ contentType: "text/xml", body: `<Domains><DimensionDomain><Domain>${DOMAIN}</Domain></DimensionDomain></Domains>` });
       }
@@ -41,19 +42,22 @@ function stubGibs(page: Page) {
   };
 }
 
-test("the daily basemap requests the frame for the clock, and nothing once removed", async ({ page }) => {
+test("a daily layer requests the frame for the clock, and nothing once taken off", async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 600 });
   const gibs = stubGibs(page);
-  await openApp(page, `tags=&layers=VIIRS&time=${day(-10)}T15:07Z`, { setup: gibs.install, satellites: false });
+  // NOAA 20 is in no group the empty route loads: the link loads every group to find it.
+  await openApp(page, `tags=&imagery=gibs:${VIIRS}&time=${day(-10)}T15:07Z`, { setup: gibs.install, satellites: false });
   await page.evaluate(() => (window.cc!.viewer.clock.shouldAnimate = false));
 
-  // One layer again, the new day's, once it has replaced the old one's.
+  // The layer's frames on the globe, once the new day's has replaced the old one's.
   const settled = (shown: string) =>
     expect
       .poll(() =>
         page.evaluate(() => {
           const layers = window.cc!.viewer.imageryLayers;
-          return Array.from({ length: layers.length }, (_, index) => (layers.get(index).imageryProvider as unknown as { dimensions: { Time: string } }).dimensions.Time);
+          return Array.from({ length: layers.length }, (_, index) => (layers.get(index).imageryProvider as unknown as { dimensions?: { Time: string } }).dimensions?.Time).filter(
+            Boolean,
+          );
         }),
       )
       .toEqual([shown]);
@@ -71,16 +75,15 @@ test("the daily basemap requests the frame for the clock, and nothing once remov
   await expect.poll(() => gibs.times(VIIRS)).toEqual([day(-1)]);
   await settled(day(-1));
 
-  // NaturalEarth replaces VIIRS as the base map.
+  // Taken off in the Map panel, over the basemap it lay on.
   const tickListeners = () => page.evaluate(() => window.cc!.viewer.clock.onTick.numberOfListeners);
-  const listenersWithLayers = await tickListeners();
+  const listenersWithLayer = await tickListeners();
   await openMenu(page, "Map");
-  await menuSwitch(page, "Natural Earth").click();
-  await expect.poll(() => page.evaluate(() => (window.cc!.viewer.imageryLayers.get(0).imageryProvider as { url?: string } | undefined)?.url ?? "")).toContain("NaturalEarth");
-  expect(await page.evaluate(() => window.cc!.viewer.imageryLayers.length)).toBe(1);
-  expect(new URL(page.url()).searchParams.get("layers")).toBeNull();
+  await menuSwitch(page, "NOAA 20 · True colour").click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("imagery")).toBeNull();
+  await expect.poll(() => page.evaluate(() => window.cc!.viewer.imageryLayers.length)).toBe(1);
   // The layer followed the viewer's clock with one listener.
-  expect(await tickListeners()).toBe(listenersWithLayers - 1);
+  expect(await tickListeners()).toBe(listenersWithLayer - 1);
 
   gibs.clear();
   await setClock(page, `${day(-11)}T09:00:00Z`);
