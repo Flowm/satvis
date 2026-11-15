@@ -33,26 +33,22 @@ public enum SGP4Error: Error, Hashable {
 
 /// One element set, initialised for SGP4 as satellite.js does it: WGS-72, improved
 /// mode, the epoch and the time since it by satellite.js's own Julian arithmetic.
-/// It may be propagated from any thread: calls take turns on one working copy.
+/// It may be propagated from any thread: calls take turns on its one record.
 public final class SGP4Propagator: Sendable {
     public let elements: MeanElements
     /// The epoch's Julian date, which the minutes since epoch count from.
     public let epochJulianDate: Double
     /// The mean motion SGP4 recovered, in radians per minute: satellite.js's
     /// `satrec.no` once initialised.
-    public var meanMotion: Double { sgp4_mean_motion(satellite) }
+    public let meanMotion: Double
     /// satellite.js's `satrec.a`, `alta` and `altp`, in Earth radii.
-    public var shape: (semiMajorAxis: Double, apogeeAltitude: Double, perigeeAltitude: Double) {
-        let shape = sgp4_shape(satellite)
-        return (shape.semiMajorAxis, shape.apogeeAltitude, shape.perigeeAltitude)
-    }
-    private nonisolated(unsafe) let satellite: OpaquePointer
+    public let shape: (semiMajorAxis: Double, apogeeAltitude: Double, perigeeAltitude: Double)
     /// Propagated in place, so the deep-space integrator of a GEO or Molniya orbit
     /// goes on from where it stopped: with a fresh copy every call it integrated
     /// from the epoch each time. For GOES 19 sampled 120 days past its epoch, 7.1
     /// µs a call against 0.4 in place (a Mac, release build). The states are the
     /// same (`SGP4Bridge.h`).
-    private nonisolated(unsafe) let working: OpaquePointer
+    private nonisolated(unsafe) let satellite: OpaquePointer
     private let turn = Mutex(())
 
     public init(_ elements: MeanElements) throws(SGP4Error) {
@@ -77,11 +73,12 @@ public final class SGP4Propagator: Sendable {
             throw SGP4Error(code: code)
         }
         self.satellite = satellite
-        working = sgp4_copy(satellite)
+        meanMotion = sgp4_mean_motion(satellite)
+        let shape = sgp4_shape(satellite)
+        self.shape = (shape.semiMajorAxis, shape.apogeeAltitude, shape.perigeeAltitude)
     }
 
     deinit {
-        sgp4_destroy(working)
         sgp4_destroy(satellite)
     }
 
@@ -92,7 +89,7 @@ public final class SGP4Propagator: Sendable {
             withUnsafeMutableBytes(of: &position) { position in
                 withUnsafeMutableBytes(of: &velocity) { velocity in
                     sgp4_propagate(
-                        working, minutesSinceEpoch, position.baseAddress!.assumingMemoryBound(to: Double.self),
+                        satellite, minutesSinceEpoch, position.baseAddress!.assumingMemoryBound(to: Double.self),
                         velocity.baseAddress!.assumingMemoryBound(to: Double.self))
                 }
             }
