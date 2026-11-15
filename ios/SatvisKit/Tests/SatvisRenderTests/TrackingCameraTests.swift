@@ -53,6 +53,24 @@ struct TrackingCameraTests {
         #expect(simd.distance(SIMD3(dot(offset, axes.x), dot(offset, axes.y), dot(offset, axes.z)), expected) < 1e-6)
     }
 
+    // Low over a valley floor, the eye rises to the ridge under it by a steeper
+    // pitch, the same distance out; well above it, the camera is left alone.
+    @Test func climbsOverTheGroundUnderTheEye() {
+        let target = fixedPosition(latitude: 47.4211, longitude: 10.9853)
+        var camera = TrackingCamera()
+        camera.pitch = 5 * .pi / 180
+        camera.range = 10_000
+        let level = camera.range * cos(camera.pitch)
+        camera.keepAboveGround(target: target) { _ in 2_000 }
+        let pose = camera.pose(target: target)
+        #expect(abs(geodeticPosition(pose.position).height - 2_000 - TrackingCamera.groundClearance) < 1e-3)
+        #expect(abs(camera.range * cos(camera.pitch) - level) < 1e-6)
+
+        let above = camera
+        camera.keepAboveGround(target: target) { _ in 1_000 }
+        #expect(camera == above)
+    }
+
     @Test func standsStillInEastNorthUp() {
         let target = SIMD3(0, 6_378_137.0, 0)
         let axes = TrackingCamera.axes(target: target, velocity: .zero)

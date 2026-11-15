@@ -546,7 +546,7 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(launched.buttons["Leave the sky view"].waitForExistence(timeout: 20))
         XCTAssert(here.isSelected)
         // Touches soon after the location prompt are lost on the iOS 27 simulator,
-        // sometimes more than one (ios/docs/manual-verification.md): up to three tries.
+        // sometimes more than one: up to three tries.
         let back = launched.buttons["Back to the globe"]
         for _ in 0..<3 where !launched.buttons["Home view"].exists {
             if back.exists {

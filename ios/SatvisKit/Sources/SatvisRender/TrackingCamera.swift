@@ -1,4 +1,5 @@
 import Foundation
+import SatvisCore
 import simd
 
 /// Where the camera is and which way it faces, in the Earth-fixed frame: what one
@@ -110,6 +111,40 @@ struct TrackingCamera: Sendable, Equatable {
         return CameraPose(position: target + range * back, right: right, up: cross(back, right), back: back, near: min(1, range / 10))
     }
 
+    /// The steepest the camera looks down on what it follows.
+    private static let maximumPitch = 89 * Double.pi / 180
+    /// Metres the eye keeps over the ground: the sky view's eye height.
+    static let groundClearance = SkyCamera.eyeHeight
+
+    /// Lifts the eye up out of the ground, as CesiumJS's collision detection
+    /// does, by a steeper pitch and a longer range, so a pinch carries on from
+    /// the view drawn. A ground station stands on the ellipsoid, thousands of
+    /// metres inside a mountain, and its range is measured from there.
+    /// `groundHeight` is the ground's in metres at a place, nil where no terrain
+    /// has loaded.
+    mutating func keepAboveGround(target: SIMD3<Double>, velocity: SIMD3<Double> = .zero, groundHeight: (GeoCoordinate) -> Double?) {
+        let eye = pose(target: target, velocity: velocity).position
+        let place = geodeticPosition(eye)
+        let floor = (groundHeight(GeoCoordinate(latitude: place.latitude * 180 / .pi, longitude: place.longitude * 180 / .pi)) ?? 0) + Self.groundClearance
+        guard place.height < floor else {
+            return
+        }
+        // Up the frame's z, which is geocentric: off the ground's normal by 0.19°
+        // at 47° N, enough to move a lifted eye by metres a frame.
+        let normal = eastNorthUp(latitude: place.latitude, longitude: place.longitude).up
+        let up = Self.axes(target: target, velocity: velocity).z
+        let offset = eye - target
+        let level = length(offset - dot(offset, up) * up)
+        let rise = dot(offset, up) + (floor - place.height) / dot(up, normal)
+        if atan2(rise, level) < Self.maximumPitch {
+            pitch = atan2(rise, level)
+            range = (rise * rise + level * level).squareRoot()
+        } else {
+            pitch = Self.maximumPitch
+            range = (floor - geodeticPosition(target).height) / dot(pose(target: target, velocity: velocity).back, normal)
+        }
+    }
+
     /// Circles the satellite: across turns the heading, up and down the pitch.
     /// Ignores a gesture that is not finite, as `OrbitCamera.rotate` says why.
     mutating func orbit(by points: SIMD2<Double>, longerSide: Double) {
@@ -118,7 +153,7 @@ struct TrackingCamera: Sendable, Equatable {
         }
         let radiansPerPoint = Double.pi / longerSide
         heading -= points.x * radiansPerPoint
-        pitch = min(max(pitch + points.y * radiansPerPoint, 5 * .pi / 180), 89 * .pi / 180)
+        pitch = min(max(pitch + points.y * radiansPerPoint, 5 * .pi / 180), Self.maximumPitch)
     }
 
     mutating func zoom(by scale: Double) {

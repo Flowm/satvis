@@ -467,6 +467,7 @@ struct CameraRig {
             // As CesiumJS tells the velocity: by where it is a millisecond on, or one
             // before at the end of what is known.
             let velocity = target(id, now + 1).map { ($0 - position) * 1000 } ?? target(id, now - 1).map { (position - $0) * 1000 } ?? .zero
+            trackingCamera.keepAboveGround(target: position, velocity: velocity, groundHeight: groundHeight)
             pose = trackingCamera.pose(target: position, velocity: velocity)
         }
         if let flight = poseFlight {

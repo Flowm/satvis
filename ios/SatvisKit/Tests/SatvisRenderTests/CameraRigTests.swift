@@ -24,9 +24,10 @@ import simd
 
     @discardableResult
     private static func frame(
-        _ rig: inout CameraRig, at uptime: Double, time: Double = time, target: SIMD3<Double>? = nil, model: TrackedModel = .noModel
+        _ rig: inout CameraRig, at uptime: Double, time: Double = time, target: SIMD3<Double>? = nil, model: TrackedModel = .noModel,
+        ground: Double = 0
     ) -> CameraPose? {
-        rig.pose(uptime: uptime, time: time, model: { _ in model }, target: { _, _ in target }, groundHeight: { _ in 0 })
+        rig.pose(uptime: uptime, time: time, model: { _ in model }, target: { _, _ in target }, groundHeight: { _ in ground })
     }
 
     @Test func landsInTheSkyViewAfterTheFlightAndHoldsTheGesturesTillThen() throws {
@@ -105,6 +106,28 @@ import simd
         #expect(simd.distance(start.position, tracked.position) < 1e-3)
         let end = try #require(Self.frame(&rig, at: 8 + PoseFlight.duration))
         #expect(simd.distance(end.position, before.position) < 1e-3)
+    }
+
+    // A station stands on the ellipsoid, 2,962 m inside the Zugspitze: pinched in
+    // to the limit, the eye went into the mountain and drew nothing.
+    @Test func keepsTheEyeAboveTheGroundAroundAStation() throws {
+        let station = fixedPosition(latitude: 47.4211, longitude: 10.9853)
+        let summit = 2_962.0
+        var rig = Self.rig()
+        rig.track("gs:Zugspitze", animated: false, uptime: 1) { _ in .noModel }
+        for _ in 0..<20 {
+            rig.zoom(by: 10)
+        }
+        let closest = try #require(Self.frame(&rig, at: 2, target: station, ground: summit))
+        #expect(geodeticPosition(closest.position).height >= summit + TrackingCamera.groundClearance - 1e-6)
+        #expect(simd.distance(normalize(closest.position - station), closest.back) < 1e-9)
+
+        // Held there, frame after frame, and a pinch out leaves from it.
+        let held = try #require(Self.frame(&rig, at: 3, target: station, ground: summit))
+        #expect(simd.distance(held.position, closest.position) < 1e-3)
+        rig.zoom(by: 0.5)
+        let out = try #require(Self.frame(&rig, at: 4, target: station, ground: summit))
+        #expect(abs(simd.distance(out.position, station) - 2 * simd.distance(closest.position, station)) < 1e-3)
     }
 
     @Test func goesHomeFromAPoseThatIsNotFinite() throws {
