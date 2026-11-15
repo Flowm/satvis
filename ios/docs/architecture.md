@@ -384,8 +384,8 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   projection, the sky view, the base map, the way home and Hide UI (⇧⌘H) under
   View; Find, Track and Info under Satellite; the bookmarks; the view's link
   (⇧⌘C: ⌘C copies a field's text) and the site's links under Help. What only the
-  window holds, its panels, Bookmarks among them, and Hide UI, reaches it as a focused scene
-  value (`WindowCommands`).
+  window holds, its panels, Bookmarks among them, and Hide UI (`WindowChrome`),
+  reaches it as a focused scene binding.
 - The info card draws its title and buttons in a bar of its own
   (`cardHeader` in `InfoPanel.swift`), as the tool panels' title row with their
   bezel-less buttons (`titleRowButton`): a Mac's navigation stack has no bar, and
