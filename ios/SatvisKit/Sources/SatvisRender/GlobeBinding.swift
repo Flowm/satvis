@@ -4,7 +4,7 @@ import SatvisCore
 /// What `GlobeBinding` sets on a globe: `GlobeRenderer`, or a fake in tests. The
 /// members are `GlobeRenderer`'s, and documented there.
 @MainActor
-public protocol Globe: AnyObject {
+protocol Globe: AnyObject {
     /// Satellites packed for drawing.
     associatedtype Prepared: Sendable
 
@@ -44,7 +44,7 @@ public final class GlobeBinding {
     /// Where the camera stands when a globe attaches: what the camera commands
     /// left it on, such as a link that opened on the sky view, with no globe to fly
     /// from yet, or on something followed.
-    public enum Camera: Equatable, Sendable {
+    enum Camera: Equatable, Sendable {
         /// On the ground with this camera.
         case sky(SkyCamera)
         /// Following what has this id.
@@ -69,7 +69,7 @@ public final class GlobeBinding {
         didSet { globe?.modelLoader = modelLoader }
     }
     /// The base map, and the site its finer levels come from; nil leaves the globe's own.
-    public private(set) var imagery: (layer: BaseLayer, site: URL)?
+    private var imagery: (layer: BaseLayer, site: URL)?
     /// The instrument imagery over the base map (`GlobeRenderer.setInstrumentImagery`).
     public var instrumentImagery: [ImageryOverlay] = [] {
         didSet { globe?.setInstrumentImagery(instrumentImagery) }
@@ -88,7 +88,7 @@ public final class GlobeBinding {
     }
     /// How the globe is drawn, as a globe or as the flat map; in the sky view the
     /// projection it goes back to. Set with `setProjection`.
-    public private(set) var projection = GlobeProjection.threeD
+    private var projection = GlobeProjection.threeD
     /// The ground stations to stand pins on.
     public var stations: [StationMarker] = [] {
         didSet { globe?.setStations(stations) }
@@ -99,7 +99,7 @@ public final class GlobeBinding {
     }
     /// Where the camera stands when a globe attaches; nil leaves it where the
     /// globe opens.
-    public private(set) var camera: Camera?
+    private var camera: Camera?
     /// The camera whose picture the sky view is drawn over, while it is drawn
     /// over (`GlobeRenderer.passthrough`).
     public var passthrough: CameraLens? {
@@ -132,10 +132,15 @@ public final class GlobeBinding {
     /// Whether a globe is attached.
     var isAttached: Bool { globe != nil }
 
+    /// Takes over the renderer (`attach(globe:)`).
+    public func attach(_ renderer: GlobeRenderer) {
+        attach(globe: renderer)
+    }
+
     /// Takes over a globe, and sets everything on it: the loaders before what
     /// fetches through them, the camera after the stations it may follow, and the
     /// satellites last, once packed, after the components they are drawn with.
-    public func attach(_ globe: any Globe) {
+    func attach(globe: any Globe) {
         self.globe = globe
         globe.clock = clock
         globe.tileLoader = tileLoader

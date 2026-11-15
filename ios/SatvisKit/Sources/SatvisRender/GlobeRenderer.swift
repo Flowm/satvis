@@ -69,7 +69,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     var cameraMode: CameraMode { rig.cameraMode }
     /// The sky view's camera, while it is on the ground.
     public var skyCamera: SkyCamera? { rig.skyCamera }
-    public var components: SatelliteComponents = [.point, .label] {
+    var components: SatelliteComponents = [.point, .label] {
         didSet {
             keepModelsInUse()
             pacer.needsDraw = true
@@ -84,7 +84,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// What the free camera holds still in. Tracking keeps the satellite's own
     /// frame, and the sky view the observer's, so it waits while either is up:
     /// the free camera does not turn meanwhile.
-    public var cameraFrame: CameraFrame {
+    var cameraFrame: CameraFrame {
         get { rig.cameraFrame }
         set {
             rig.cameraFrame = newValue
@@ -92,7 +92,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
     }
     /// In the sky view, how the satellites that cannot be seen are drawn (ADR 0010).
-    public var unseen = UnseenMode.dim {
+    var unseen = UnseenMode.dim {
         didSet {
             pacer.needsDraw = true
             // The crosshair passes over hidden ones: judged again at once.
@@ -103,7 +103,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// (ADR 0013): the view is then clear where the scene leaves the sky, the
     /// ground hides what is behind it without hiding the picture, and the field of
     /// view is the camera's.
-    public var passthrough: CameraLens? {
+    var passthrough: CameraLens? {
         get { rig.passthrough }
         set {
             rig.passthrough = newValue
@@ -112,12 +112,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
     /// The instant to draw `ahead` seconds from now, in UTC milliseconds since
     /// 1970: a frame is drawn for when it will be shown (`FramePresentation`).
-    public var clock: (_ ahead: Double) -> Double = wallClock {
+    var clock: (_ ahead: Double) -> Double = wallClock {
         didSet { pacer.needsDraw = true }
     }
 
     /// The device's own clock, for `clock`.
-    public static let wallClock: @Sendable (_ ahead: Double) -> Double = { (Date().timeIntervalSince1970 + $0) * 1000 }
+    static let wallClock: @Sendable (_ ahead: Double) -> Double = { (Date().timeIntervalSince1970 + $0) * 1000 }
 
     private nonisolated let device: MTLDevice
     private let queue: MTLCommandQueue
@@ -153,7 +153,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let snapshots = SnapshotRequests()
 
     /// Called with the first frame the GPU fails of each kind, which it logs.
-    public var onGPUFault: (@MainActor @Sendable (GPUFault) -> Void)? {
+    var onGPUFault: (@MainActor @Sendable (GPUFault) -> Void)? {
         get { loop.faults.onFault }
         set { loop.faults.onFault = newValue }
     }
@@ -163,7 +163,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var measurers: Set<String> = []
 
     /// Whether frames are measured.
-    public var measuresFrames: Bool { !measurers.isEmpty }
+    var measuresFrames: Bool { !measurers.isEmpty }
 
     /// Measures frames for `user`, or stops once its last user does.
     public func measureFrames(_ on: Bool, for user: String) {
@@ -183,7 +183,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     public var drawsEveryFrame = false
 
     /// Whether the last frame was paced: drawn only once something could have moved.
-    public private(set) var isPaced = false
+    private(set) var isPaced = false
 
     /// The last frame of the other projection, fading out over the frames since
     /// the change.
@@ -297,7 +297,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The star map behind everything: six encoded square faces in the order
     /// +X, −X, +Y, −Y, +Z, −Z, oriented as a CesiumJS sky box is. The sky is black
     /// until it is set.
-    public func setStarMap(faces: [Data]) {
+    func setStarMap(faces: [Data]) {
         Task.detached(priority: .utility) {
             let bitmaps = Textures.cubeFaces(faces)
             await MainActor.run {
@@ -309,7 +309,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// Packs satellites for drawing, off the main thread. Hand the result to
     /// `setSatellites`. Unlabelled, it sets no names: tens of milliseconds for 16,000.
-    public nonisolated func prepare(_ satellites: [PointSatellite], labelled: Bool = true) async -> PreparedSatellites {
+    nonisolated func prepare(_ satellites: [PointSatellite], labelled: Bool = true) async -> PreparedSatellites {
         let device = device
         let scale = screenScale
         return await Task.detached(priority: .userInitiated) {
@@ -317,7 +317,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }.value
     }
 
-    public func setSatellites(_ prepared: PreparedSatellites) {
+    func setSatellites(_ prepared: PreparedSatellites) {
         placer.keep(prepared)
         points.install(prepared)
         keepModelsInUse()
@@ -357,20 +357,20 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     /// The base map, and the site the shipped one's finer levels come from.
-    public func setImagery(_ layer: BaseLayer, site: URL) {
+    func setImagery(_ layer: BaseLayer, site: URL) {
         surface.setLayer(layer, site: site)
         pacer.needsDraw = true
     }
 
     /// The instrument imagery over the base map, the last on top (ADR 0020).
-    public func setInstrumentImagery(_ overlays: [ImageryOverlay]) {
+    func setInstrumentImagery(_ overlays: [ImageryOverlay]) {
         surface.setOverlays(overlays)
         pacer.needsDraw = true
     }
 
     /// Whether the globe follows Re:Earth's terrain, the sky view's ground too.
     /// Off by default, as on the web.
-    public func setTerrain(_ enabled: Bool) {
+    func setTerrain(_ enabled: Bool) {
         surface.setTerrain(enabled)
         pacer.needsDraw = true
     }
@@ -378,12 +378,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Stands on the ground at the camera's observer and looks up from there,
     /// over the terrain, which the horizon and the eye's height need. `animated`
     /// flies there; without it, as reduced motion asks, the camera cuts.
-    public func enterSky(_ camera: SkyCamera, animated: Bool = true) {
+    func enterSky(_ camera: SkyCamera, animated: Bool = true) {
         rig.enterSky(camera, animated: animated, uptime: ProcessInfo.processInfo.systemUptime, aspectRatio: lastAspectRatio)
     }
 
     /// Back to the globe camera, by the flight in played backwards.
-    public func leaveSky(animated: Bool = true) {
+    func leaveSky(animated: Bool = true) {
         rig.leaveSky(animated: animated, uptime: ProcessInfo.processInfo.systemUptime, aspectRatio: lastAspectRatio)
     }
 
@@ -413,26 +413,26 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// What fetches a 3D model's bytes by its path under /data/models/; models
     /// are not drawn without one.
-    public var modelLoader: (@Sendable (String) async -> Data?)? {
+    var modelLoader: (@Sendable (String) async -> Data?)? {
         get { models.loader }
         set { models.loader = newValue }
     }
 
     /// What fetches a map tile's bytes; tiles are not fetched without one.
-    public var tileLoader: (@Sendable (TileRequest) async -> Data?)? {
+    var tileLoader: (@Sendable (TileRequest) async -> Data?)? {
         get { surface.loader }
         set { surface.loader = newValue }
     }
 
     /// The ground stations to stand pins on.
-    public func setStations(_ stations: [StationMarker]) {
+    func setStations(_ stations: [StationMarker]) {
         self.stations = stations
         pacer.needsDraw = true
     }
 
     /// The ground station links, each drawn while its pass lasts and the component
     /// is on.
-    public func setLinks(_ links: [StationLink]) {
+    func setLinks(_ links: [StationLink]) {
         self.links = links
         pacer.needsDraw = true
     }
@@ -441,7 +441,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// view opens.
     /// Follows what has this id. `animated` flies there from where the camera
     /// is, as the web app's Track button does; a link or a double tap cuts.
-    public func track(_ id: String, animated: Bool = false) {
+    func track(_ id: String, animated: Bool = false) {
         rig.track(id, animated: animated, uptime: ProcessInfo.processInfo.systemUptime, model: { self.trackedModel($0) })
     }
 
@@ -462,21 +462,21 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Lets go, and goes back to the view tracking began from, as the web app
     /// does: the free camera is kept while tracking, through switches from one
     /// satellite to another. `animated` flies back.
-    public func stopTracking(animated: Bool = false) {
+    func stopTracking(animated: Bool = false) {
         rig.stopTracking(animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
     }
 
     /// Back to where the app opens, letting go of what is followed. `animated`
     /// flies there; without it, as reduced motion asks, the camera cuts. Not
     /// from the sky view, which `leaveSky` leaves first.
-    public func flyHome(animated: Bool = true) {
+    func flyHome(animated: Bool = true) {
         rig.flyHome(animated: animated, uptime: ProcessInfo.processInfo.systemUptime, aspectRatio: lastAspectRatio)
     }
 
     /// Draws the globe as a globe or as the flat map, keeping the place in sight.
     /// `animated` fades the one into the other; without it, as reduced motion
     /// asks, it cuts.
-    public func setProjection(_ projection: GlobeProjection, animated: Bool) {
+    func setProjection(_ projection: GlobeProjection, animated: Bool) {
         rig.setProjection(projection, animated: animated, aspectRatio: lastAspectRatio ?? hdr.map { Double($0.width) / Double($0.height) })
         pacer.needsDraw = true
     }
