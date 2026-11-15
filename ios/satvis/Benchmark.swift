@@ -57,8 +57,9 @@ final class Benchmark {
     @ObservationIgnored private var run: Task<Void, Never>?
     /// The user's view while a run shows its scenes, opened again at its end.
     @ObservationIgnored private(set) var savedLink: Link?
-    /// What the scenes' links change and the app keeps between launches.
-    @ObservationIgnored private var savedSettings: (baseLayer: BaseLayer, terrain: Bool, mode: OverpassMode)?
+    /// The overpass mode, which the scenes' links change and `PassAlerts` reads
+    /// from where it is kept, in the background.
+    @ObservationIgnored private var savedMode: OverpassMode?
     /// The clock's rate and play state, which each scene without a `time` sets live.
     @ObservationIgnored private var savedClock: (multiplier: Double, playing: Bool)?
 
@@ -89,7 +90,7 @@ final class Benchmark {
         stepStarted = Date()
         environment = Self.environment(renderer: renderer, session: session)
         savedLink = restoring ?? session.link(sharing: false)
-        savedSettings = (session.baseLayer, session.terrain, session.passes.mode)
+        savedMode = session.passes.mode
         savedClock = (session.clock.clock.multiplier, session.clock.clock.isPlaying)
         run = Task {
             // The scenes come with the group index, which a first launch waits for.
@@ -121,7 +122,7 @@ final class Benchmark {
             }
             restoreClock(on: session)
             savedLink = nil
-            savedSettings = nil
+            savedMode = nil
             if phase == .done {
                 if sends {
                     submit(with: session.analytics)
@@ -175,10 +176,8 @@ final class Benchmark {
         }
         run?.cancel()
         session.renderer?.drawsEveryFrame = false
-        if let savedSettings {
-            session.baseLayer = savedSettings.baseLayer
-            session.terrain = savedSettings.terrain
-            session.passes.setMode(savedSettings.mode)
+        if let savedMode {
+            session.passes.setMode(savedMode)
         }
         restoreClock(on: session)
         return savedLink

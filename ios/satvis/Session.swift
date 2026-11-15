@@ -62,31 +62,23 @@ final class Session {
     let aim: SkyAim
     /// A word for the user that goes by itself: how switching the compass on went.
     private(set) var notice: String?
-    /// The globe's base map, kept between launches.
-    var baseLayer: BaseLayer = UserDefaults.standard.string(forKey: "baseLayer").flatMap(BaseLayer.init(rawValue:)) ?? .naturalEarth {
-        didSet {
-            UserDefaults.standard.set(baseLayer.rawValue, forKey: "baseLayer")
-            globe.setImagery(baseLayer, site: site)
-        }
+    /// The globe's base map, kept in links as `layers`.
+    var baseLayer: BaseLayer = launchMap.layers.compactMap(BaseLayer.init(rawValue:)).last ?? .naturalEarth {
+        didSet { globe.setImagery(baseLayer, site: site) }
     }
     /// The instrument imagery drawn over the base map (ADR 0020), kept in links as `imagery`.
     let instrumentImagery = InstrumentImagery()
-    /// Whether the globe follows Re:Earth's terrain: off by default, as on the web.
-    var terrain = UserDefaults.standard.bool(forKey: "terrain") {
-        didSet {
-            UserDefaults.standard.set(terrain, forKey: "terrain")
-            globe.terrain = terrain
-        }
+    /// Whether the globe follows Re:Earth's terrain, kept in links as `terrain`:
+    /// off by default, as on the web.
+    var terrain = launchMap.terrain {
+        didSet { globe.terrain = terrain }
     }
-    /// The star map, kept between launches and in links as `stars`: the web app's
-    /// default, Tycho1K, until one is chosen, which the app draws as DeepStar1K.
+    /// The star map, kept in links as `stars`: the web app's default, Tycho1K,
+    /// until one is chosen, which the app draws as DeepStar1K.
     /// A map that cannot be had falls back to DeepStar1K, as the web app's falls back
     /// to its default, so the link and the Map panel name what is drawn.
-    var starMap: StarMapName = UserDefaults.standard.string(forKey: "starMap").flatMap(StarMapName.init(rawValue:)) ?? .tycho1K {
-        didSet {
-            UserDefaults.standard.set(starMap.rawValue, forKey: "starMap")
-            starMapLoader.show(starMap)
-        }
+    var starMap = launchMap.starMap {
+        didSet { starMapLoader.show(starMap) }
     }
     @ObservationIgnored private let tiles = TileFetcher.shared
     @ObservationIgnored private let keptTiles = KeptTiles.applicationSupport()
@@ -167,6 +159,14 @@ final class Session {
     /// `SATVIS_LINK` in the launch environment opens on that link, a whole url or
     /// a path with its query (`/ot?tags=OT`): for screenshots and tests.
     private static let launchLink = ProcessInfo.processInfo.environment["SATVIS_LINK"].map(Link.init)
+    /// The view a last run left, the user's own, as a reload is on the web: not
+    /// an opened link.
+    private static var keptView: Link? { UserDefaults.standard.string(forKey: viewKey).map(Link.init) }
+    /// The map, terrain and stars of the link the app opens on, for the globe to
+    /// start on before `run` applies it: that waits for the group index, and the
+    /// renderer can arrive first. Read without its preset's defaults, which come
+    /// with the index.
+    private static let launchMap = SceneState.read((launchLink ?? keptView ?? Link()).query, presetDefaults: [:]).scene
 
     init(loader: GroupLoader, site: URL, alerts: PassAlerts) {
         self.site = site
@@ -282,18 +282,12 @@ final class Session {
                 notice = nil
             }
             started = true
-            // The view a last run left is the user's own, as a reload is on the web:
-            // not an opened link.
-            if let (link, records) = pendingLink ?? Self.launchLink.map({ ($0, true) }) ?? UserDefaults.standard.string(forKey: Self.viewKey).map({ (Link($0), false) }) {
-                pendingLink = nil
-                await apply(link, settings: true)
-                if records {
-                    Task { await recordOpened() }
-                }
-            } else {
-                // The first launch: the default preset, and the map as the
-                // settings before links kept it.
-                await apply(Link(), settings: false)
+            // The first launch opens on the default preset.
+            let (link, records) = pendingLink ?? Self.launchLink.map { ($0, true) } ?? (Self.keptView ?? Link(), false)
+            pendingLink = nil
+            await apply(link)
+            if records {
+                Task { await recordOpened() }
             }
             Task { await catalog.revalidate(refetching: false) }
             if Benchmark.runsAtLaunch {
@@ -376,7 +370,7 @@ final class Session {
             return
         }
         Task {
-            await apply(link, settings: true)
+            await apply(link)
             if records {
                 await recordOpened()
             } else if let bookmark {
@@ -415,9 +409,8 @@ final class Session {
         return scene.link(preset: catalog.presetName, presetDefaults: catalog.presetDefaults, overBudget: catalog.overBudget, sharing: sharing)
     }
 
-    /// Shows what a link says, over its preset's defaults. `settings` false leaves
-    /// the map, the overpass mode and the clock as they are.
-    private func apply(_ link: Link, settings: Bool) async {
+    /// Shows what a link says, over its preset's defaults.
+    private func apply(_ link: Link) async {
         linkGeneration += 1
         let generation = linkGeneration
         // A preset the kept index does not know, as the index shipped in the app
@@ -461,23 +454,21 @@ final class Session {
             showsBenchmark = true
         }
         perform(focus.clear())
-        if settings {
-            if let base = scene.layers.compactMap(BaseLayer.init(rawValue:)).last {
-                baseLayer = base
-            }
-            instrumentImagery.set(scene.imagery)
-            terrain = scene.terrain
-            starMap = scene.starMap
-            pixelRatio = scene.pixelRatio
-            passes.setMode(scene.overpassMode)
-            // A clock pinned for a screenshot stays where it was put.
-            if ViewerClock.launchTime == nil {
-                if let time = scene.time {
-                    clock.scrub(to: (time.timeIntervalSince1970 * 1000).rounded(.down))
-                } else if clock.clock.isOffPresent(at: ViewerClock.real()) {
-                    // However it left the present, as a link without `time` is live.
-                    clock.goLive()
-                }
+        if let base = scene.layers.compactMap(BaseLayer.init(rawValue:)).last {
+            baseLayer = base
+        }
+        instrumentImagery.set(scene.imagery)
+        terrain = scene.terrain
+        starMap = scene.starMap
+        pixelRatio = scene.pixelRatio
+        passes.setMode(scene.overpassMode)
+        // A clock pinned for a screenshot stays where it was put.
+        if ViewerClock.launchTime == nil {
+            if let time = scene.time {
+                clock.scrub(to: (time.timeIntervalSince1970 * 1000).rounded(.down))
+            } else if clock.clock.isOffPresent(at: ViewerClock.real()) {
+                // However it left the present, as a link without `time` is live.
+                clock.goLive()
             }
         }
         unseen = scene.unseen
