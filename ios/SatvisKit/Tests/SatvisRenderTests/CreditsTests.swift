@@ -1,4 +1,5 @@
 import Foundation
+import SatvisCore
 import Testing
 
 @testable import SatvisRender
