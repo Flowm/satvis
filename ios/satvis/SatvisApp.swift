@@ -709,33 +709,14 @@ struct ContentView: View {
         switch session.selection {
         case .satellite(let id):
             if let entry = session.catalog.catalog.entries[id] {
-                InfoPanel(
-                    entry: entry, clock: session.clock, passes: session.passes, alerts: session.alerts, closeUp: session.closeUpContext,
-                    instrumentImagery: session.instrumentImagery,
-                    isTracked: session.tracked == .satellite(id), onTrack: session.observer != nil ? nil : { track(.satellite(id), on: $0) },
-                    onClose: { session.select(nil) }
-                )
+                InfoPanel(entry: entry, session: session)
             }
         case .station(let stationID):
             if let station = session.passes.station(stationID) {
-                StationPanel(
-                    station: station, clock: session.clock, passes: session.passes, alerts: session.alerts, catalog: session.catalog,
-                    isTracked: session.tracked == .station(stationID), onTrack: session.observer != nil ? nil : { track(.station(stationID), on: $0) },
-                    onSky: { session.enterSky(at: stationID) },
-                    onClose: { session.select(nil) }
-                )
+                StationPanel(station: station, session: session)
             }
         case nil:
             EmptyView()
-        }
-    }
-
-    /// A panel's Track button: the camera flies there, or back.
-    private func track(_ target: Selection, on: Bool) {
-        if on {
-            session.follow(target, animated: true)
-        } else {
-            session.stopTracking(animated: true)
         }
     }
 }

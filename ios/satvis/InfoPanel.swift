@@ -6,15 +6,7 @@ import SwiftUI
 /// orbit, the spacecraft, its instruments, their imagery and its passes, a tab each.
 struct InfoPanel: View {
     let entry: CatalogEntry
-    let clock: ViewerClock
-    let passes: PassModel
-    let alerts: PassAlerts
-    let closeUp: CloseUpContext
-    let instrumentImagery: InstrumentImagery
-    let isTracked: Bool
-    /// Nil in the sky view, which follows nothing: the web app hides Track there.
-    let onTrack: ((Bool) -> Void)?
-    let onClose: () -> Void
+    let session: Session
     /// The tab chosen last, kept across selections and shared with the station panel, as on the web.
     @AppStorage("infoPanelTab") private var tab = InfoTab.orbit
     /// The instruments whose facts are unfolded.
@@ -55,9 +47,9 @@ struct InfoPanel: View {
                             instrumentList(instruments)
                         case .imagery:
                             ImageryCards(
-                                layers: imagery, previews: previews, columns: ImageryCards.columns(width: cardsWidth), drawn: instrumentImagery)
+                                layers: imagery, previews: previews, columns: ImageryCards.columns(width: cardsWidth), drawn: session.instrumentImagery)
                         default:
-                            PassesSections(subject: .satellite(entry), clock: clock, passes: passes)
+                            PassesSections(subject: .satellite(entry), clock: session.clock, passes: session.passes)
                         }
                     }
                     .raisedRows()
@@ -71,7 +63,7 @@ struct InfoPanel: View {
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         if let propagator,
                             let notice = SatelliteDetails.staleElementsNotice(
-                                epochMilliseconds: SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate), time: clock.now())
+                                epochMilliseconds: SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate), time: session.clock.now())
                         {
                             Label(notice, systemImage: "exclamationmark.triangle")
                                 .font(.footnote)
@@ -81,7 +73,7 @@ struct InfoPanel: View {
                                 .padding(.bottom, 12)
                         }
                     }
-                    TabPicker(tabs: tabs, tab: $tab, subject: .satellite(entry), clock: clock, passes: passes, imageryCount: imagery.count)
+                    TabPicker(tabs: tabs, tab: $tab, subject: .satellite(entry), clock: session.clock, passes: session.passes, imageryCount: imagery.count)
                         .onGeometryChange(for: Double.self) {
                             $0.size.width
                         } action: {
@@ -91,11 +83,11 @@ struct InfoPanel: View {
                 .onChange(of: imageryFocus) { reveal(imageryFocus, among: imagery, with: scroller) }
             }
             .panelList()
-            .alertNotice(alerts)
+            .alertNotice(session.alerts)
             // Synchronously, so that no frame shows the last satellite's state on this one.
             .onChange(of: entry.id, initial: true) {
                 unfoldedInstruments = []
-                let centre = try? propagator?.livePosition(epochMilliseconds: clock.now())
+                let centre = try? propagator?.livePosition(epochMilliseconds: session.clock.now())
                 previews = ImageryCards.previews(
                     imagery, centre: centre, halfWidthDeg: entry.record.orbitClass == .geo ? 72 : 32, now: Date.now.timeIntervalSince1970 * 1000)
             }
@@ -103,11 +95,9 @@ struct InfoPanel: View {
                 .cardHeader {
                     title(propagator)
                 } actions: {
-                    AlertButton(subject: .satellite(entry.id), satellites: [entry], passes: passes, alerts: alerts)
-                    if let onTrack {
-                        Button.track(isTracked, onTrack: onTrack)
-                    }
-                    Button("Close", systemImage: "xmark", action: onClose)
+                    AlertButton(subject: .satellite(entry.id), satellites: [entry], passes: session.passes, alerts: session.alerts)
+                    TrackButton(session: session, target: .satellite(entry.id))
+                    Button("Close", systemImage: "xmark") { session.select(nil) }
                 }
             #else
                 .navigationTitle(entry.name)
@@ -118,17 +108,18 @@ struct InfoPanel: View {
                         title(propagator)
                     }
                     ToolbarItem(placement: .primaryAction) {
-                        AlertButton(subject: .satellite(entry.id), satellites: [entry], passes: passes, alerts: alerts)
+                        AlertButton(subject: .satellite(entry.id), satellites: [entry], passes: session.passes, alerts: session.alerts)
                     }
-                    if let onTrack {
+                    // The spacer goes with Track, which the sky view lacks.
+                    if session.observer == nil {
                         ToolbarSpacer(.fixed, placement: .primaryAction)
                         ToolbarItem(placement: .primaryAction) {
-                            Button.track(isTracked, onTrack: onTrack)
+                            TrackButton(session: session, target: .satellite(entry.id))
                         }
                     }
                     ToolbarSpacer(.fixed, placement: .primaryAction)
                     ToolbarItem(placement: .primaryAction) {
-                        Button("Close", systemImage: "xmark", action: onClose)
+                        Button("Close", systemImage: "xmark") { session.select(nil) }
                     }
                 }
             #endif
@@ -165,7 +156,7 @@ struct InfoPanel: View {
                 FactRow(label: row.0, value: row.1)
             }
         }
-        PositionSection(satnum: entry.satnum, propagator: propagator, clock: clock)
+        PositionSection(satnum: entry.satnum, propagator: propagator, clock: session.clock)
         if let propagator {
             ElementSetSection(elements: SatelliteDetails.elements(entry.record, epochJulianDate: propagator.epochJulianDate))
         }
@@ -175,7 +166,7 @@ struct InfoPanel: View {
     @ViewBuilder private func spacecraft(modelFile: String?, facts: [(String, String)], links: [(WebTables.Link, URL)]) -> some View {
         if let modelFile {
             Section {
-                SatelliteModelView(modelFile: modelFile, name: entry.name, context: closeUp)
+                SatelliteModelView(modelFile: modelFile, name: entry.name, context: session.closeUpContext)
                     .listRowInsets(EdgeInsets())
             } footer: {
                 Text("Drag to turn, pinch to zoom")
@@ -370,11 +361,22 @@ extension View {
     }
 }
 
-extension Button<Label<Text, Image>> {
-    /// A panel's Track, or Stop tracking while it is followed.
-    fileprivate static func track(_ isTracked: Bool, onTrack: @escaping (Bool) -> Void) -> Self {
-        Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
-            onTrack(!isTracked)
+/// A panel's Track, or Stop tracking while it is followed: the camera flies there,
+/// or back. None in the sky view, which follows nothing: the web app hides Track there.
+private struct TrackButton: View {
+    let session: Session
+    let target: Selection
+
+    var body: some View {
+        if session.observer == nil {
+            let isTracked = session.tracked == target
+            Button(isTracked ? "Stop tracking" : "Track", systemImage: isTracked ? "video.slash" : "video") {
+                if isTracked {
+                    session.stopTracking(animated: true)
+                } else {
+                    session.follow(target, animated: true)
+                }
+            }
         }
     }
 }
@@ -430,15 +432,7 @@ private enum PositionRow: CaseIterable {
 /// is, a tab each. Passes come first, so a station opens on them.
 struct StationPanel: View {
     let station: GroundStation
-    let clock: ViewerClock
-    let passes: PassModel
-    let alerts: PassAlerts
-    let catalog: CatalogModel
-    let isTracked: Bool
-    /// Nil in the sky view, which follows nothing: the web app hides Track there.
-    let onTrack: ((Bool) -> Void)?
-    let onSky: () -> Void
-    let onClose: () -> Void
+    let session: Session
     @AppStorage("infoPanelTab") private var tab = InfoTab.orbit
     @State private var renaming = false
     @State private var draftName = ""
@@ -458,24 +452,24 @@ struct StationPanel: View {
                             FactRow(label: "Longitude", value: "\(Formats.fixed(station.longitude, 2))°")
                         }
                     default:
-                        PassesSections(subject: .station(station, catalog.activeEntries), clock: clock, passes: passes)
+                        PassesSections(subject: .station(station, session.catalog.activeEntries), clock: session.clock, passes: session.passes)
                     }
                 }
                 .raisedRows()
             }
             .id(shownTab)
             .tabBar {
-                TabPicker(tabs: Self.tabs, tab: $tab, subject: .station(station, catalog.activeEntries), clock: clock, passes: passes)
+                TabPicker(tabs: Self.tabs, tab: $tab, subject: .station(station, session.catalog.activeEntries), clock: session.clock, passes: session.passes)
             }
             .panelList()
-            .alertNotice(alerts)
+            .alertNotice(session.alerts)
             #if os(macOS)
                 .cardHeader {
                     title
                 } actions: {
                     stationActions
                     skyActions
-                    Button("Close", systemImage: "xmark", action: onClose)
+                    Button("Close", systemImage: "xmark") { session.select(nil) }
                 }
             #else
                 .navigationTitle(station.displayName)
@@ -494,7 +488,7 @@ struct StationPanel: View {
                     }
                     ToolbarSpacer(.fixed, placement: .primaryAction)
                     ToolbarItem(placement: .primaryAction) {
-                        Button("Close", systemImage: "xmark", action: onClose)
+                        Button("Close", systemImage: "xmark") { session.select(nil) }
                     }
                 }
             #endif
@@ -502,12 +496,12 @@ struct StationPanel: View {
                 TextField("unnamed", text: $draftName)
                 Button("Cancel", role: .cancel) {}
                 Button("Rename") {
-                    var stations = passes.saved
+                    var stations = session.passes.saved
                     guard let index = stations.firstIndex(where: { $0.id == station.id }) else {
                         return
                     }
                     stations[index].name = draftName
-                    passes.setStations(stations)
+                    session.passes.setStations(stations)
                 }
             }
         }
@@ -524,23 +518,21 @@ struct StationPanel: View {
     /// The station itself: a station a link brought is the link's until saved, and
     /// alerts and names are for the user's own, which persist.
     @ViewBuilder private var stationActions: some View {
-        if passes.isVisiting(station.id) {
-            Button("Save station", systemImage: "plus.circle") { passes.save(station.id) }
+        if session.passes.isVisiting(station.id) {
+            Button("Save station", systemImage: "plus.circle") { session.passes.save(station.id) }
         } else {
             Button("Rename", systemImage: "pencil") {
                 draftName = station.name ?? ""
                 renaming = true
             }
-            AlertButton(subject: .station(station.id), satellites: catalog.activeEntries, passes: passes, alerts: alerts)
+            AlertButton(subject: .station(station.id), satellites: session.catalog.activeEntries, passes: session.passes, alerts: session.alerts)
         }
     }
 
     /// Where to look from.
     @ViewBuilder private var skyActions: some View {
-        Button("View the sky from here", image: .lucideTelescope, action: onSky)
-        if let onTrack {
-            Button.track(isTracked, onTrack: onTrack)
-        }
+        Button("View the sky from here", image: .lucideTelescope) { session.enterSky(at: station.id) }
+        TrackButton(session: session, target: .station(station.id))
     }
 }
 
