@@ -347,7 +347,7 @@ final class Session {
 
     /// The sweep's ground station as the only visiting one, or none.
     func setSweepStation(_ station: GroundStation?) {
-        editStations { $0.setVisiting(station.map { [$0] } ?? []) }
+        passes.setVisiting(station.map { [$0] } ?? [])
     }
 
     // MARK: Links
@@ -475,7 +475,7 @@ final class Session {
         cameraFrame = scene.cameraFrame
         // A link cuts, as its camera does.
         setProjection(scene.projection, animated: false)
-        editStations { $0.setVisiting(scene.stations.map { GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) }) }
+        passes.setVisiting(scene.stations.map { GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) })
         await catalog.open(preset: preset, activation: scene.activation, components: scene.components, named: named)
         guard generation == linkGeneration else {
             return
@@ -679,7 +679,7 @@ final class Session {
     /// why, where no position comes back. Without one the sky view does not open:
     /// a sky at a place nobody chose looks like a working view and is not.
     private func stationHere() async -> UUID? {
-        guard let location = await currentLocation(), let id = editStations({ $0.setGeolocation(latitude: location.latitude, longitude: location.longitude) }) else {
+        guard let location = await currentLocation(), let id = passes.setGeolocation(latitude: location.latitude, longitude: location.longitude) else {
             show("The sky view needs your location. Allow it in Settings, or look up from one of your locations.")
             return nil
         }
@@ -765,12 +765,12 @@ final class Session {
 
     /// The globe menu's Remove ground station.
     func removeStation(_ id: UUID) {
-        editStations { $0.remove(id) }
+        passes.remove(id)
     }
 
     /// Adds a station, and says which it became.
     private func addStation(_ place: GeoCoordinate) -> UUID? {
-        editStations { $0.add(latitude: place.latitude, longitude: place.longitude) }
+        passes.add(latitude: place.latitude, longitude: place.longitude)
     }
 
     /// What the renderer has under `point`, for a tap.
@@ -786,14 +786,6 @@ final class Session {
     /// Lets go of what is followed.
     func stopTracking(animated: Bool = false) {
         perform(focus.stopTracking(animated: animated))
-    }
-
-    /// Edits the stations, and lets go at once of what referred to one the edit
-    /// dropped, rather than when `watchStations` next turns.
-    private func editStations<Result>(_ edit: (PassModel) -> Result) -> Result {
-        let result = edit(passes)
-        perform(focus.stationsChanged(to: Set(passes.stations.map(\.id))))
-        return result
     }
 
     /// Does what a change of focus asks of the renderer, and keeps the followed
@@ -833,8 +825,7 @@ final class Session {
 
     /// Stands the stations on the globe, lets go of one that is gone (and leaves
     /// the sky view standing on it), drops its alerts, and predicts the
-    /// notifications again, whenever the list changes. The edits the session does
-    /// not make, the Locations sheet's and a station panel's, are let go of here.
+    /// notifications again, whenever the list changes.
     private func watchStations() async {
         for await stations in Observations({ self.passes.stations }) {
             globe.stations = shownMarkers
