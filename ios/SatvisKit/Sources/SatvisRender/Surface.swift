@@ -45,7 +45,7 @@ final class Surface {
     private(set) var revision = 0
     /// Whether the last selection left nothing to bake or lay over the terrain,
     /// so that the next frame would draw the same tiles until `revision` moves.
-    private(set) var isSettled = false
+    var isSettled: Bool { lastSelection != nil }
     /// The view's scale when a selection was last made, and when: metres above the
     /// ellipsoid, or the map's span.
     private var lastScale: (scale: Double, at: Date)?
@@ -161,14 +161,24 @@ final class Surface {
     private var lastSelection: (inputs: SelectionInputs, draw: [Tile])?
 
     private struct SelectionInputs: Equatable {
-        var eye: SIMD3<Double>
-        var viewProjection: simd_double4x4
-        var viewportHeightPixels: Double
-        var verticalFieldOfView: Double
-        var pixelsPerPoint: Double
+        var view: SelectionView
         var revision: Int
         var generation: Int
-        var terrainEnabled: Bool
+        var onTerrain: Bool
+    }
+
+    /// What the surface is seen through: the globe's camera, on a drawing
+    /// `viewportHeightPixels` high, or the flat map's, on a view of `viewportPixels`.
+    enum SelectionView: Equatable {
+        case globe(eye: SIMD3<Double>, viewProjection: simd_double4x4, viewportHeightPixels: Double, verticalFieldOfView: Double, pixelsPerPoint: Double)
+        case map(MapCamera, viewportPixels: SIMD2<Double>)
+    }
+
+    /// What a selection culls tiles with and measures their error by, worked out
+    /// once from its `SelectionView`.
+    private enum Lens {
+        case globe(eye: SIMD3<Double>, eyeLatLon: (latitude: Double, longitude: Double), planes: [SIMD4<Double>], sseFactor: Double)
+        case map(MapCamera, aspectRatio: Double, halfExtent: SIMD2<Double>, metresPerPixel: Double)
     }
 
     init(device: MTLDevice, library: MTLLibrary, site: URL) throws {
@@ -340,54 +350,63 @@ final class Surface {
         allSources.map { $0.source.maximumLevel + ($0.source.tileSize == 512 && $0.source.projection == .geographic ? 1 : 0) }.reduce(6, max)
     }
 
-    /// The tiles to draw this frame, each with a texture. A tile is refined only
-    /// once its four children have one, so the globe never shows a hole.
-    /// The screen-space error is in the drawing's own pixels, as CesiumJS measures
-    /// it: a tile's texels are about its geometric error apart, so in points a
-    /// texel would cover several pixels on a 3× screen.
-    func select(eye: SIMD3<Double>, viewProjection: simd_double4x4, viewportHeightPixels: Double, verticalFieldOfView: Double, pixelsPerPoint: Double) -> (
-        draw: [Tile], bake: [Tile]
-    ) {
-        let inputs = SelectionInputs(
-            eye: eye, viewProjection: viewProjection, viewportHeightPixels: viewportHeightPixels, verticalFieldOfView: verticalFieldOfView,
-            pixelsPerPoint: pixelsPerPoint, revision: revision, generation: generation, terrainEnabled: terrainEnabled)
+    /// The tiles to draw this frame through `view`, each with a texture, and those
+    /// to bake, the drawn ones first, then the children waiting to replace them. A
+    /// tile is refined while its error would show as more than two pixels
+    /// (`screenSpaceError`), and only once its four children have a texture, so the
+    /// surface never shows a hole. The map is flat, as CesiumJS's 2D is, so no
+    /// terrain is asked for.
+    func select(_ view: SelectionView) -> (draw: [Tile], bake: [Tile]) {
+        let onTerrain = if case .globe = view { terrainEnabled } else { false }
+        let inputs = SelectionInputs(view: view, revision: revision, generation: generation, onTerrain: onTerrain)
         // Without a new frame: the tiles chosen last stay in use for `evict`.
         if let lastSelection, lastSelection.inputs == inputs {
             return (lastSelection.draw, [])
         }
-        noteScale(max(simd_length(eye) - ellipsoidRadii.z, 1))
         frame += 1
         drapes = 0
-        terrainOffset = Terrain.offset(pixelsPerPoint: pixelsPerPoint)
-        let planes = Self.planes(viewProjection)
-        let eyeLatLon = geodetic(eye)
-        // With terrain, as fine as the terrain goes, whatever the imagery does: the
-        // ground's grid is the surface tile's, and stopped where Natural Earth
-        // stops, at level 6, it laid level-4 terrain under the sky view, a grid
-        // 20 km apart that leaves a valley a plain. Past its own finest level
-        // the imagery is drawn magnified from it.
-        let maximumLevel = terrainEnabled ? max(imageryMaximumLevel, Terrain.maximumLevel + terrainOffset) : imageryMaximumLevel
-        let sseFactor = viewportHeightPixels / (2 * tan(verticalFieldOfView / 2))
+        let maximumLevel: Int
+        let lens: Lens
+        switch view {
+        case .globe(let eye, let viewProjection, let viewportHeightPixels, let verticalFieldOfView, let pixelsPerPoint):
+            noteScale(max(simd_length(eye) - ellipsoidRadii.z, 1))
+            terrainOffset = Terrain.offset(pixelsPerPoint: pixelsPerPoint)
+            // With terrain, as fine as the terrain goes, whatever the imagery does: the
+            // ground's grid is the surface tile's, and stopped where Natural Earth
+            // stops, at level 6, it laid level-4 terrain under the sky view, a grid
+            // 20 km apart that leaves a valley a plain. Past its own finest level
+            // the imagery is drawn magnified from it.
+            maximumLevel = onTerrain ? max(imageryMaximumLevel, Terrain.maximumLevel + terrainOffset) : imageryMaximumLevel
+            lens = .globe(
+                eye: eye, eyeLatLon: geodetic(eye), planes: Self.planes(viewProjection), sseFactor: viewportHeightPixels / (2 * tan(verticalFieldOfView / 2)))
+        case .map(let map, let viewportPixels):
+            noteScale(map.span)
+            maximumLevel = imageryMaximumLevel
+            let aspectRatio = viewportPixels.x / viewportPixels.y
+            lens = .map(
+                map, aspectRatio: aspectRatio, halfExtent: map.boundingHalfExtent(aspectRatio: aspectRatio),
+                metresPerPixel: map.span / max(viewportPixels.x, viewportPixels.y))
+        }
         var draw: [Tile] = []
         var bake: [Tile] = []
+        var waiting: [Tile] = []
 
         func visit(_ key: TileKey) {
             let tile = self.tile(key)
             tile.lastUsed = frame
-            guard isVisible(tile, eye: eye, eyeLatLon: eyeLatLon, planes: planes) else {
+            guard let error = screenSpaceError(tile, through: lens) else {
                 return
             }
-            let nearest = nearestPoint(tile.bounds, to: eyeLatLon)
-            let distance = max(simd.distance(eye, nearest), 1)
-            let error = Self.levelZeroGeometricError / Double(1 << key.level) * sseFactor / distance
             if error > Self.maximumScreenSpaceError, key.level < maximumLevel {
                 // Asked of each child, so each starts loading its terrain.
-                guard let waiting = refine(key, ready: { hasGeometry($0) && $0.texture != nil }, visit: visit) else {
+                guard let children = refine(key, onTerrain: onTerrain, visit: visit) else {
                     return
                 }
-                bake += waiting
+                waiting += children
             }
-            _ = hasGeometry(tile)
+            if onTerrain {
+                _ = hasGeometry(tile)
+            }
             draw.append(tile)
             if tile.needsBake || tile.texture == nil {
                 bake.append(tile)
@@ -395,83 +414,54 @@ final class Surface {
         }
         visit(TileKey(level: 0, x: 0, y: 0))
         visit(TileKey(level: 0, x: 1, y: 0))
-        for tile in draw + bake {
+        for tile in draw + waiting {
             tile.lastWanted = frame
         }
         evict()
-        isSettled = bake.isEmpty && drapes < Self.drapesPerFrame
-        lastSelection = isSettled ? (inputs, draw) : nil
-        return (draw, bake)
+        let settled = bake.isEmpty && waiting.isEmpty && drapes < Self.drapesPerFrame
+        lastSelection = settled ? (inputs, draw) : nil
+        return (draw, bake + waiting)
     }
 
-    /// The tiles to draw the flat map with this frame, from `map` on a view of
-    /// `viewportPixels`, each with a texture: those the view's bounds overlap in
-    /// any copy of the map, refined while their geometric error spans more than
-    /// two pixels, which on the map is the same at every distance (CesiumJS's
-    /// screen-space error in 2D). Flat, as CesiumJS's 2D is, so no terrain is
-    /// asked for. As `select`, a tile is refined only once its four children have
-    /// a texture.
-    func selectMap(_ map: MapCamera, viewportPixels: SIMD2<Double>) -> (draw: [Tile], bake: [Tile]) {
-        let aspectRatio = viewportPixels.x / viewportPixels.y
-        let inputs = SelectionInputs(
-            eye: SIMD3(map.longitude, map.latitude, map.span), viewProjection: map.viewProjection(aspectRatio: aspectRatio),
-            viewportHeightPixels: viewportPixels.y, verticalFieldOfView: -1, pixelsPerPoint: 0, revision: revision, generation: generation,
-            terrainEnabled: false)
-        if let lastSelection, lastSelection.inputs == inputs {
-            return (lastSelection.draw, [])
-        }
-        noteScale(map.span)
-        frame += 1
-        let maximumLevel = imageryMaximumLevel
-        let metresPerPixel = map.span / max(viewportPixels.x, viewportPixels.y)
-        let half = map.boundingHalfExtent(aspectRatio: aspectRatio)
-        var draw: [Tile] = []
-        var bake: [Tile] = []
-
-        func visit(_ key: TileKey) {
-            let tile = self.tile(key)
-            tile.lastUsed = frame
+    /// How many pixels a tile's geometric error spans on screen; nil when it is out
+    /// of view. On the globe in the drawing's own pixels, as CesiumJS measures it: a
+    /// tile's texels are about its geometric error apart, so in points a texel would
+    /// cover several pixels on a 3× screen. On the map, culled against the view's
+    /// bounds in any copy of the map, it is the same at every distance (CesiumJS's
+    /// screen-space error in 2D).
+    private func screenSpaceError(_ tile: Tile, through lens: Lens) -> Double? {
+        let geometricError = Self.levelZeroGeometricError / Double(1 << tile.key.level)
+        switch lens {
+        case .globe(let eye, let eyeLatLon, let planes, let sseFactor):
+            guard isVisible(tile, eye: eye, eyeLatLon: eyeLatLon, planes: planes) else {
+                return nil
+            }
+            let distance = max(simd.distance(eye, nearestPoint(tile.bounds, to: eyeLatLon)), 1)
+            return geometricError * sseFactor / distance
+        case .map(let map, let aspectRatio, let half, let metresPerPixel):
             let (corner, size) = map.rectangle(of: tile.bounds)
             guard corner.y >= -half.y, corner.y - size.y <= half.y,
                 !Self.mapCopies(west: corner.x, width: size.x, map: map, aspectRatio: aspectRatio).isEmpty
             else {
-                return
+                return nil
             }
-            let error = Self.levelZeroGeometricError / Double(1 << key.level) / metresPerPixel
-            if error > Self.maximumScreenSpaceError, key.level < maximumLevel {
-                guard let waiting = refine(key, ready: { $0.texture != nil }, visit: visit) else {
-                    return
-                }
-                bake += waiting
-            }
-            draw.append(tile)
-            if tile.needsBake || tile.texture == nil {
-                bake.append(tile)
-            }
+            return geometricError / metresPerPixel
         }
-        visit(TileKey(level: 0, x: 0, y: 0))
-        visit(TileKey(level: 0, x: 1, y: 0))
-        for tile in draw + bake {
-            tile.lastWanted = frame
-        }
-        evict()
-        isSettled = bake.isEmpty
-        lastSelection = isSettled ? (inputs, draw) : nil
-        return (draw, bake)
     }
 
-    /// Refines the tile at `key` into its four children once each is `ready`,
-    /// visiting them; nil then. Else the children that still need a texture, the
-    /// tile itself drawn meanwhile. Every child is asked, whatever the others
-    /// answer, as asking starts what it waits for.
-    private func refine(_ key: TileKey, ready: (Tile) -> Bool, visit: (TileKey) -> Void) -> [Tile]? {
+    /// Refines the tile at `key` into its four children once each has a texture,
+    /// and `onTerrain` its grid laid over the terrain, visiting them; nil then.
+    /// Else the children that still need a texture, the tile itself drawn
+    /// meanwhile. Every child is asked, whatever the others answer, as asking
+    /// starts what it waits for.
+    private func refine(_ key: TileKey, onTerrain: Bool, visit: (TileKey) -> Void) -> [Tile]? {
         // Loops: a main-actor method passed to `map` checks its executor at every call.
         var children: [Tile] = []
         var allReady = true
         for childKey in key.children {
             let child = tile(childKey)
             child.lastUsed = frame
-            let childReady = ready(child)
+            let childReady = (!onTerrain || hasGeometry(child)) && child.texture != nil
             allReady = allReady && childReady
             children.append(child)
         }
@@ -500,9 +490,6 @@ final class Surface {
     /// when not. Once laid over the terrain, a tile keeps its grid until a better
     /// terrain tile is in.
     private func hasGeometry(_ tile: Tile) -> Bool {
-        guard terrainEnabled else {
-            return true
-        }
         guard let terrain = self.terrain.source(under: tile.key, offset: terrainOffset, frame: frame) else {
             return tile.draped != nil
         }
