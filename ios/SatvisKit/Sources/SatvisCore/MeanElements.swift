@@ -36,28 +36,28 @@ public struct MeanElements: Sendable, Hashable {
 extension MeanElements {
     /// As satellite.js's `json2satrec` reads an OMM: `EPOCH` is UTC, truncated to
     /// the millisecond as a JavaScript Date keeps it.
-    public init?(_ omm: OMM) {
+    public init?(
+        ommEpoch epoch: String, meanMotion: Double, eccentricity: Double, inclination: Double, raOfAscNode: Double, argOfPericenter: Double,
+        meanAnomaly: Double, bstar: Double, meanMotionDot: Double, meanMotionDDot: Double
+    ) {
         // A string field "NaN" reads as a number; satellite.js would draw nothing.
-        let numbers = [
-            omm.meanMotion, omm.eccentricity, omm.inclination, omm.raOfAscNode, omm.argOfPericenter, omm.meanAnomaly, omm.bstar, omm.meanMotionDot,
-            omm.meanMotionDDot,
-        ]
-        guard numbers.allSatisfy(\.isFinite), let epochMilliseconds = utcMilliseconds(iso: omm.epoch) else {
+        let numbers = [meanMotion, eccentricity, inclination, raOfAscNode, argOfPericenter, meanAnomaly, bstar, meanMotionDot, meanMotionDDot]
+        guard numbers.allSatisfy(\.isFinite), let epochMilliseconds = utcMilliseconds(iso: epoch) else {
             return nil
         }
         let year = civilDate(epochMilliseconds: epochMilliseconds).year
         let yearStart = Double(daysFromCivil(year: year, month: 1, day: 1)) * msPerDay
         self.init(
             epoch: Epoch(year: year, dayOfYear: (epochMilliseconds - yearStart) / msPerDay + 1),
-            meanMotion: omm.meanMotion,
-            eccentricity: omm.eccentricity,
-            inclination: omm.inclination,
-            raOfAscNode: omm.raOfAscNode,
-            argOfPericenter: omm.argOfPericenter,
-            meanAnomaly: omm.meanAnomaly,
-            bstar: omm.bstar,
-            meanMotionDot: omm.meanMotionDot,
-            meanMotionDDot: omm.meanMotionDDot)
+            meanMotion: meanMotion,
+            eccentricity: eccentricity,
+            inclination: inclination,
+            raOfAscNode: raOfAscNode,
+            argOfPericenter: argOfPericenter,
+            meanAnomaly: meanAnomaly,
+            bstar: bstar,
+            meanMotionDot: meanMotionDot,
+            meanMotionDDot: meanMotionDDot)
     }
 
     /// As satellite.js's `twoline2satrec` reads the fixed columns of a TLE, so a

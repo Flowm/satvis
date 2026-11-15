@@ -1,28 +1,12 @@
 import Foundation
 
-/// A CelesTrak OMM element set, in the CCSDS field names the worker passes through:
-/// those the app propagates or shows.
-public struct OMM: Sendable, Hashable {
-    public var objectID: String?
-    /// ISO 8601 without a zone, in UTC, e.g. `2026-10-02T11:10:18.655680`.
-    public var epoch: String
-    public var meanMotion: Double
-    public var eccentricity: Double
-    public var inclination: Double
-    public var raOfAscNode: Double
-    public var argOfPericenter: Double
-    public var meanAnomaly: Double
-    public var bstar: Double
-    public var meanMotionDot: Double
-    public var meanMotionDDot: Double
-    public var noradCatID: String
-}
-
 /// One satellite's element set as a group serves it: an OMM, or two TLE lines for
 /// a pseudo element set no OMM can express (`GpRecord` in worker/src/gp/types.ts).
 public struct GPRecord: Sendable, Hashable {
     public enum Elements: Sendable, Hashable {
-        case omm(OMM)
+        /// A CelesTrak OMM, by the CCSDS keywords that identify it: its numbers
+        /// are `meanElements`, read verbatim.
+        case omm(objectID: String?, noradCatID: String)
         case tle(line1: String, line2: String)
     }
 
@@ -37,7 +21,7 @@ public struct GPRecord: Sendable, Hashable {
     /// The catalog number, without leading zeros when numeric.
     public var satnum: String {
         switch elements {
-        case .omm(let omm): normalizedSatnum(omm.noradCatID)
+        case .omm(_, let noradCatID): normalizedSatnum(noradCatID)
         case .tle(let line1, _): normalizedSatnum(satnumField(line1))
         }
     }
@@ -170,9 +154,8 @@ extension GPRecord {
         else {
             return nil
         }
-        let omm = OMM(
-            objectID: string(fields["OBJECT_ID"]),
-            epoch: epoch,
+        return MeanElements(
+            ommEpoch: epoch,
             meanMotion: meanMotion,
             eccentricity: eccentricity,
             inclination: inclination,
@@ -181,10 +164,11 @@ extension GPRecord {
             meanAnomaly: meanAnomaly,
             bstar: flexibleDouble(fields["BSTAR"]) ?? 0,
             meanMotionDot: flexibleDouble(fields["MEAN_MOTION_DOT"]) ?? 0,
-            meanMotionDDot: flexibleDouble(fields["MEAN_MOTION_DDOT"]) ?? 0,
-            noradCatID: noradCatID)
-        return MeanElements(omm).map {
-            GPRecord(name: (name ?? "").trimmingCharacters(in: .whitespacesAndNewlines), elements: .omm(omm), meanElements: $0, metadata: metadata)
+            meanMotionDDot: flexibleDouble(fields["MEAN_MOTION_DDOT"]) ?? 0
+        ).map {
+            GPRecord(
+                name: (name ?? "").trimmingCharacters(in: .whitespacesAndNewlines), elements: .omm(objectID: string(fields["OBJECT_ID"]), noradCatID: noradCatID),
+                meanElements: $0, metadata: metadata)
         }
     }
 }

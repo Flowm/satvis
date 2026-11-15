@@ -164,15 +164,16 @@ public enum SatelliteDetails {
         switch record.elements {
         case .tle(let line1, let line2):
             return .tle(epoch: epoch, lines: "\(line1)\n\(line2)")
-        case .omm(let omm):
+        case .omm(let objectID, let noradCatID):
+            let mean = record.meanElements
             var rows: [Elements.Row] = []
-            if let id = omm.objectID {
+            if let id = objectID {
                 rows.append(.init(label: "OBJECT_ID", value: id))
             }
             rows += [
-                ("NORAD_CAT_ID", omm.noradCatID), ("INCLINATION", jsNumberString(omm.inclination)), ("RA_OF_ASC_NODE", jsNumberString(omm.raOfAscNode)),
-                ("ECCENTRICITY", jsNumberString(omm.eccentricity)), ("ARG_OF_PERICENTER", jsNumberString(omm.argOfPericenter)),
-                ("MEAN_ANOMALY", jsNumberString(omm.meanAnomaly)), ("MEAN_MOTION", jsNumberString(omm.meanMotion)), ("BSTAR", jsNumberString(omm.bstar)),
+                ("NORAD_CAT_ID", noradCatID), ("INCLINATION", jsNumberString(mean.inclination)), ("RA_OF_ASC_NODE", jsNumberString(mean.raOfAscNode)),
+                ("ECCENTRICITY", jsNumberString(mean.eccentricity)), ("ARG_OF_PERICENTER", jsNumberString(mean.argOfPericenter)),
+                ("MEAN_ANOMALY", jsNumberString(mean.meanAnomaly)), ("MEAN_MOTION", jsNumberString(mean.meanMotion)), ("BSTAR", jsNumberString(mean.bstar)),
             ].map { Elements.Row(label: $0.0, value: $0.1) }
             return .omm(epoch: epoch, rows: rows)
         }

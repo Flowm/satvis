@@ -212,9 +212,8 @@ import Testing
         func record(_ name: String, _ satnum: String, _ imagery: [[String: JSONValue]]) -> GPRecord {
             var record = base
             record.name = name
-            if case .omm(var omm) = record.elements {
-                omm.noradCatID = satnum
-                record.elements = .omm(omm)
+            if case .omm(let objectID, _) = record.elements {
+                record.elements = .omm(objectID: objectID, noradCatID: satnum)
             }
             record.meanElements.meanMotion = 1.0027
             record.meanElements.eccentricity = 0.0001

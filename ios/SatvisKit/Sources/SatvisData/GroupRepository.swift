@@ -12,8 +12,8 @@ public actor GroupRepository {
     private let snapshot: PayloadStore?
     /// Each group's records with the ETag they were decoded under, so a payload
     /// confirmed unchanged is decoded once: Starlink's took 0.3 s of an iPad mini's
-    /// CPU. Kept for the session, as the catalog keeps every group it loads: 312
-    /// bytes a record, 5 MB for every active satellite, the strings and bags shared.
+    /// CPU. Kept for the session, as the catalog keeps every group it loads: 152
+    /// bytes a record, 2.5 MB for every active satellite, the strings and bags shared.
     private var decodedGroups: [String: (etag: String, records: [GPRecord])] = [:]
 
     public init(client: WorkerClient, store: PayloadStore, snapshot: PayloadStore?) {
