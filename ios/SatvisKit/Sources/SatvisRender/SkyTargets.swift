@@ -115,7 +115,7 @@ extension DrawnFrame {
                 id: satellites.id(at: index), name: satellites.name(at: index), azimuth: azimuth, elevation: elevation, range: range / 1000,
                 screen: screen, visibility: judgement.visibility(of: position, from: eye))
         }
-        if radius.isFinite, let directions {
+        if let directions {
             // Where the camera looks now, not where it looked for this frame: the
             // compass may have turned it since, which `SkyCache.directionsMargin`
             // covers.
@@ -149,7 +149,7 @@ struct SkyCache {
 
     var lock: SkyTarget?
     var lockAt = -Double.infinity
-    var lockSize = CGSize.zero
+    var lockFor = (viewSize: CGSize.zero, unseen: UnseenMode.dim)
 
     struct HiddenKey: Equatable {
         var eye: SIMD3<Double>
@@ -200,15 +200,6 @@ extension SkyCache {
         return directions.indices.filter { directions[$0].map { dot($0, look) >= threshold } ?? false }
     }
 
-    /// The satellites `frame` drew within `radius` points of the middle, found by
-    /// the directions kept for the lock where the radius is finite.
-    mutating func targets(
-        in frame: DrawnFrame, camera: SkyCamera, unseen: UnseenMode, satellites: some DrawnSatellites, viewSize: CGSize, within radius: Double, uptime: Double
-    ) -> [SkyTarget] {
-        let directions = radius.isFinite ? directions(of: satellites, at: frame.time, from: frame.eye, uptime: uptime) : nil
-        return frame.skyTargets(viewSize: viewSize, within: radius, camera: camera, unseen: unseen, satellites: satellites, directions: directions)
-    }
-
     /// Each satellite's direction from `eye`, kept for up to a second of the
     /// clock's time: placing every one each time cost the lock 8.6 ms on an iPad
     /// mini with every active satellite, at each of its 15 a second. A direction is
@@ -234,7 +225,7 @@ extension SkyCache {
     /// within reach, that the ground does not hide, and that is drawn: one hidden
     /// for its visibility is passed over. The ground is asked nearest
     /// first, and only until one is in sight. Worked out again only after
-    /// `lockInterval` of `uptime` or on a new view size, and only for the
+    /// `lockInterval` of `uptime`, on a new view size or `unseen`, and only for the
     /// satellites whose kept direction is near the crosshair (`directions`):
     /// placing every one each time cost the main thread more than drawing the
     /// frame did.
@@ -242,13 +233,14 @@ extension SkyCache {
         in frame: DrawnFrame, camera: SkyCamera, unseen: UnseenMode, satellites: some DrawnSatellites, viewSize: CGSize, uptime: Double, terrain: Int,
         groundHeight: (GeoCoordinate) -> Double?
     ) -> SkyTarget? {
-        if uptime - lockAt < Self.lockInterval, lockSize == viewSize {
+        if uptime - lockAt < Self.lockInterval, lockFor == (viewSize, unseen) {
             return lock
         }
         var found: SkyTarget?
         let centre = CGPoint(x: viewSize.width / 2, y: viewSize.height / 2)
-        let reachable = targets(
-            in: frame, camera: camera, unseen: unseen, satellites: satellites, viewSize: viewSize, within: Self.captureRadius, uptime: uptime
+        let directions = directions(of: satellites, at: frame.time, from: frame.eye, uptime: uptime)
+        let reachable = frame.skyTargets(
+            viewSize: viewSize, within: Self.captureRadius, camera: camera, unseen: unseen, satellites: satellites, directions: directions
         )
         .filter { unseen != .hide || $0.visibility == .visible }
         .map { (target: $0, distance: hypot($0.screen.x - centre.x, $0.screen.y - centre.y)) }
@@ -264,7 +256,7 @@ extension SkyCache {
         }
         lock = found
         lockAt = uptime
-        lockSize = viewSize
+        lockFor = (viewSize, unseen)
         return found
     }
 

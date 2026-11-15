@@ -95,8 +95,6 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     var unseen = UnseenMode.dim {
         didSet {
             pacer.needsDraw = true
-            // The crosshair passes over hidden ones: judged again at once.
-            skyCache.lockAt = -.infinity
         }
     }
     /// The camera whose picture the sky view is drawn over, while it is shown
