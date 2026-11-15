@@ -246,6 +246,14 @@ final class Session {
         globe.attach(renderer)
     }
 
+    /// Returns once a renderer is attached, at once if one is. `Observations`
+    /// reports it once `attach` has returned, so the binding has set it up by then.
+    private func untilRendererAttached() async {
+        for await attached in Observations({ self.renderer != nil }) where attached {
+            return
+        }
+    }
+
     /// Loads what there is to show and keeps it in step until cancelled.
     func run() async {
         starMapLoader.show(starMap)
@@ -291,7 +299,7 @@ final class Session {
                 setShowsBenchmark(true)
                 Task {
                     // The renderer is attached once the view has a size.
-                    await globe.untilAttached()
+                    await untilRendererAttached()
                     benchmark.startAtLaunch(on: self)
                 }
             }
@@ -443,7 +451,7 @@ final class Session {
                 }
             }
             Task {
-                await globe.untilAttached()
+                await untilRendererAttached()
                 benchmark.start(on: self, only: only, prints: true, sends: sends, restoring: restoring)
             }
         }

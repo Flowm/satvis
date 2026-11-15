@@ -172,16 +172,4 @@ private final class RecordingGlobe: Globe {
         binding.attach(globe: third)
         #expect(!third.calls.contains { $0.hasPrefix("enterSky") || $0.hasPrefix("track") })
     }
-
-    // The launch benchmark waits for the renderer; once there, nobody waits.
-    @Test func resumesThoseWaitingForAGlobe() async {
-        let binding = GlobeBinding()
-        let waiter = Task { await binding.untilAttached() }
-        await Task.yield()
-        #expect(!binding.isAttached)
-        binding.attach(globe: RecordingGlobe())
-        await waiter.value
-        await binding.untilAttached()
-        #expect(binding.isAttached)
-    }
 }

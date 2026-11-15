@@ -53,8 +53,6 @@ public final class GlobeBinding {
 
     /// The globe attached last; nil until the renderer has compiled its shaders.
     private var globe: (any Globe)?
-    /// Those waiting in `untilAttached`.
-    private var waiting: [CheckedContinuation<Void, Never>] = []
 
     /// The instant to draw `ahead` seconds from now, in UTC milliseconds since 1970.
     public var clock: (_ ahead: Double) -> Double = GlobeRenderer.wallClock {
@@ -129,9 +127,6 @@ public final class GlobeBinding {
 
     public init() {}
 
-    /// Whether a globe is attached.
-    var isAttached: Bool { globe != nil }
-
     /// Takes over the renderer (`attach(globe:)`).
     public func attach(_ renderer: GlobeRenderer) {
         attach(globe: renderer)
@@ -167,18 +162,6 @@ public final class GlobeBinding {
         if let starMap {
             globe.setStarMap(faces: starMap)
         }
-        for continuation in waiting {
-            continuation.resume()
-        }
-        waiting = []
-    }
-
-    /// Returns once a globe is attached, at once if one is.
-    public func untilAttached() async {
-        guard globe == nil else {
-            return
-        }
-        await withCheckedContinuation { waiting.append($0) }
     }
 
     /// The base map, and the site its finer levels come from (`GlobeRenderer.setImagery`).
