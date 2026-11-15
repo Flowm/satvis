@@ -50,9 +50,10 @@ runs up to 2026-11-15 is `manual-verification.md` in git history
   the sky, `?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen&terrain=ReEarth&layers=VersaTiles`.
 - **Terrain.** `?gs=47.4211,10.9853,Zugspitze&layers=VersaTiles&terrain=ReEarth`
   at `SATVIS_TIME=2026-10-04T09:30:00Z`; tap the pin, then the camera button in
-  its panel to follow it, and pinch in above the panel to the limit (closing the
-  panel ends the follow): relief lit from the sun, no cracks at tile edges, no
-  black band along the bottom, no collapse to a coarse tile. In
+  its panel to follow it, and pinch in above the panel (closing the panel ends
+  the follow). Two pinches in: relief lit from the sun, no cracks at tile edges,
+  no black band along the bottom, no collapse to a coarse tile. At the limit:
+  rock from 2 m above it, never black or seen from below. In
   `log show --predicate 'process == "satvis"'`, no 429 from Re:Earth. On
   Natural Earth the Lauterbrunnen cliffs still stand.
 - **The limb.** The default view at 12:00 and 17:30 UTC: the limb and the
