@@ -2,6 +2,7 @@ import CoreGraphics
 import Foundation
 import Observation
 import SatvisCore
+import SatvisData
 import SatvisRender
 import os
 
@@ -14,13 +15,8 @@ nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category:
 @MainActor
 @Observable
 final class GeoMosaic {
-    /// What fetches a span of a file.
-    typealias Read = @Sendable (URL, ClosedRange<Int>) async throws -> Data
-
     /// The frame last handed to the globe, nil while none is.
     private(set) var drawn: MosaicFrame?
-    /// Fetches a span of a file.
-    @ObservationIgnored private let read: Read
     /// Each Slot, epoch milliseconds, to its item; nil until the collection is read.
     @ObservationIgnored private var slots: [Double: URL]?
     @ObservationIgnored private var listed = Date.distantPast
@@ -44,10 +40,6 @@ final class GeoMosaic {
     private static let refresh: TimeInterval = 10 * 60
     /// Frames kept opened, for a clock going back and forth.
     private static let kept = 6
-
-    init(read: @escaping Read) {
-        self.read = read
-    }
 
     /// The attribution the drawn frame asks for, a line a satellite.
     var credit: [String] { drawn?.credit ?? [] }
@@ -74,8 +66,7 @@ final class GeoMosaic {
         if let newestFrame, Date() < newestFrame.until {
             return try await value(of: newestFrame.frame)
         }
-        let read = read
-        let frame = Task { try await Self.openNewest(read: read) }
+        let frame = Task { try await Self.openNewest() }
         newestFrame = (Date() + Self.refresh, frame)
         return try await value(of: frame)
     }
@@ -83,9 +74,8 @@ final class GeoMosaic {
     /// A picture of the newest Slot in `bounds`, `width` by `height` pixels.
     func preview(_ bounds: SatelliteDetails.PreviewBounds, width: Int, height: Int) async throws -> CGImage {
         let frame = try await newest()
-        let read = read
         let url = frame.url
-        return try await frame.preview(bounds, width: width, height: height) { try await read(url, $0) }
+        return try await frame.preview(bounds, width: width, height: height) { try await Self.read(url, $0) }
     }
 
     private func value(of frame: Task<MosaicFrame, any Error>) async throws -> MosaicFrame {
@@ -135,11 +125,10 @@ final class GeoMosaic {
         }
         frames[item] = .opening
         forgetOldest(keeping: item)
-        let read = read
         Task {
             let opened: Frame
             do {
-                opened = .ready(try await Self.open(item: item, read: read))
+                opened = .ready(try await Self.open(item: item))
             } catch {
                 log.error("\(item, privacy: .public): \(error, privacy: .public)")
                 opened = .failed(at: Date())
@@ -177,19 +166,24 @@ final class GeoMosaic {
     }
 
     /// The file an item names, its header and tile index read.
-    nonisolated private static func open(item: URL, read: @escaping Read) async throws -> MosaicFrame {
+    nonisolated private static func open(item: URL) async throws -> MosaicFrame {
         let (data, response) = try await URLSession.shared.data(from: item)
         guard (response as? HTTPURLResponse)?.statusCode == 200, let file = Mosaic.file(item: data, at: item) else {
             throw URLError(.cannotParseResponse)
         }
-        return try await Mosaic.open(file.url, credit: file.credit) { try await read(file.url, $0) }
+        return try await Mosaic.open(file.url, credit: file.credit) { try await Self.read(file.url, $0) }
+    }
+
+    /// A span of a file, through the tile cache: a frame's file never changes.
+    nonisolated private static func read(_ url: URL, _ bytes: ClosedRange<Int>) async throws -> Data {
+        try await TileFetcher.shared.tile(url, contentType: "image/tiff", bytes: bytes, isDated: true)
     }
 
     /// The newest Slot the collection lists, opened.
-    nonisolated private static func openNewest(read: @escaping Read) async throws -> MosaicFrame {
+    nonisolated private static func openNewest() async throws -> MosaicFrame {
         guard let slots = await list(), let newest = slots.max(by: { $0.key < $1.key }) else {
             throw URLError(.cannotParseResponse)
         }
-        return try await open(item: newest.value, read: read)
+        return try await open(item: newest.value)
     }
 }

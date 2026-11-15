@@ -41,15 +41,16 @@ public actor TileFetcher {
         self.requestsPerHost = requestsPerHost
     }
 
-    /// The fetcher the app uses: its own URLSession with a disk cache in Caches.
-    public static func shared() -> TileFetcher {
+    /// The fetcher the app uses, one for every request so that the limit per host and
+    /// a host's pause hold for all of them: its own URLSession with a disk cache in Caches.
+    public static let shared: TileFetcher = {
         let directory = (try? FileManager.default.appFolder(.cachesDirectory))?.appending(path: "Tiles", directoryHint: .isDirectory)
         let configuration = URLSessionConfiguration.default
         configuration.urlCache = URLCache(memoryCapacity: 16 * 1024 * 1024, diskCapacity: cacheBytes, directory: directory)
         configuration.timeoutIntervalForRequest = 15
         let session = URLSession(configuration: configuration)
         return TileFetcher(transport: { try await session.data(for: $0) }, cache: configuration.urlCache)
-    }
+    }()
 
     /// A tile's bytes. Throws when the answer is not a tile of the type asked for,
     /// e.g. a host's index.html, and when cancelled while waiting its turn. With

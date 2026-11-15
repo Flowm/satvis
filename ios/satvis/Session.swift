@@ -88,7 +88,7 @@ final class Session {
             starMapLoader.show(starMap)
         }
     }
-    @ObservationIgnored private let tiles = TileFetcher.shared()
+    @ObservationIgnored private let tiles = TileFetcher.shared
     @ObservationIgnored private let keptTiles = KeptTiles.applicationSupport()
     let analytics = Analytics()
     let bookmarks: BookmarkModel = {

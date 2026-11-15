@@ -1,7 +1,6 @@
 import Foundation
 import Observation
 import SatvisCore
-import SatvisData
 import SatvisRender
 import os
 
@@ -25,12 +24,7 @@ final class InstrumentImagery {
     @ObservationIgnored private var frames: [String: Frames] = [:]
     @ObservationIgnored private var drawn: [ImageryOverlay] = []
     /// The geostationary mosaic's frames, each a file read by ranges.
-    let mosaic = GeoMosaic(read: InstrumentImagery.readFile)
-
-    /// A span of a file, through the tile cache: a frame's file never changes.
-    nonisolated private static func readFile(_ url: URL, _ bytes: ClosedRange<Int>) async throws -> Data {
-        try await TileFetcher.shared().tile(url, contentType: "image/tiff", bytes: bytes, isDated: true)
-    }
+    let mosaic = GeoMosaic()
 
     /// A layer's frames as its service last listed them.
     private struct Frames {
