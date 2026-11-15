@@ -379,24 +379,18 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// over the terrain, which the horizon and the eye's height need. `animated`
     /// flies there; without it, as reduced motion asks, the camera cuts.
     func enterSky(_ camera: SkyCamera, animated: Bool = true) {
-        rig.enterSky(camera, animated: animated, uptime: ProcessInfo.processInfo.systemUptime, aspectRatio: lastAspectRatio)
+        rig.enterSky(camera, animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
     }
 
     /// Back to the globe camera, by the flight in played backwards.
     func leaveSky(animated: Bool = true) {
-        rig.leaveSky(animated: animated, uptime: ProcessInfo.processInfo.systemUptime, aspectRatio: lastAspectRatio)
+        rig.leaveSky(animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
     }
 
     /// Whether the sky view has landed, and what is on screen is what it aims at.
     /// Its instruments and its gestures wait for this.
     public var isSkySettled: Bool {
         rig.isSkySettled
-    }
-
-    /// The last frame's width over its height, which a flight sets off at; nil
-    /// before one is drawn.
-    private var lastAspectRatio: Double? {
-        lastFrame.map { $0.size.x / $0.size.y }
     }
 
     /// The device's attitude, in the observer's east, north and up, while the
@@ -470,14 +464,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// flies there; without it, as reduced motion asks, the camera cuts. Not
     /// from the sky view, which `leaveSky` leaves first.
     func flyHome(animated: Bool = true) {
-        rig.flyHome(animated: animated, uptime: ProcessInfo.processInfo.systemUptime, aspectRatio: lastAspectRatio)
+        rig.flyHome(animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
     }
 
     /// Draws the globe as a globe or as the flat map, keeping the place in sight.
     /// `animated` fades the one into the other; without it, as reduced motion
     /// asks, it cuts.
     func setProjection(_ projection: GlobeProjection, animated: Bool) {
-        rig.setProjection(projection, animated: animated, aspectRatio: lastAspectRatio ?? hdr.map { Double($0.width) / Double($0.height) })
+        rig.setProjection(projection, animated: animated)
         pacer.needsDraw = true
     }
 
@@ -527,7 +521,6 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         if view.bounds.width > 0 {
             pixelScale = Double(size.width / view.bounds.width)
         }
-        rig.openHome(aspectRatio: size.width / size.height)
         func target(_ format: MTLPixelFormat) -> MTLTexture? {
             let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: Int(size.width), height: Int(size.height), mipmapped: false)
             // In tile memory alone where the tonemap reads it there.
@@ -542,6 +535,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         hdr = target(ScenePipelines.hdrFormat)
         depth = target(ScenePipelines.depthFormat)
+        // In the whole pixels the frames are drawn at.
+        if let hdr {
+            rig.resize(aspectRatio: Double(hdr.width) / Double(hdr.height))
+        }
         pacer.needsDraw = true
     }
 
@@ -590,7 +587,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         let now = clock(shown - ProcessInfo.processInfo.systemUptime)
         let size = SIMD2(Double(hdr.width), Double(hdr.height))
         let pose = rig.pose(
-            uptime: shown, time: now, aspectRatio: size.x / size.y, model: { self.trackedModel($0) },
+            uptime: shown, time: now, model: { self.trackedModel($0) },
             target: { self.position(of: $0, at: $1) }, groundHeight: { self.surface.groundHeight($0) })
         guard let pose, mustDraw(pose: pose, time: now, size: size) else {
             if measuring {
