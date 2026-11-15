@@ -14,12 +14,12 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   (`KeptTiles`). A whole frame's tile, one to the minute or a day two days on, is
   cached though GIBS says `no-store` of every tile: it no longer changes.
 - Terrain (`Terrain.swift`) is Re:Earth's quantized mesh, decoded and kept per
-  terrain tile; a surface tile's grid is laid over the terrain tile log₂(screen
-  scale) levels coarser, since the surface is refined in device pixels where
-  CesiumJS counts CSS pixels: the level the web app would ask for, so the app
-  asks Re:Earth no more than the web app does. ADR 0009 has why. iOS's memory
-  warning drops what the last frame does not use (`GlobeRenderer.trimMemory`),
-  about 175 MB after the sky view.
+  terrain tile (`TerrainTiles`); a surface tile's grid is laid over the terrain
+  tile log₂(screen scale) levels coarser, since the surface is refined in device
+  pixels where CesiumJS counts CSS pixels: the level the web app would ask for,
+  so the app asks Re:Earth no more than the web app does. ADR 0009 has why. iOS's
+  memory warning drops what the last frame does not use
+  (`GlobeRenderer.trimMemory`), about 175 MB after the sky view.
 - The credits are About's Acknowledgements (`AcknowledgementsView`), the map's
   from `Credit.map`. Only OpenStreetMap wants its name in sight of the map, and
   of the maps only the terrain uses its data: `OpenStreetMapCredit` shows it on
