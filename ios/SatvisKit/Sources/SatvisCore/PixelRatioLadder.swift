@@ -15,11 +15,6 @@ public enum PixelRatioLadder {
         min((((1 + screen) / 2) * 4).rounded() / 4, range.upperBound)
     }
 
-    /// As JavaScript's `String(number)` writes a ratio: 2, not 2.0.
-    static func written(_ value: Double) -> String {
-        value == value.rounded() && abs(value) < 1e15 ? String(Int(value)) : String(value)
-    }
-
     /// Drawable pixels per point for a `pixelratio` value; the screen's own for one
     /// the app cannot read, and 1 for a nonsense screen scale.
     public static func value(_ ratio: String, screen: Double) -> Double {
@@ -31,7 +26,7 @@ public enum PixelRatioLadder {
     public static func rungs(screen: Double) -> [String] {
         var rungs: [String] = []
         if screen > 1 { rungs.append("1") }
-        if screen >= midFrom { rungs.append(written(mid(screen: screen))) }
+        if screen >= midFrom { rungs.append(jsNumberString(mid(screen: screen))) }
         rungs.append("native")
         return rungs
     }

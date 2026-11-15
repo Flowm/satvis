@@ -1,4 +1,5 @@
 import Foundation
+import SatvisCore
 
 /// The benchmark panel's status line, held to the web app's by a parity fixture.
 public struct BenchmarkStatus: Sendable, Equatable, Codable {
@@ -51,7 +52,7 @@ public struct BenchmarkStatus: Sendable, Equatable, Codable {
     /// Whole seconds under 90 s, rounded minutes from there.
     public static func duration(_ ms: Double) -> String {
         let seconds = max(0, jsRound(ms / 1000, 0))
-        return seconds < 90 ? "\(jsNumber(seconds)) s" : "\(jsNumber(jsRound(seconds / 60, 0))) min"
+        return seconds < 90 ? "\(jsNumberString(seconds)) s" : "\(jsNumberString(jsRound(seconds / 60, 0))) min"
     }
 
     /// "10 scenes · ≈ 2 min", "4 of 7 · Measuring · 1 min left", "Done · drift +0.4 %", "Cancelled · 3 of 7".

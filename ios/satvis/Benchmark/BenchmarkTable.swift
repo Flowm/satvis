@@ -83,12 +83,12 @@ enum BenchmarkFormat {
     }
 
     /// A report cell to `digits` places; a dash for anything but a number.
-    static func number(_ value: ReportValue?, _ digits: Int) -> String {
+    static func number(_ value: JSONValue?, _ digits: Int) -> String {
         Self.number(double(value), digits)
     }
 
     /// A report cell's number.
-    static func double(_ value: ReportValue?) -> Double? {
+    static func double(_ value: JSONValue?) -> Double? {
         if case .number(let number) = value {
             return number
         }
@@ -105,7 +105,7 @@ enum BenchmarkFormat {
     }
 
     /// Text as it is, a number to 2 places unless whole; blank otherwise.
-    static func string(_ value: ReportValue?) -> String {
+    static func string(_ value: JSONValue?) -> String {
         switch value {
         case .string(let text): text
         case .number(let figure): number(figure, figure == figure.rounded() ? 0 : 2)

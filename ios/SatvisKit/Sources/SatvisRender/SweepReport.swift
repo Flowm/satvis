@@ -1,57 +1,16 @@
 import Foundation
+import SatvisCore
 
-/// A JSON value: a report's cells, its environment and options.
-public enum ReportValue: Sendable, Equatable, Codable {
-    /// Whole numbers encode without a point.
-    case number(Double)
-    /// Also the web's blank (`blank`).
-    case string(String)
-    case bool(Bool)
-    /// Where the web writes null rather than a blank.
-    case null
-    /// No cell holds one, so its text is empty.
-    case array([ReportValue])
-    /// No cell holds one, so its text is empty.
-    case object([String: ReportValue])
-
+// A report's cells, its environment and options.
+extension JSONValue {
     /// A number, or the web's blank: an empty string.
-    static func blank(_ value: Double?) -> ReportValue { value.map(ReportValue.number) ?? .string("") }
+    static func blank(_ value: Double?) -> JSONValue { value.map(JSONValue.number) ?? .string("") }
 
-    /// Any JSON value; `report` turns a spec into one through it.
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if container.decodeNil() {
-            self = .null
-        } else if let value = try? container.decode(Bool.self) {
-            self = .bool(value)
-        } else if let value = try? container.decode(Double.self) {
-            self = .number(value)
-        } else if let value = try? container.decode(String.self) {
-            self = .string(value)
-        } else if let value = try? container.decode([ReportValue].self) {
-            self = .array(value)
-        } else {
-            self = .object(try container.decode([String: ReportValue].self))
-        }
-    }
-
-    /// Whole numbers without a point, as JavaScript writes them.
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch self {
-        case .number(let value): try value == value.rounded() && abs(value) < 1e15 ? container.encode(Int64(value)) : container.encode(value)
-        case .string(let value): try container.encode(value)
-        case .bool(let value): try container.encode(value)
-        case .null: try container.encodeNil()
-        case .array(let value): try container.encode(value)
-        case .object(let value): try container.encode(value)
-        }
-    }
-
-    /// As the web's `String(value)` writes it into a csv cell or a padded table.
+    /// As the web's `String(value)` writes it into a csv cell or a padded table;
+    /// no cell holds an array or an object, so their text is empty.
     var text: String {
         switch self {
-        case .number(let value): jsNumber(value)
+        case .number(let value): jsNumberString(value)
         case .string(let value): value
         case .bool(let value): value ? "true" : "false"
         case .null: "null"
@@ -67,22 +26,22 @@ public struct ReportRecord: Sendable, Equatable {
         /// The csv column and the JSON key.
         public var key: String
         /// Blank is an empty string, as on the web.
-        public var value: ReportValue
+        public var value: JSONValue
     }
 
     /// In column order.
     public var fields: [Field]
 
     /// Keys and values in column order.
-    init(_ fields: [(String, ReportValue)]) {
+    init(_ fields: [(String, JSONValue)]) {
         self.fields = fields.map { Field(key: $0.0, value: $0.1) }
     }
 
     /// Nil where the row has no such column.
-    public subscript(key: String) -> ReportValue? { fields.first { $0.key == key }?.value }
+    public subscript(key: String) -> JSONValue? { fields.first { $0.key == key }?.value }
 
     /// As a JSON object, which drops the column order.
-    public var json: ReportValue { .object(Dictionary(fields.map { ($0.key, $0.value) }, uniquingKeysWith: { $1 })) }
+    public var json: JSONValue { .object(Dictionary(fields.map { ($0.key, $0.value) }, uniquingKeysWith: { $1 })) }
 }
 
 /// One sweep step as both apps measure it, the web's `SweepResult`. Times in
@@ -180,9 +139,9 @@ public struct SweepRun: Sendable, Equatable, Codable {
     /// The plan it ran; JSON null in the report without one.
     public var spec: SweepSpec?
     /// Device and build facts, the report's `environment`.
-    public var environment: [String: ReportValue]
+    public var environment: [String: JSONValue]
     /// What it ran with, such as `warmupMs` and `sampleMs`.
-    public var options: [String: ReportValue]
+    public var options: [String: JSONValue]
     /// Distinct satellite names in the catalog the counts draw from.
     public var catalogSize: Int
     /// Stopped early; `results` holds the steps that finished.
@@ -190,7 +149,7 @@ public struct SweepRun: Sendable, Equatable, Codable {
 
     /// A run as both apps' reports read it.
     public init(
-        results: [SweepResult], startedAtIso: String, spec: SweepSpec?, environment: [String: ReportValue], options: [String: ReportValue], catalogSize: Int,
+        results: [SweepResult], startedAtIso: String, spec: SweepSpec?, environment: [String: JSONValue], options: [String: JSONValue], catalogSize: Int,
         cancelled: Bool
     ) {
         self.results = results
@@ -374,7 +333,7 @@ public enum SweepReport {
     }
 
     /// Rounded to `digits`, or blank for nil.
-    private static func blankOr(_ value: Double?, _ digits: Int = 2) -> ReportValue { .blank(value.map { jsRound($0, digits) }) }
+    private static func blankOr(_ value: Double?, _ digits: Int = 2) -> JSONValue { .blank(value.map { jsRound($0, digits) }) }
     /// Main-thread ms, 0 where unknown.
     private static func cpu(_ result: SweepResult) -> Double { result.cpuMs ?? 0 }
     /// The series a step belongs to.
@@ -385,7 +344,7 @@ public enum SweepReport {
         return run.results.map { result in
             let requested = SweepPlan.components(result.components)
             let drawn = SweepPlan.components(result.componentsDrawn)
-            var fields: [(String, ReportValue)] = [
+            var fields: [(String, JSONValue)] = [
                 ("sats", .number(Double(result.satelliteCount))), ("components", .string(requested)), ("clock", .number(result.clock)), ("repeat", .bool(result.repeat)),
                 ("drawn", .string(drawn == requested ? "" : drawn)), ("visible", .number(Double(result.visible))), ("frames", .number(Double(result.frames))),
                 ("fps", .number(jsRound(result.fps, 1))), ("cpuMs", blankOr(result.cpuMs)), ("gpuMs", blankOr(result.gpuMs)),
@@ -492,7 +451,9 @@ public enum SweepReport {
 
     /// Each set against its largest strict subset at the same count and clock.
     public static func marginalCosts(_ run: SweepRun) -> [MarginalCost] {
-        let buckets = grouped(run.measured) { "\($0.satelliteCount)@\(jsNumber($0.clock))" }.map(\.1).sorted { ($0.first?.satelliteCount ?? 0) < ($1.first?.satelliteCount ?? 0) }
+        let buckets = grouped(run.measured) { "\($0.satelliteCount)@\(jsNumberString($0.clock))" }.map(\.1).sorted {
+            ($0.first?.satelliteCount ?? 0) < ($1.first?.satelliteCount ?? 0)
+        }
         var costs: [MarginalCost] = []
         for results in buckets {
             for result in results {
@@ -611,7 +572,7 @@ public enum SweepReport {
             return ""
         }
         let keys = first.fields.map(\.key)
-        func escape(_ value: ReportValue?) -> String {
+        func escape(_ value: JSONValue?) -> String {
             guard let value else {
                 return ""
             }
@@ -624,9 +585,9 @@ public enum SweepReport {
     }
 
     /// The run and every table, as both apps export it.
-    public static func report(_ run: SweepRun) -> ReportValue {
-        var spec: ReportValue = .null
-        if let given = run.spec, let data = try? JSONEncoder().encode(given), let decoded = try? JSONDecoder().decode(ReportValue.self, from: data) {
+    public static func report(_ run: SweepRun) -> JSONValue {
+        var spec: JSONValue = .null
+        if let given = run.spec, let data = try? JSONEncoder().encode(given), let decoded = try? JSONDecoder().decode(JSONValue.self, from: data) {
             spec = decoded
         }
         return .object([

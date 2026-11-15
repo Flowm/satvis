@@ -35,7 +35,7 @@ final class SweepBenchmark {
         savedLink = session.link(sharing: false)
         savedClock = (clock.multiplier, clock.isPlaying)
         let environment = Benchmark.environment(renderer: renderer, session: session).mapValues(Self.value)
-        let options: [String: ReportValue] = ["warmupMs": .number(SweepPlan.warmupMilliseconds), "sampleMs": .number(SweepPlan.sampleMilliseconds)]
+        let options: [String: JSONValue] = ["warmupMs": .number(SweepPlan.warmupMilliseconds), "sampleMs": .number(SweepPlan.sampleMilliseconds)]
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let startedAt = iso.string(from: Date())
@@ -186,7 +186,7 @@ final class SweepBenchmark {
     }
 
     /// An environment value as the report's JSON holds it.
-    private static func value(_ any: Any) -> ReportValue {
+    private static func value(_ any: Any) -> JSONValue {
         // The decimal first: as an NSNumber, it would also pass for a Bool.
         switch any {
         case let value as NSDecimalNumber: .number(value.doubleValue)

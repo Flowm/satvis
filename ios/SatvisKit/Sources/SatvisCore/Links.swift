@@ -284,7 +284,7 @@ extension FieldKind where Value == String {
         let read: @Sendable (String) -> String? = { raw in
             if raw == "native" { return raw }
             guard raw.wholeMatch(of: /[0-9]+(\.[0-9]+)?/) != nil, let value = Double(raw), range.contains(value) else { return nil }
-            return PixelRatioLadder.written(value)
+            return jsNumberString(value)
         }
         return Self(parse: read, format: read)
     }
@@ -434,9 +434,10 @@ func jsNumber(_ text: String) -> Double? {
     return Double(trimmed.replacing("Infinity", with: "inf"))
 }
 
-/// JavaScript's `Number.prototype.toString()`: the shortest digits that read back
-/// as the same double, positional from 1e-6 up to 1e21, exponential outside.
-func jsNumberString(_ value: Double) -> String {
+/// As JavaScript's `String(number)` writes it: the shortest digits that read
+/// back as the same double, positional from 1e-6 up to 1e21, exponential
+/// outside; 2, not 2.0, and 0 for -0.
+public func jsNumberString(_ value: Double) -> String {
     if value == 0 {
         return "0"
     }

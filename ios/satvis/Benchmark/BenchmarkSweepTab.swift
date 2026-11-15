@@ -12,7 +12,7 @@ struct BenchmarkSweepTab: View {
 
     let session: Session
 
-    @State private var countsText = SweepPlan.satelliteCounts.map(jsNumber).joined(separator: ", ")
+    @State private var countsText = SweepPlan.satelliteCounts.map(jsNumberString).joined(separator: ", ")
     @State private var mode = Mode.current
     @State private var clocksText = "1"
     @State private var copied: String?
@@ -153,7 +153,7 @@ struct BenchmarkSweepTab: View {
                     .init(
                         id: index,
                         cells: [
-                            "sats": cost.sats.formatted(), "clock": "×\(jsNumber(cost.clock))", "main": BenchmarkFormat.number(cost.cpuMs, 2),
+                            "sats": cost.sats.formatted(), "clock": "×\(jsNumberString(cost.clock))", "main": BenchmarkFormat.number(cost.cpuMs, 2),
                             "delta": BenchmarkFormat.number(cost.deltaCpuMs, 2), "perSat": BenchmarkFormat.number(cost.usPerSatellite, 1),
                             "total": BenchmarkFormat.number(cost.deltaCpuTotalPct, 1), "components": cost.components,
                         ])
@@ -171,7 +171,7 @@ struct BenchmarkSweepTab: View {
                     .init(
                         id: index,
                         cells: [
-                            "sats": cost.sats.formatted(), "clock": "×\(jsNumber(cost.clock))", "added": cost.added,
+                            "sats": cost.sats.formatted(), "clock": "×\(jsNumberString(cost.clock))", "added": cost.added,
                             "delta": BenchmarkFormat.number(cost.deltaCpuMs, 2), "perSat": BenchmarkFormat.number(cost.usPerSatellite, 1), "over": cost.over,
                         ])
                 })
