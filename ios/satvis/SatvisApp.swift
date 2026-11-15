@@ -260,28 +260,25 @@ struct ContentView: View {
                     Button("Show UI", systemImage: "eye") { showsUI = true }
                 } else {
                     Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
-                    // A Mac has no motion sensor to aim by, nor a camera facing the sky.
-                    #if os(iOS)
-                        if session.observer != nil {
-                            Button {
-                                session.aim.toggleCompass()
-                            } label: {
-                                Label {
-                                    Text(session.aim.compass.isAiming ? "Stop aiming by compass" : "Aim by compass")
-                                } icon: {
-                                    // The menu toggle's Lucide side, Dynamic Type scaling it as the symbols beside it.
-                                    Image(.lucideCompass).resizable().frame(width: 22 * textScale, height: 22 * textScale)
-                                }
+                    if session.observer != nil, Platform.aimsByDevice {
+                        Button {
+                            session.aim.toggleCompass()
+                        } label: {
+                            Label {
+                                Text(session.aim.compass.isAiming ? "Stop aiming by compass" : "Aim by compass")
+                            } icon: {
+                                // The menu toggle's Lucide side, Dynamic Type scaling it as the symbols beside it.
+                                Image(.lucideCompass).resizable().frame(width: 22 * textScale, height: 22 * textScale)
                             }
-                            // Lucide has no filled compass: on, it takes the accent, as on the web.
-                            .buttonStyle(PanelButtonStyle(emphasis: session.aim.compass.isAiming ? .accent : .plain, square: true))
-                            Button(
-                                session.aim.passthrough.isShowing ? "Hide the camera" : "Show the camera",
-                                systemImage: session.aim.passthrough.isShowing ? "camera.fill" : "camera"
-                            ) { session.aim.togglePassthrough() }
-                            .disabled(session.aim.isStartingCamera)
                         }
-                    #endif
+                        // Lucide has no filled compass: on, it takes the accent, as on the web.
+                        .buttonStyle(PanelButtonStyle(emphasis: session.aim.compass.isAiming ? .accent : .plain, square: true))
+                        Button(
+                            session.aim.passthrough.isShowing ? "Hide the camera" : "Show the camera",
+                            systemImage: session.aim.passthrough.isShowing ? "camera.fill" : "camera"
+                        ) { session.aim.togglePassthrough() }
+                        .disabled(session.aim.isStartingCamera)
+                    }
                     // The way out of following something once its panel is closed.
                     if session.tracked != nil {
                         Button("Stop tracking", systemImage: "video.slash") { session.stopTracking(animated: true) }
@@ -510,7 +507,10 @@ struct ContentView: View {
             case .bookmarks:
                 // The column stays folded over the scene a bookmark opened, as a tap on
                 // the globe leaves it.
-                BookmarksView(session: session) { sheetFoldedColumn = false }
+                BookmarksView(session: session) {
+                    sheetFoldedColumn = false
+                    openSheet = nil
+                }
             case .browser:
                 BrowserView(catalog: session.catalog) { session.select(.satellite($0.id)) }
             case .about:

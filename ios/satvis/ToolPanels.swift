@@ -816,8 +816,7 @@ struct SkyPanel: View {
                 Note("Locations you add are listed here too.")
             }
         }
-        // A Mac has no motion sensor to aim by, nor a camera facing the sky.
-        #if os(iOS)
+        if Platform.aimsByDevice {
             PanelSection("Aiming") {
                 // Waiting on the sensor, a second tap must not start a second probe.
                 PanelCard {
@@ -848,7 +847,7 @@ struct SkyPanel: View {
                 }
                 Note("The sky through the camera, aimed by compass.")
             }
-        #endif
+        }
         PanelSection("Out of sight") {
             Segments(title: "Out of sight", selection: $session.unseen, options: UnseenMode.allCases.map { ($0.rawValue.capitalized, $0) })
                 .disabled(!inSky)

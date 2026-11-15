@@ -618,8 +618,10 @@ moves the window and double-clicking it fills the screen. Try each command of th
 View, Satellite and Bookmarks menus, Help's links, Edit > Copy Link to This View
 (⇧⌘C) and the link it copies. Open Bookmarks from its entry and from ⌘B, as a
 panel beside the column, share the view from it, and open a bookmark and the
-default view from it: each closes the panel, not the window. Open About from the
-menu column and the app menu. Move the window to a display with another refresh rate
+default view from it: each closes the panel, not the window. In the sky view, check
+that neither the corner nor the Sky panel offers the compass or the camera. Open
+About from the menu column and the app menu, and check that it says the sky view is
+aimed by dragging alone. Move the window to a display with another refresh rate
 and check `device_max_fps` in a benchmark report. Cover the window with another
 and check in Activity Monitor that Satvis's GPU use falls to nothing. Narrow the
 window to its smallest, track a satellite, quit, and check that it opens again

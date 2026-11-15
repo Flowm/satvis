@@ -358,9 +358,10 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
 - The Mac app is this target built for macOS (ADR 0017): the views are shared,
   laid out as an iPad's, since the Mac's window is given the regular size
   classes. `Platform.swift` answers what UIKit and AppKit answer apart (reduced
-  motion, the clipboard, images, the device for the benchmark), and
-  `satvis/macOS/` holds what only the Mac has, such as the stand-ins for the
-  compass and camera (`SkyDevices.swift`), whose controls are not shown.
+  motion, the clipboard, the share sheet, images, the device for the benchmark),
+  and `satvis/macOS/` holds what only the Mac has, such as the stand-ins for the
+  compass and camera (`SkyDevices.swift`), whose controls are not shown
+  (`Platform.aimsByDevice`).
 - The globe's `MTKView` sizes its own drawable on the Mac (`ScaledMTKView`): AppKit
   sizes it by the window's backing scale, which changes when the window moves to
   another display, and the Graphics panel's pixel ratio has to win over it. It
