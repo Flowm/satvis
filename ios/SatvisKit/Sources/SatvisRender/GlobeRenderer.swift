@@ -154,8 +154,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// Called with the first frame the GPU fails of each kind, which it logs.
     var onGPUFault: (@MainActor @Sendable (GPUFault) -> Void)? {
-        get { loop.faults.onFault }
-        set { loop.faults.onFault = newValue }
+        get { loop.onFault }
+        set { loop.onFault = newValue }
     }
 
     /// Who measures the frames: the performance panel, the benchmark. Nothing is
@@ -548,8 +548,6 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     public func draw(in view: MTKView) {
-        let interval = 1 / Double(max(1, view.preferredFramesPerSecond))
-        loop.drawables.setBehind((loop.presentation.perFrame ?? 0) > interval)
         // A change of projection that fades draws one frame more of the old one,
         // and keeps it to fade from; one that does not shows the new at once.
         let keepsFrame = rig.drawnProjection != rig.shownProjection && rig.fadesProjection && lastFrame != nil
@@ -566,7 +564,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         let started = ProcessInfo.processInfo.systemUptime
         // Flights and the clock as they stand when the frame is shown; drags as the
         // touches stand now.
-        let shown = loop.presentation.predict(at: started, refresh: 1 / Double(Self.displayMaximumFramesPerSecond), interval: interval)
+        let shown = loop.predict(view, at: started, refresh: 1 / Double(Self.displayMaximumFramesPerSecond))
         let now = clock(shown - ProcessInfo.processInfo.systemUptime)
         let size = SIMD2(Double(hdr.width), Double(hdr.height))
         let pose = rig.pose(
@@ -579,7 +577,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             }
             return
         }
-        guard let target = loop.begin(view, measuring: measuring) else {
+        guard let target = loop.begin(view) else {
             if measuring {
                 meter.skipped(cpuSeconds: ProcessInfo.processInfo.systemUptime - started, paced: paced)
             }
@@ -603,22 +601,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             encodeFade(onto: target.drawable.texture, commands: commands, at: shown)
         }
         snapshots.encode(of: target.drawable, into: commands, device: device)
-        let committed = ProcessInfo.processInfo.systemUptime
-        let cpu = committed - started - target.waitedForBuffer - target.waitedForDrawable
-        let id = loop.presentation.began(committed: committed, cpu: cpu, shown: shown)
-        commands.addCompletedHandler { [presentation = loop.presentation, meter] buffer in
-            let (start, end) = (buffer.gpuStartTime, buffer.gpuEndTime)
-            presentation.done(id, start: start, end: end)
-            if measuring {
-                meter.gpu(start: start, end: end, frame: id)
-            }
-        }
-        commands.present(target.drawable)
-        commands.commit()
+        let id = loop.commit(target, started: started, shown: shown, meter: measuring ? meter : nil)
         if measuring {
             let ended = ProcessInfo.processInfo.systemUptime
             meter.frame(
-                cpuSeconds: ended - started - target.waitedForBuffer - target.waitedForDrawable, bufferWaitSeconds: target.waitedForBuffer,
+                cpuSeconds: target.cpu(from: started, to: ended), bufferWaitSeconds: target.waitedForBuffer,
                 drawableWaitSeconds: target.waitedForDrawable, at: ended, satellites: points.count, paced: paced,
                 displayRate: Double(Self.displayMaximumFramesPerSecond), id: id)
         }

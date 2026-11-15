@@ -60,8 +60,8 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   Cesium's Apache 2.0 notice and says what changed, and `LICENSE.CesiumJS.md`
   stays beside them, verbatim.
 - `GlobeRenderer` is the MTKView's delegate and all the app calls; each frame it
-  takes the pose from `CameraRig`, asks `FramePacer` whether to draw, begins it
-  in `FrameLoop`, places the models with `ModelPlacer`, and encodes it with
+  takes the pose from `CameraRig`, asks `FramePacer` whether to draw, times,
+  begins and commits it in `FrameLoop`, places the models with `ModelPlacer`, and encodes it with
   `ScenePass`, which draws the 2D map through `MapPass`, from `ScenePipelines`.
 - The renderer works in the Earth-fixed frame in metres, relative to the eye,
   with reversed-Z depth and no far plane. Satellites are placed by high/low
