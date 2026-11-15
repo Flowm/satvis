@@ -16,9 +16,8 @@ final class SweepBenchmark {
     private(set) var run: SweepRun?
     private(set) var stepStarted: Date?
     @ObservationIgnored private var task: Task<Void, Never>?
-    @ObservationIgnored private var savedLink: Link?
     /// Put back at the end or as the app leaves the foreground.
-    @ObservationIgnored private var savedClock: (multiplier: Double, playing: Bool)?
+    @ObservationIgnored private var runStart: Benchmark.RunStart?
 
     var isRunning: Bool { phase.scene != nil }
 
@@ -31,9 +30,7 @@ final class SweepBenchmark {
         self.steps = steps
         phase = .loading(0)
         stepStarted = Date()
-        let clock = session.clock.clock
-        savedLink = session.link(sharing: false)
-        savedClock = (clock.multiplier, clock.isPlaying)
+        runStart = Benchmark.RunStart(session)
         let environment = Benchmark.environment(renderer: renderer, session: session).mapValues(Self.value)
         let options: [String: JSONValue] = ["warmupMs": .number(SweepPlan.warmupMilliseconds), "sampleMs": .number(SweepPlan.sampleMilliseconds)]
         let iso = ISO8601DateFormatter()
@@ -53,9 +50,7 @@ final class SweepBenchmark {
             // Abandoned during the load: the clock is already back, and must not start again.
             if !Task.isCancelled {
                 // A stopped clock would measure idleness.
-                if !session.clock.clock.isPlaying {
-                    session.clock.togglePlaying()
-                }
+                session.clock.setPlaying(true)
                 renderer.measureFrames(true, for: "sweep")
                 renderer.drawsEveryFrame = true
             }
@@ -81,7 +76,7 @@ final class SweepBenchmark {
     /// `closing` as the panel closes: the view opened again is then without it.
     func cancel(closing: Bool) {
         if closing {
-            savedLink?.query.items.removeAll { $0.key == "bench" }
+            runStart?.dropPanel()
         }
         task?.cancel()
     }
@@ -91,31 +86,24 @@ final class SweepBenchmark {
     func abandon(on session: Session) -> Link? {
         task?.cancel()
         restoreClock(on: session)
-        return savedLink
+        return runStart?.link
     }
 
     /// The clock, then the user's view.
     private func restore(on session: Session) {
         restoreClock(on: session)
-        if let savedLink {
-            self.savedLink = nil
+        if let runStart {
+            self.runStart = nil
             // Its stations, activation and components, as they were.
-            session.open(savedLink)
+            session.open(runStart.link)
         }
     }
 
-    /// The clock and the pacing, once.
+    /// The pacing every time, the clock once.
     private func restoreClock(on session: Session) {
         session.renderer?.drawsEveryFrame = false
         session.renderer?.measureFrames(false, for: "sweep")
-        guard let savedClock else {
-            return
-        }
-        self.savedClock = nil
-        session.clock.setMultiplier(savedClock.multiplier)
-        if session.clock.clock.isPlaying != savedClock.playing {
-            session.clock.togglePlaying()
-        }
+        runStart?.restoreClock(on: session.clock)
     }
 
     /// Clears, builds, warms up and records one step; nil once cancelled.

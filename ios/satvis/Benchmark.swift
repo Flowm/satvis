@@ -26,6 +26,37 @@ final class Benchmark {
         }
     }
 
+    /// What a run or a sweep began from and puts back.
+    struct RunStart {
+        /// The user's view while a run shows its scenes, opened again at its end.
+        private(set) var link: Link
+        /// The clock's rate and play state, which the run changes live; nil once put back.
+        private var clock: (multiplier: Double, playing: Bool)?
+        /// As the report's `app_pixel_ratio`.
+        let pixelRatio: String
+
+        init(_ session: Session, link: Link? = nil) {
+            self.link = link ?? session.link(sharing: false)
+            clock = (session.clock.clock.multiplier, session.clock.clock.isPlaying)
+            pixelRatio = session.pixelRatio
+        }
+
+        /// As the panel closes: the view opened again is then without it.
+        mutating func dropPanel() {
+            link.query.items.removeAll { $0.key == "bench" }
+        }
+
+        /// Once, at the run's end or as it is abandoned.
+        mutating func restoreClock(on viewer: ViewerClock) {
+            guard let clock else {
+                return
+            }
+            self.clock = nil
+            viewer.setMultiplier(clock.multiplier)
+            viewer.setPlaying(clock.playing)
+        }
+    }
+
     /// The largest groups come from the worker on a first run.
     static let loadTimeout: Duration = .seconds(90)
     /// For the tiles, the model and the shader caches.
@@ -55,13 +86,11 @@ final class Benchmark {
     var sweepSpec = SweepSpec(satelliteCounts: SweepPlan.satelliteCounts, componentSets: [["Point", "Label"]])
     private(set) var stepStarted: Date?
     @ObservationIgnored private var run: Task<Void, Never>?
-    /// The user's view while a run shows its scenes, opened again at its end.
-    @ObservationIgnored private(set) var savedLink: Link?
+    /// Put back at the run's end; each scene without a `time` sets the clock live.
+    @ObservationIgnored private var runStart: RunStart?
     /// The overpass mode, which the scenes' links change and `PassAlerts` reads
     /// from where it is kept, in the background.
     @ObservationIgnored private var savedMode: OverpassMode?
-    /// The clock's rate and play state, which each scene without a `time` sets live.
-    @ObservationIgnored private var savedClock: (multiplier: Double, playing: Bool)?
 
     /// Shares this run's guard: one run at a time.
     let sweep = SweepBenchmark()
@@ -89,9 +118,8 @@ final class Benchmark {
         phase = .loading(0)
         stepStarted = Date()
         environment = Self.environment(renderer: renderer, session: session)
-        savedLink = restoring ?? session.link(sharing: false)
+        runStart = RunStart(session, link: restoring)
         savedMode = session.passes.mode
-        savedClock = (session.clock.clock.multiplier, session.clock.clock.isPlaying)
         run = Task {
             // The scenes come with the group index, which a first launch waits for.
             for _ in 0..<120 where Self.served(on: session).isEmpty && !Task.isCancelled {
@@ -117,11 +145,11 @@ final class Benchmark {
                 environment["device_drawable_pixels"] = "\(Int(size.width))x\(Int(size.height))"
             }
             phase = Task.isCancelled || steps.isEmpty ? .cancelled : .done
-            if let savedLink {
-                session.open(savedLink)
+            if let link = runStart?.link {
+                session.open(link)
             }
-            restoreClock(on: session)
-            savedLink = nil
+            runStart?.restoreClock(on: session.clock)
+            runStart = nil
             savedMode = nil
             if phase == .done {
                 if sends {
@@ -158,7 +186,7 @@ final class Benchmark {
     /// `closing` as the panel closes: the view opened again is then without it.
     func cancel(closing: Bool = false) {
         if closing {
-            savedLink?.query.items.removeAll { $0.key == "bench" }
+            runStart?.dropPanel()
         }
         run?.cancel()
         sweep.cancel(closing: closing)
@@ -179,20 +207,8 @@ final class Benchmark {
         if let savedMode {
             session.passes.setMode(savedMode)
         }
-        restoreClock(on: session)
-        return savedLink
-    }
-
-    /// Once, at the run's end or as it is abandoned.
-    private func restoreClock(on session: Session) {
-        guard let savedClock else {
-            return
-        }
-        self.savedClock = nil
-        session.clock.setMultiplier(savedClock.multiplier)
-        if session.clock.clock.isPlaying != savedClock.playing {
-            session.clock.togglePlaying()
-        }
+        runStart?.restoreClock(on: session.clock)
+        return runStart?.link
     }
 
     /// Opens the scene, waits until it is drawn and steady, settles and records;
@@ -204,7 +220,7 @@ final class Benchmark {
         // At the pixel ratio the run began at and with the performance panel as
         // it is, which the scenes' links do not name.
         var link = step.scene.link
-        if let ratio = environment["app_pixel_ratio"] as? String, ratio != "native" {
+        if let ratio = runStart?.pixelRatio, ratio != "native" {
             link.query.items.append(LinkQuery.Item(key: "pixelratio", values: [ratio]))
         }
         if session.fpsPanel != .off {
