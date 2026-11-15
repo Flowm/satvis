@@ -31,8 +31,9 @@ later, the app fills an iPhone Duo's screens edge to edge.
 app works**, read `docs/architecture.md`, the app part by part.
 
 **After changing what the app draws or how it answers a touch**, rerun the
-checks in `docs/manual-verification.md` that cover it, and record what each
-returned.
+checks in `docs/manual-checks.md` that cover it, and put what each returned in
+the commit message, not in that file. Add a check there only for what the tests
+cannot hold, in a line or two.
 
 ## Tasks
 

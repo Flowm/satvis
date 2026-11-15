@@ -161,7 +161,7 @@ presets:
         pictureAt: 2026-11-01T17:32Z
         query: { scene: Sky, gs: "46.5935,7.9091,Lauterbrunnen", terrain: ReEarth, layers: VersaTiles, stars: DeepStar2K, tags: Active }
     # The Weather group three ways, the count axis, the 3D model close up and the sky view,
-    # which the tests on an iPad mini found to differ most (ios/docs/manual-verification.md).
+    # which runs of the native app on an iPad mini found to differ most (2026-10-06).
     # The default view is the floor under every other scene: in Chrome on an M4 Pro at
     # 3024×1724 it took 13.6 ms of GPU a frame and the globe without satellites 13.7; in
     # Safari on the iPad mini both ran at 42 to 46 fps. Starlink as points cost what all
