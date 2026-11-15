@@ -19,7 +19,11 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   pixels where CesiumJS counts CSS pixels: the level the web app would ask for,
   so the app asks Re:Earth no more than the web app does. ADR 0009 has why. iOS's
   memory warning drops what the last frame does not use
-  (`GlobeRenderer.trimMemory`), about 175 MB after the sky view.
+  (`GlobeRenderer.trimMemory`), about 175 MB after the sky view. The cameras that
+  reach the ground keep the eye over it: the sky view's stands on the finest terrain
+  loaded, and the one following something is lifted out of it
+  (`TrackingCamera.keepAboveGround`), as a followed station stands on the
+  ellipsoid, inside any mountain.
 - The credits are About's Acknowledgements (`AcknowledgementsView`), the map's
   from `Credit.map`. Only OpenStreetMap wants its name in sight of the map, and
   of the maps only the terrain uses its data: `OpenStreetMapCredit` shows it on
