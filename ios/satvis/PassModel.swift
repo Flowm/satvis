@@ -42,9 +42,19 @@ final class PassModel {
 
     var hasStations: Bool { !stations.isEmpty }
 
-    /// Replaces the saved stations.
-    func setStations(_ stations: [GroundStation]) {
-        edit { $0.setSaved(stations) }
+    /// Replaces the saved station with `station`'s id by `station`.
+    func update(_ station: GroundStation) {
+        edit { $0.update(station) }
+    }
+
+    /// Moves a saved station into the place of `target`, which moves aside.
+    func move(_ id: UUID, onto target: UUID) {
+        edit { $0.move(id, onto: target) }
+    }
+
+    /// Moves a saved station a place up (-1) or down (1).
+    func move(_ id: UUID, by offset: Int) {
+        edit { $0.move(id, by: offset) }
     }
 
     /// Adds a station, and says which it became: the one already there when it

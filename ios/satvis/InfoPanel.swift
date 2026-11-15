@@ -496,12 +496,9 @@ struct StationPanel: View {
                 TextField("unnamed", text: $draftName)
                 Button("Cancel", role: .cancel) {}
                 Button("Rename") {
-                    var stations = session.passes.saved
-                    guard let index = stations.firstIndex(where: { $0.id == station.id }) else {
-                        return
-                    }
-                    stations[index].name = draftName
-                    session.passes.setStations(stations)
+                    var renamed = station
+                    renamed.name = draftName
+                    session.passes.update(renamed)
                 }
             }
         }
