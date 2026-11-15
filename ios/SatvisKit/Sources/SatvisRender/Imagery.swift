@@ -164,7 +164,7 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
 }
 
 /// NASA's Global Imagery Browse Services, for the instrument imagery's frames.
-public enum GIBS {
+enum GIBS {
     static let wmts = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best"
 
     /// Whether a frame no longer changes: one to the minute, or a day two days after it

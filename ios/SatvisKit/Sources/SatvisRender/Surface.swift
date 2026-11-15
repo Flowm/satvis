@@ -206,13 +206,9 @@ final class Surface {
         }
         self.layer = layer
         self.site = site
-        generation += 1
         baseMap?.clear()
         baseMap = layer.source(site: site).map { SourceTiles($0, name: layer.rawValue, keepsStandIns: false) }
-        for tile in tiles.values {
-            tile.needsBake = true
-            tile.isComplete = false
-        }
+        bakeAgain()
     }
 
     /// A layer over the base map, and the tiles of its frame.
@@ -322,7 +318,7 @@ final class Surface {
         return moved
     }
 
-    /// Bakes every tile again, for a change of what is laid over them.
+    /// Bakes every tile again, for a change of the base map or of what is laid over it.
     private func bakeAgain() {
         generation += 1
         for tile in tiles.values {
@@ -525,7 +521,7 @@ final class Surface {
         }
         drapes += 1
         let mesh = SurfaceMesh(
-            bounds: tile.bounds, level: tile.key.level,
+            bounds: tile.bounds,
             terrain: terrain.source.map { source in
                 (source.sample, Terrain.skirtHeight(level: terrain.key?.level ?? 0))
             })
@@ -812,13 +808,9 @@ final class Surface {
 
     /// Tiles that wanted a source tile, or would draw it or one of its descendants.
     private func markForBake(covering bounds: Bounds) {
-        for tile in tiles.values where !tile.isComplete && overlaps(tile.bounds, bounds) {
+        for tile in tiles.values where !tile.isComplete && Self.overlaps(tile.bounds, bounds) {
             tile.needsBake = true
         }
-    }
-
-    private func overlaps(_ a: Bounds, _ b: Bounds) -> Bool {
-        Self.overlaps(a, b)
     }
 
     nonisolated private static func overlaps(_ a: Bounds, _ b: Bounds) -> Bool {
@@ -875,7 +867,7 @@ final class Surface {
             return tile
         }
         let bounds = Projection.geographic.bounds(key)
-        let mesh = SurfaceMesh(bounds: bounds, level: key.level)
+        let mesh = SurfaceMesh(bounds: bounds)
         let buffer = device.makeBuffer(copying: mesh.vertices)!
         let tile = Tile(key: key, bounds: bounds, vertices: buffer, centre: mesh.centre, radius: mesh.radius, samples: mesh.samples)
         tiles[key] = tile
@@ -1078,7 +1070,7 @@ struct SurfaceMesh {
     typealias Ground = (sample: (_ latitude: Double, _ longitude: Double) -> (height: Double, normal: SIMD3<Double>?), skirt: Double)
 
     /// On the ellipsoid, or laid over `terrain`.
-    init(bounds: Bounds, level: Int, terrain: Ground? = nil) {
+    init(bounds: Bounds, terrain: Ground? = nil) {
         let n = Self.size
         // Deep enough to cover the sag of a chord of a neighbour a level or two coarser.
         let segment = (bounds.east - bounds.west) * .pi / 180 * 6_371_000 / Double(n)

@@ -137,8 +137,8 @@ import simd
         let source = TerrainSource(mesh: try Self.tile(), key: Self.key)
         let bounds = Projection.geographic.bounds(TileKey(level: 12, x: 4345, y: 968))
         let skirt = Terrain.skirtHeight(level: 10)
-        let flat = SurfaceMesh(bounds: bounds, level: 12)
-        let draped = SurfaceMesh(bounds: bounds, level: 12, terrain: (source.sample, skirt))
+        let flat = SurfaceMesh(bounds: bounds)
+        let draped = SurfaceMesh(bounds: bounds, terrain: (source.sample, skirt))
         #expect(draped.vertices.count == flat.vertices.count)
         let grid = (SurfaceMesh.size + 1) * (SurfaceMesh.size + 1)
         func height(_ vertex: GlobeVertex) -> Double { length(draped.centre + SIMD3<Double>(vertex.offset)) }

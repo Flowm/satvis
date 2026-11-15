@@ -73,7 +73,7 @@ import simd
     }
 
     @Test func meshesASurfaceTileWithASkirt() {
-        let mesh = SurfaceMesh(bounds: Projection.geographic.bounds(TileKey(level: 4, x: 17, y: 4)), level: 4)
+        let mesh = SurfaceMesh(bounds: Projection.geographic.bounds(TileKey(level: 4, x: 17, y: 4)))
         #expect(mesh.vertices.count == 17 * 17 + 64)
         #expect(SurfaceMesh.indices().max() == UInt32(17 * 17 + 63))
         #expect(mesh.radius > 0 && mesh.samples.count == 9)

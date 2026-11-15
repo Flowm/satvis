@@ -11,34 +11,6 @@ struct GlobeVertex {
     var uv: SIMD2<Float>
 }
 
-/// A latitude-longitude grid over an ellipsoid, as triangle indices into its
-/// vertices. Wound counter-clockwise seen from outside.
-struct EllipsoidMesh<Vertex> {
-    var vertices: [Vertex]
-    var indices: [UInt32]
-
-    init(radii: SIMD3<Double>, longitudes: Int, latitudes: Int, vertex: (_ position: SIMD3<Double>, _ normal: SIMD3<Double>, _ uv: SIMD2<Double>) -> Vertex) {
-        vertices = []
-        vertices.reserveCapacity((longitudes + 1) * (latitudes + 1))
-        let radiiSquared = radii * radii
-        for row in 0...latitudes {
-            // Geodetic latitude from the north pole down, which is how the imagery's
-            // rows run.
-            let v = Double(row) / Double(latitudes)
-            let latitude = Double.pi / 2 - v * Double.pi
-            for column in 0...longitudes {
-                let u = Double(column) / Double(longitudes)
-                let longitude = -Double.pi + u * 2 * Double.pi
-                // CesiumJS's cartographicToCartesian: the point whose surface normal this is.
-                let normal = SIMD3(cos(latitude) * cos(longitude), cos(latitude) * sin(longitude), sin(latitude))
-                let k = radiiSquared * normal
-                vertices.append(vertex(k / sqrt(dot(normal, k)), normal, SIMD2(u, v)))
-            }
-        }
-        indices = Meshes.grid(columns: longitudes, rows: latitudes)
-    }
-}
-
 enum Meshes {
     /// Triangles over a grid of `columns + 1` by `rows + 1` vertices, numbered
     /// along the rows.
@@ -56,10 +28,26 @@ enum Meshes {
         return indices
     }
 
-    /// The sky atmosphere's shell, 2.5 % outside the ellipsoid (SkyAtmosphere.js).
-    static func skyShell() -> EllipsoidMesh<SIMD4<Float>> {
-        EllipsoidMesh(radii: ellipsoidRadii * 1.025, longitudes: 128, latitudes: 64) { position, _, _ in
-            SIMD4<Float>(SIMD3<Float>(position), 1)
+    /// The sky atmosphere's shell, 2.5 % outside the ellipsoid (SkyAtmosphere.js): a
+    /// latitude-longitude grid, wound counter-clockwise seen from outside.
+    static func skyShell() -> (vertices: [SIMD4<Float>], indices: [UInt32]) {
+        let radii = ellipsoidRadii * 1.025
+        let radiiSquared = radii * radii
+        let longitudes = 128
+        let latitudes = 64
+        var vertices: [SIMD4<Float>] = []
+        vertices.reserveCapacity((longitudes + 1) * (latitudes + 1))
+        for row in 0...latitudes {
+            // Geodetic latitude from the north pole down.
+            let latitude = Double.pi / 2 - Double(row) / Double(latitudes) * Double.pi
+            for column in 0...longitudes {
+                let longitude = -Double.pi + Double(column) / Double(longitudes) * 2 * Double.pi
+                // CesiumJS's cartographicToCartesian: the point whose surface normal this is.
+                let normal = SIMD3(cos(latitude) * cos(longitude), cos(latitude) * sin(longitude), sin(latitude))
+                let k = radiiSquared * normal
+                vertices.append(SIMD4<Float>(SIMD3<Float>(k / sqrt(dot(normal, k))), 1))
+            }
         }
+        return (vertices, grid(columns: longitudes, rows: latitudes))
     }
 }
