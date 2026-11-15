@@ -60,12 +60,42 @@ struct Parity: Decodable {
     static func load() throws -> Parity {
         try JSONDecoder().decode(Parity.self, from: fixture("parity"))
     }
+
+    /// The element sets the fixture was written from.
+    static func records() throws -> [GPRecord] {
+        try GPRecord.decodePayload(fixture("parity-input"))
+    }
+
+    /// One top-level section of the fixture, `key`, as `T`.
+    static func section<T: Decodable>(_ key: String, as type: T.Type, decoder: JSONDecoder = JSONDecoder()) throws -> T {
+        decoder.userInfo[Section<T>.key] = key
+        return try decoder.decode(Section<T>.self, from: fixture("parity")).value
+    }
+
+    /// What sits under the key `section` puts in the decoder's `userInfo`.
+    private struct Section<T: Decodable>: Decodable {
+        struct Key: CodingKey {
+            let stringValue: String
+            var intValue: Int? { nil }
+            init(stringValue: String) { self.stringValue = stringValue }
+            init?(intValue: Int) { nil }
+        }
+
+        static var key: CodingUserInfoKey { CodingUserInfoKey(rawValue: "parity.section")! }
+
+        let value: T
+
+        init(from decoder: any Decoder) throws {
+            let key = Key(stringValue: decoder.userInfo[Self.key] as! String)
+            value = try decoder.container(keyedBy: Key.self).decode(T.self, forKey: key)
+        }
+    }
 }
 
 @Suite struct ParityTests {
     @Test func parsesLikeTheWebApp() throws {
         let parity = try Parity.load()
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         #expect(records.count == parity.parsed.count)
         for (record, expected) in zip(records, parity.parsed) {
             #expect(record.name == expected.name)
@@ -80,7 +110,7 @@ struct Parity: Decodable {
     // in setting up the satrec, which costs metres, cannot hide in the margin.
     @Test func propagatesLikeTheWebApp() throws {
         let parity = try Parity.load()
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         for expected in parity.propagation {
             let record = records[expected.record]
             let instant = try #require(utcMilliseconds(iso: expected.instant))
@@ -112,7 +142,7 @@ struct Parity: Decodable {
     // interpolate the same nodes with the same basis.
     @Test func samplesTheWebAppsGrid() throws {
         let parity = try Parity.load()
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         for grid in parity.grids {
             let record = records[grid.record]
             let propagator = try SGP4Propagator(record.meanElements)

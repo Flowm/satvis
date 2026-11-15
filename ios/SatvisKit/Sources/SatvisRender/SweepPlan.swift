@@ -123,7 +123,7 @@ public enum SweepPlan {
 
     /// A scaling series' name: the clock only where it is not ×1.
     public static func series(_ components: [String], clock: Double) -> String {
-        clock == 1 ? Self.components(components) : "\(Self.components(components)) @ ×\(jsNumber(clock))"
+        clock == 1 ? Self.components(components) : "\(Self.components(components)) @ ×\(jsNumberString(clock))"
     }
 }
 
@@ -139,15 +139,4 @@ func jsRound(_ value: Double, _ digits: Int) -> Double {
         return (scaled.rounded(.down) + 1) / scale * (value < 0 ? -1 : 1)
     }
     return Double(String(format: "%.\(digits)f", value)) ?? value
-}
-
-/// As JavaScript's `String(number)`: whole numbers without a point, no negative zero.
-public func jsNumber(_ value: Double) -> String {
-    if value == 0 {
-        return "0"
-    }
-    if value == value.rounded(), abs(value) < 1e21 {
-        return String(format: "%.0f", value)
-    }
-    return "\(value)"
 }

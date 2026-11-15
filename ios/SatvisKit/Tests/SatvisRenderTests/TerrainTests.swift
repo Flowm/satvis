@@ -6,8 +6,7 @@ import simd
 
 @Suite struct TerrainTests {
     private static func tile() throws -> QuantizedMesh {
-        let url = try #require(Bundle.module.url(forResource: "10-1086-781", withExtension: "terrain", subdirectory: "Fixtures"))
-        return try QuantizedMesh(Data(contentsOf: url))
+        return try QuantizedMesh(Fixtures.data("10-1086-781", ext: "terrain"))
     }
 
     // As Re:Earth served it: counted with a script that walked the format.
@@ -31,8 +30,7 @@ import simd
 
     /// The fixture with `bytes` written at `offset`, little-endian.
     private static func corrupted(at offset: Int, _ bytes: [UInt8]) throws -> Data {
-        let url = try #require(Bundle.module.url(forResource: "10-1086-781", withExtension: "terrain", subdirectory: "Fixtures"))
-        var data = try Data(contentsOf: url)
+        var data = try Fixtures.data("10-1086-781", ext: "terrain")
         data.replaceSubrange(offset..<(offset + bytes.count), with: bytes)
         return data
     }
@@ -40,8 +38,7 @@ import simd
     // A tile cut short anywhere, as a dropped connection leaves it, is refused, not
     // read past its end.
     @Test func refusesATruncatedTile() throws {
-        let url = try #require(Bundle.module.url(forResource: "10-1086-781", withExtension: "terrain", subdirectory: "Fixtures"))
-        let data = try Data(contentsOf: url)
+        let data = try Fixtures.data("10-1086-781", ext: "terrain")
         for length in stride(from: 0, to: data.count - 1, by: 997) {
             #expect(throws: QuantizedMesh.DecodingError.self) { try QuantizedMesh(data.prefix(length)) }
         }
@@ -137,8 +134,8 @@ import simd
         let source = TerrainSource(mesh: try Self.tile(), key: Self.key)
         let bounds = Projection.geographic.bounds(TileKey(level: 12, x: 4345, y: 968))
         let skirt = Terrain.skirtHeight(level: 10)
-        let flat = SurfaceMesh(bounds: bounds, level: 12)
-        let draped = SurfaceMesh(bounds: bounds, level: 12, terrain: (source.sample, skirt))
+        let flat = SurfaceMesh(bounds: bounds)
+        let draped = SurfaceMesh(bounds: bounds, terrain: (source.sample, skirt))
         #expect(draped.vertices.count == flat.vertices.count)
         let grid = (SurfaceMesh.size + 1) * (SurfaceMesh.size + 1)
         func height(_ vertex: GlobeVertex) -> Double { length(draped.centre + SIMD3<Double>(vertex.offset)) }

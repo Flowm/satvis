@@ -38,6 +38,16 @@ enum Platform {
         #endif
     }
 
+    /// Whether the sky view can be aimed by pointing the device, with its camera's
+    /// picture behind it: a Mac has no motion sensor, and its camera faces the user.
+    static var aimsByDevice: Bool {
+        #if os(iOS)
+            true
+        #else
+            false
+        #endif
+    }
+
     /// The system's version, "26.1".
     static var systemVersion: String {
         let version = ProcessInfo.processInfo.operatingSystemVersion
@@ -96,6 +106,35 @@ enum Platform {
         #else
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(text, forType: .string)
+        #endif
+    }
+
+    /// The system's share sheet with the link itself, not an item provider's promise
+    /// of it: on a Mac the share menu under `rect`, in the window clicked in; else
+    /// over whatever is presented, on iPad a popover pointing at `rect`, in that
+    /// sheet's coordinates: SwiftUI's global space inside a sheet starts at the
+    /// sheet's corner, not the window's, where the popover pointed at first.
+    static func share(_ url: URL, from rect: CGRect) {
+        #if os(macOS)
+            guard let view = (NSApplication.shared.currentEvent?.window ?? NSApplication.shared.keyWindow)?.contentView else {
+                return
+            }
+            let target = view.isFlipped ? rect : CGRect(x: rect.minX, y: view.bounds.height - rect.maxY, width: rect.width, height: rect.height)
+            NSSharingServicePicker(items: [url]).show(relativeTo: target, of: view, preferredEdge: .minY)
+        #else
+            let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
+            guard var top = scene?.keyWindow?.rootViewController else {
+                return
+            }
+            while let presented = top.presentedViewController, !presented.isBeingDismissed {
+                top = presented
+            }
+            let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+            if let popover = sheet.popoverPresentationController {
+                popover.sourceView = top.view
+                popover.sourceRect = rect
+            }
+            top.present(sheet, animated: true)
         #endif
     }
 }

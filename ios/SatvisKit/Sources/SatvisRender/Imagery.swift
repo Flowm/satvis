@@ -114,22 +114,7 @@ struct ImagerySource: Sendable {
     }
 }
 
-/// The globe's base map: the web app's base layers that the native app offers
-/// (ADR 0009), by the names its `layers` url parameter uses.
-public enum BaseLayer: String, CaseIterable, Sendable, Codable {
-    case naturalEarth = "NaturalEarth"
-    case versaTiles = "VersaTiles"
-    case blackMarble = "BlackMarble"
-
-    /// The Map panel's name for it, the web app's (`CesiumLayerProviders.ts`).
-    public var title: String {
-        switch self {
-        case .naturalEarth: "Natural Earth"
-        case .versaTiles: "Satellite (VersaTiles)"
-        case .blackMarble: "Night (Black Marble)"
-        }
-    }
-
+extension BaseLayer {
     /// Where its tiles come from. Natural Earth is the site's own, levels 3 to 5:
     /// the app ships level 2 and draws everything over it, and keeps each finer
     /// tile once fetched, 17 MB for the lot, so that a place seen once shows offline.
@@ -164,7 +149,7 @@ public enum BaseLayer: String, CaseIterable, Sendable, Codable {
 }
 
 /// NASA's Global Imagery Browse Services, for the instrument imagery's frames.
-public enum GIBS {
+enum GIBS {
     static let wmts = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best"
 
     /// Whether a frame no longer changes: one to the minute, or a day two days after it

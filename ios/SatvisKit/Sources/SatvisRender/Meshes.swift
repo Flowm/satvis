@@ -11,31 +11,86 @@ struct GlobeVertex {
     var uv: SIMD2<Float>
 }
 
-/// A latitude-longitude grid over an ellipsoid, as triangle indices into its
-/// vertices. Wound counter-clockwise seen from outside.
-struct EllipsoidMesh<Vertex> {
-    var vertices: [Vertex]
-    var indices: [UInt32]
+/// A surface tile's mesh: 16 by 16 quads on the ellipsoid, with a skirt hanging
+/// below its edges to hide the cracks where it meets a coarser neighbour.
+struct SurfaceMesh {
+    static let size = 16
 
-    init(radii: SIMD3<Double>, longitudes: Int, latitudes: Int, vertex: (_ position: SIMD3<Double>, _ normal: SIMD3<Double>, _ uv: SIMD2<Double>) -> Vertex) {
-        vertices = []
-        vertices.reserveCapacity((longitudes + 1) * (latitudes + 1))
-        let radiiSquared = radii * radii
-        for row in 0...latitudes {
-            // Geodetic latitude from the north pole down, which is how the imagery's
-            // rows run.
-            let v = Double(row) / Double(latitudes)
-            let latitude = Double.pi / 2 - v * Double.pi
-            for column in 0...longitudes {
-                let u = Double(column) / Double(longitudes)
-                let longitude = -Double.pi + u * 2 * Double.pi
-                // CesiumJS's cartographicToCartesian: the point whose surface normal this is.
-                let normal = SIMD3(cos(latitude) * cos(longitude), cos(latitude) * sin(longitude), sin(latitude))
-                let k = radiiSquared * normal
-                vertices.append(vertex(k / sqrt(dot(normal, k)), normal, SIMD2(u, v)))
+    var vertices: [GlobeVertex]
+    var centre: SIMD3<Double>
+    var radius: Double
+    var samples: [SIMD3<Double>]
+
+    /// A terrain's height and normal at a latitude and longitude, and how deep a
+    /// skirt hides the cracks between tiles laid over it.
+    typealias Ground = (sample: (_ latitude: Double, _ longitude: Double) -> (height: Double, normal: SIMD3<Double>?), skirt: Double)
+
+    /// On the ellipsoid, or laid over `terrain`.
+    init(bounds: Bounds, terrain: Ground? = nil) {
+        let n = Self.size
+        // Deep enough to cover the sag of a chord of a neighbour a level or two coarser.
+        let segment = (bounds.east - bounds.west) * .pi / 180 * 6_371_000 / Double(n)
+        let skirt = max(4 * segment * segment / (8 * 6_371_000) + 10, terrain?.skirt ?? 0)
+        centre = fixedPosition(latitude: (bounds.south + bounds.north) / 2, longitude: (bounds.west + bounds.east) / 2)
+        var vertices: [GlobeVertex] = []
+        var points: [SIMD3<Double>] = []
+        for row in 0...n {
+            for column in 0...n {
+                let (vertex, position) = Self.vertex(bounds, row: row, column: column, depth: 0, terrain: terrain?.sample, centre: centre)
+                vertices.append(vertex)
+                points.append(position)
             }
         }
-        indices = Meshes.grid(columns: longitudes, rows: latitudes)
+        // The skirt: the edge again, lowered, in order around the tile.
+        for edge in Self.edge {
+            vertices.append(Self.vertex(bounds, row: edge.row, column: edge.column, depth: skirt, terrain: terrain?.sample, centre: centre).0)
+        }
+        self.vertices = vertices
+        let centre = centre
+        radius = points.map { simd.distance($0, centre) }.max() ?? 0
+        samples = [(0, 0), (0, n / 2), (0, n), (n / 2, 0), (n / 2, n / 2), (n / 2, n), (n, 0), (n, n / 2), (n, n)].map { points[$0.0 * (n + 1) + $0.1] }
+    }
+
+    /// A grid point of a tile, `depth` metres below the surface.
+    private static func vertex(
+        _ bounds: Bounds, row: Int, column: Int, depth: Double, terrain: ((Double, Double) -> (height: Double, normal: SIMD3<Double>?))?, centre: SIMD3<Double>
+    ) -> (
+        GlobeVertex, SIMD3<Double>
+    ) {
+        let u = Double(column) / Double(size)
+        let v = Double(row) / Double(size)
+        let latitude = bounds.north - v * (bounds.north - bounds.south)
+        let longitude = bounds.west + u * (bounds.east - bounds.west)
+        let phi = latitude * .pi / 180
+        let lambda = longitude * .pi / 180
+        let up = SIMD3(cos(phi) * cos(lambda), cos(phi) * sin(lambda), sin(phi))
+        let ground = terrain?(latitude, longitude)
+        let position = fixedPosition(latitude: latitude, longitude: longitude) + ((ground?.height ?? 0) - depth) * up
+        return (GlobeVertex(offset: SIMD3<Float>(position - centre), normal: SIMD3<Float>(ground?.normal ?? up), uv: SIMD2(Float(u), Float(v))), position)
+    }
+
+    /// The edge vertices around a tile, starting at its north-west corner.
+    static let edge: [(row: Int, column: Int)] = {
+        let n = size
+        return (0..<n).map { (0, $0) } + (0..<n).map { ($0, n) } + (0..<n).map { (n, n - $0) } + (0..<n).map { (n - $0, 0) }
+    }()
+
+    /// Triangles for every tile's grid and skirt, wound counter-clockwise from
+    /// outside.
+    static func indices() -> [UInt32] {
+        let stride = UInt32(size) + 1
+        var indices = Meshes.grid(columns: size, rows: size)
+        let skirtStart = stride * stride
+        let ring = UInt32(edge.count)
+        for i in 0..<ring {
+            let top = UInt32(edge[Int(i)].row) * stride + UInt32(edge[Int(i)].column)
+            let next = UInt32(edge[Int((i + 1) % ring)].row) * stride + UInt32(edge[Int((i + 1) % ring)].column)
+            let bottom = skirtStart + i
+            let nextBottom = skirtStart + (i + 1) % ring
+            // Both windings, so a skirt shows from either side under culling.
+            indices += [top, bottom, next, next, bottom, nextBottom, top, next, bottom, next, nextBottom, bottom]
+        }
+        return indices
     }
 }
 
@@ -56,10 +111,26 @@ enum Meshes {
         return indices
     }
 
-    /// The sky atmosphere's shell, 2.5 % outside the ellipsoid (SkyAtmosphere.js).
-    static func skyShell() -> EllipsoidMesh<SIMD4<Float>> {
-        EllipsoidMesh(radii: ellipsoidRadii * 1.025, longitudes: 128, latitudes: 64) { position, _, _ in
-            SIMD4<Float>(SIMD3<Float>(position), 1)
+    /// The sky atmosphere's shell, 2.5 % outside the ellipsoid (SkyAtmosphere.js): a
+    /// latitude-longitude grid, wound counter-clockwise seen from outside.
+    static func skyShell() -> (vertices: [SIMD4<Float>], indices: [UInt32]) {
+        let radii = ellipsoidRadii * 1.025
+        let radiiSquared = radii * radii
+        let longitudes = 128
+        let latitudes = 64
+        var vertices: [SIMD4<Float>] = []
+        vertices.reserveCapacity((longitudes + 1) * (latitudes + 1))
+        for row in 0...latitudes {
+            // Geodetic latitude from the north pole down.
+            let latitude = Double.pi / 2 - Double(row) / Double(latitudes) * Double.pi
+            for column in 0...longitudes {
+                let longitude = -Double.pi + Double(column) / Double(longitudes) * 2 * Double.pi
+                // CesiumJS's cartographicToCartesian: the point whose surface normal this is.
+                let normal = SIMD3(cos(latitude) * cos(longitude), cos(latitude) * sin(longitude), sin(latitude))
+                let k = radiiSquared * normal
+                vertices.append(SIMD4<Float>(SIMD3<Float>(k / sqrt(dot(normal, k))), 1))
+            }
         }
+        return (vertices, grid(columns: longitudes, rows: latitudes))
     }
 }

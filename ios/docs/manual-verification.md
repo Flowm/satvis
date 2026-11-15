@@ -618,8 +618,10 @@ moves the window and double-clicking it fills the screen. Try each command of th
 View, Satellite and Bookmarks menus, Help's links, Edit > Copy Link to This View
 (⇧⌘C) and the link it copies. Open Bookmarks from its entry and from ⌘B, as a
 panel beside the column, share the view from it, and open a bookmark and the
-default view from it: each closes the panel, not the window. Open About from the
-menu column and the app menu. Move the window to a display with another refresh rate
+default view from it: each closes the panel, not the window. In the sky view, check
+that neither the corner nor the Sky panel offers the compass or the camera. Open
+About from the menu column and the app menu, and check that it says the sky view is
+aimed by dragging alone. Move the window to a display with another refresh rate
 and check `device_max_fps` in a benchmark report. Cover the window with another
 and check in Activity Monitor that Satvis's GPU use falls to nothing. Narrow the
 window to its smallest, track a satellite, quit, and check that it opens again
@@ -821,3 +823,52 @@ collection listing 15:00 to 19:00 UTC. At 19:30 the 19:00 Slot drew Europe and A
 night with the cities lit; at 15:30 the 15:00 Slot drew the terminator over Africa. The
 COG's header and indexes came in two reads (16 KB, then 175 KB for the eight levels).
 The Map panel's list, the credits and a frame change while the app runs were not looked at.
+
+## Native app: the shared ray to the ellipsoid and line stride
+
+**Procedure.** In the simulator, with `SATVIS_TIME` pinned, shoot each view below with
+the commit before and after and compare them pixel by pixel; also turn the globe slowly
+in each and watch the limb. Labels: `?tags=Weather&elements=Point,Label`, zoomed so
+satellites cross the limb: each label vanishes with its point as it goes behind the
+Earth, none flickers at the limb. Orbits behind the Earth:
+`?tags=Weather&elements=Point,Orbit,Orbit+track`, the lines reaching the limb end there
+as before. Sensor cones and footprints: `?tags=Weather&elements=Point,Ground+track,Sensor+cone`,
+the cones' fans and their gold rims on the ground, near the limb too, with no edge
+jumping as the globe turns. The map's lines: the same Weather orbits with `&scene=2D`,
+zoomed out and in, the lines as smooth at each scale as before.
+
+**Result, 2026-11-15.** iPhone 18 Pro simulator, iOS 27.2, Debug, `SATVIS_TIME`
+2026-11-15T12:00:00Z, the three views above shot 45 s after launch with `9dc0b41b` and
+with the branch: every pixel below the status bar matched, the labels, the orbits ending
+at the limb and the cones' rims alike. The globe was not turned, and the 2D lines were
+shot only at the launch zoom (in the section below).
+
+## Native app: the architecture review's refactors
+
+**Procedure.** The branch against `9dc0b41b`, its base. Pacing: Release builds of both
+on the iPad mini (`iPad14,1`, iOS 27.2, USB), each opened by `SATVIS_LINK` with the
+performance panel closed, so the frame meter is off, and its frames counted from outside
+by an Animation Hitches trace (`xctrace record --all-processes --time-limit 15s`,
+`displayed-surfaces-interval`): all active satellites with orbits, Weather with every
+component left idle, the ISS model tracked, the default view; old and new alternated.
+The map after an upgrade: the base build in the simulator opened on
+`?layers=BlackMarble&terrain=ReEarth&stars=DeepStar2K` and sent to the background, the
+branch installed over it and launched with no link. What is drawn: both Debug builds in
+the iPhone 18 Pro simulator at `SATVIS_TIME` 2026-11-15T12:00:00Z, shot 45 s after
+launch and compared pixel by pixel: `?scene=2D&elements=Point,Label,Orbit,Orbit+track`,
+the same with the ISS's 3D model, the ISS model tracked close up,
+`?elements=Point,Label,Sensor+cone`, and the sky view at Lauterbrunnen with terrain.
+
+**Result, 2026-11-15.** Pacing matched: the ISS tracked 59.8–59.9 fps on both, Weather
+idle 5.1 and 5.0, the default view idle 3.3 and 3.4. All active orbits ran either near
+40 fps or locked to a divisor of the display's rate, on both builds: 38.3, 20.0 and
+15.0 fps on the base, 40.4, 42.3 and 12.0 on the branch, so timing the buffer wait on
+every frame changed neither. The lock to a divisor with the panel closed is older than
+the branch and not explained; the benchmark, which measures with the meter on, does
+not show it. Two later traces hung while saving and were dropped. After the upgrade
+the branch opened on Black Marble, terrain and Deep Star 2K, and kept them. An install
+killed in the foreground before it first went to the background kept no view, and
+there the branch opens on the default map where the base read its three keys. In every
+view the pixels below the status bar matched. Not looked at: the Mac's Hide UI menu
+title, a drag to reorder locations, the geostationary mosaic over the network, and a
+TestFlight build's pageview.

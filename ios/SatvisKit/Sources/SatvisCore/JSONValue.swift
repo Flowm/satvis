@@ -1,7 +1,8 @@
 import Foundation
 
 /// Any JSON value. Carries what the app reads without interpreting, such as the
-/// satellite metadata bag, whose fields the worker treats as opaque.
+/// satellite metadata bag, whose fields the worker treats as opaque, and what the
+/// benchmark reports.
 public enum JSONValue: Sendable, Hashable, Codable {
     case null
     case bool(Bool)
@@ -27,12 +28,13 @@ public enum JSONValue: Sendable, Hashable, Codable {
         }
     }
 
+    /// Whole numbers without a point, as JavaScript writes them.
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         switch self {
         case .null: try container.encodeNil()
         case .bool(let value): try container.encode(value)
-        case .number(let value): try container.encode(value)
+        case .number(let value): try value == value.rounded() && abs(value) < 1e15 ? container.encode(Int64(value)) : container.encode(value)
         case .string(let value): try container.encode(value)
         case .array(let value): try container.encode(value)
         case .object(let value): try container.encode(value)

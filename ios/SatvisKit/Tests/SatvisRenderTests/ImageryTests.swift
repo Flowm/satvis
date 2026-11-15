@@ -73,7 +73,7 @@ import simd
     }
 
     @Test func meshesASurfaceTileWithASkirt() {
-        let mesh = SurfaceMesh(bounds: Projection.geographic.bounds(TileKey(level: 4, x: 17, y: 4)), level: 4)
+        let mesh = SurfaceMesh(bounds: Projection.geographic.bounds(TileKey(level: 4, x: 17, y: 4)))
         #expect(mesh.vertices.count == 17 * 17 + 64)
         #expect(SurfaceMesh.indices().max() == UInt32(17 * 17 + 63))
         #expect(mesh.radius > 0 && mesh.samples.count == 9)
@@ -115,13 +115,13 @@ import simd
         let eye = SIMD3<Double>(2e7, 0, 0)
         // Metres from the eye to clip space: the whole globe in view.
         let wholeGlobe = simd_double4x4(diagonal: SIMD4(3e-8, 3e-8, 3e-8, 1))
-        _ = surface.select(eye: eye, viewProjection: wholeGlobe, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2)
+        _ = surface.select(.globe(eye: eye, viewProjection: wholeGlobe, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2))
         let refined = surface.tileCount
         #expect(refined > 2)
         surface.trim()
         #expect(surface.tileCount == refined)
         // Unscaled, the globe is far outside clip space: only the roots are visited.
-        _ = surface.select(eye: eye, viewProjection: matrix_identity_double4x4, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2)
+        _ = surface.select(.globe(eye: eye, viewProjection: matrix_identity_double4x4, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2))
         surface.trim()
         #expect(surface.tileCount == 2)
     }
@@ -143,7 +143,7 @@ import simd
         let frame = { (time: String) in ImageryOverlay(layer: layer, frame: time, bounds: nil) }
         surface.setOverlays([frame("08:00")])
         let wholeGlobe = simd_double4x4(diagonal: SIMD4(3e-8, 3e-8, 3e-8, 1))
-        let (_, bake) = surface.select(eye: SIMD3(2e7, 0, 0), viewProjection: wholeGlobe, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2)
+        let (_, bake) = surface.select(.globe(eye: SIMD3(2e7, 0, 0), viewProjection: wholeGlobe, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2))
         let base = try #require(
             device.makeTexture(descriptor: .texture2DDescriptor(pixelFormat: .rgba8Unorm, width: 4, height: 4, mipmapped: false)))
         let commands = try #require(queue.makeCommandBuffer())
@@ -182,13 +182,14 @@ import simd
             device.makeTexture(descriptor: .texture2DDescriptor(pixelFormat: .rgba8Unorm, width: 4, height: 4, mipmapped: false)))
         let wholeGlobe = simd_double4x4(diagonal: SIMD4(3e-8, 3e-8, 3e-8, 1))
         func draw(from distance: Double) throws {
-            let (_, bake) = surface.select(eye: SIMD3(distance, 0, 0), viewProjection: wholeGlobe, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2)
+            let (_, bake) = surface.select(
+                .globe(eye: SIMD3(distance, 0, 0), viewProjection: wholeGlobe, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2))
             let commands = try #require(queue.makeCommandBuffer())
             surface.encodeBakes(bake, base: base, commands: commands)
             commands.commit()
         }
 
-        _ = surface.select(eye: SIMD3(2e7, 0, 0), viewProjection: wholeGlobe, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2)
+        _ = surface.select(.globe(eye: SIMD3(2e7, 0, 0), viewProjection: wholeGlobe, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2))
         try draw(from: 1e7)
         try await Task.sleep(for: .milliseconds(50))
         #expect(await asked.count == 0)
@@ -223,26 +224,91 @@ import simd
         #expect(surface.terrainRevision == revision + 2)
     }
 
-}
-
-/// Holds the loads back until opened.
-private actor Gate {
-    private var isOpen = false
-    private var waiting: [CheckedContinuation<Void, Never>] = []
-
-    func wait() async {
-        if !isOpen {
-            await withCheckedContinuation { waiting.append($0) }
+    // Frame by frame until nothing is left to bake: the tiles drawn, and those
+    // baked, the drawn ones first, then the children waiting to replace them. With
+    // the terrain on, and none loading, each tile laid over the ellipsoid.
+    @MainActor
+    @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func refinesTheGlobeTileByTile() async throws {
+        let wholeGlobe = simd_double4x4(diagonal: SIMD4(3e-8, 3e-8, 3e-8, 1))
+        let (surface, frames) = try await Self.refine(terrain: true) {
+            $0.select(.globe(eye: SIMD3(1.2e7, 0, 0), viewProjection: wholeGlobe, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2))
         }
+        #expect(
+            frames == """
+                draw 0/0/0 0/1/0
+                bake 0/0/0 0/1/0 1/0/0 1/1/0 1/0/1 1/1/1 1/2/0 1/3/0 1/2/1 1/3/1
+                draw 1/1/0 1/1/1 1/2/0 1/2/1
+                bake 2/2/0 2/3/0 2/2/1 2/3/1 2/2/2 2/3/2 2/2/3 2/3/3 2/4/0 2/5/0 2/4/1 2/5/1 2/4/2 2/5/2 2/4/3 2/5/3
+                draw 2/3/0 2/2/1 2/3/1 2/2/2 2/3/2 2/3/3 2/4/0 2/4/1 2/5/1 1/2/1
+                bake 3/6/2 3/7/2 3/6/3 3/7/3 3/6/4 3/7/4 3/6/5 3/7/5 3/8/2 3/9/2 3/8/3 3/9/3 2/4/2 2/5/2 2/4/3 2/5/3
+                draw 2/3/0 2/2/1 3/6/2 3/7/2 3/6/3 3/7/3 2/2/2 3/6/4 3/7/4 3/6/5 3/7/5 2/3/3 2/4/0 3/8/2 3/9/2 3/8/3 3/9/3 2/5/1 1/2/1
+                bake 2/4/2 2/5/2 2/4/3 2/5/3
+                draw 2/3/0 2/2/1 3/6/2 3/7/2 3/6/3 3/7/3 2/2/2 3/6/4 3/7/4 3/6/5 3/7/5 2/3/3 2/4/0 3/8/2 3/9/2 3/8/3 3/9/3 2/5/1 2/4/2 2/5/2 2/4/3
+                bake 3/8/4 3/9/4 3/8/5 3/9/5
+                draw 2/3/0 2/2/1 3/6/2 3/7/2 3/6/3 3/7/3 2/2/2 3/6/4 3/7/4 3/6/5 3/7/5 2/3/3 2/4/0 3/8/2 3/9/2 3/8/3 3/9/3 2/5/1 3/8/4 3/9/4 3/8/5 3/9/5 2/5/2 2/4/3
+                bake
+                """)
+        #expect(surface.isSettled)
     }
 
-    func open() {
-        isOpen = true
-        for continuation in waiting {
-            continuation.resume()
-        }
-        waiting = []
+    // As the globe, on the map turned and across the antimeridian, with the
+    // terrain on, which the map does not follow. Settled, the same tiles again
+    // without a walk, and after a frame of the globe, with one.
+    @MainActor
+    @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func refinesTheMapTileByTile() async throws {
+        let map = MapCamera(latitude: 0.8, longitude: 2.9, span: 4e6, heading: 0.3)
+        let select = { (surface: Surface) in surface.select(.map(map, viewportPixels: SIMD2(1200, 800))) }
+        let (surface, frames) = try await Self.refine(terrain: true, select: select)
+        #expect(
+            frames == """
+                draw 0/0/0 0/1/0
+                bake 0/0/0 0/1/0 1/0/0 1/1/0 1/0/1 1/1/1 1/2/0 1/3/0 1/2/1 1/3/1
+                draw 1/0/0 1/3/0
+                bake 2/0/0 2/1/0 2/0/1 2/1/1 2/6/0 2/7/0 2/6/1 2/7/1
+                draw 2/0/0 2/0/1 2/7/0 2/7/1
+                bake 3/0/0 3/1/0 3/0/1 3/1/1 3/0/2 3/1/2 3/0/3 3/1/3 3/14/0 3/15/0 3/14/1 3/15/1 3/14/2 3/15/2 3/14/3 3/15/3
+                draw 3/0/1 3/0/2 3/14/1 3/15/1 2/7/1
+                bake 4/0/2 4/1/2 4/0/3 4/1/3 4/0/4 4/1/4 4/0/5 4/1/5 4/28/2 4/29/2 4/28/3 4/29/3 4/30/2 4/31/2 4/30/3 4/31/3 3/14/2 3/15/2 3/14/3 3/15/3
+                draw 4/0/2 4/0/3 4/0/4 4/0/5 4/28/2 4/29/2 4/28/3 4/29/3 3/15/1 2/7/1
+                bake 4/30/2 4/31/2 4/30/3 4/31/3 3/14/2 3/15/2 3/14/3 3/15/3
+                draw 4/0/2 4/0/3 4/0/4 4/0/5 4/28/2 4/29/2 4/28/3 4/29/3 4/30/2 4/31/2 4/30/3 4/31/3 3/14/2 3/15/2
+                bake 4/28/4 4/29/4 4/28/5 4/29/5 4/30/4 4/31/4 4/30/5 4/31/5
+                draw 4/0/2 4/0/3 4/0/4 4/0/5 4/28/2 4/29/2 4/28/3 4/29/3 4/30/2 4/31/2 4/30/3 4/31/3 4/28/4 4/29/4 4/28/5 4/29/5 4/30/4 4/31/4 4/30/5 4/31/5
+                bake
+                """)
+        let settled = select(surface)
+        let drawn = settled.draw.map(\.key.description).joined(separator: " ")
+        #expect(surface.isSettled && settled.bake.isEmpty && frames.hasSuffix("draw \(drawn)\nbake"))
+        _ = surface.select(.globe(eye: SIMD3(1.2e7, 0, 0), viewProjection: matrix_identity_double4x4, viewportHeightPixels: 1000, verticalFieldOfView: .pi / 3, pixelsPerPoint: 2))
+        #expect(select(surface).draw.map(\.key) == settled.draw.map(\.key))
     }
+
+    /// Selects with `select` and bakes what it asks, until nothing is left to bake
+    /// or for 20 frames, with no base map loading: what each frame drew and baked.
+    @MainActor
+    private static func refine(terrain: Bool, select: (Surface) -> (draw: [Surface.Tile], bake: [Surface.Tile])) async throws -> (Surface, String) {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let queue = try #require(device.makeCommandQueue())
+        let libraries = try await ShaderLibrary.make(device: device)
+        let surface = try Surface(device: device, library: libraries.precise, site: URL(string: "https://satvis.space/")!)
+        surface.setTerrain(terrain)
+        let base = try #require(
+            device.makeTexture(descriptor: .texture2DDescriptor(pixelFormat: .rgba8Unorm, width: 4, height: 4, mipmapped: false)))
+        var frames: [String] = []
+        for _ in 0..<20 {
+            let (draw, bake) = select(surface)
+            frames.append((["draw"] + draw.map(\.key.description)).joined(separator: " "))
+            frames.append((["bake"] + bake.map(\.key.description)).joined(separator: " "))
+            let commands = try #require(queue.makeCommandBuffer())
+            surface.encodeBakes(bake, base: base, commands: commands)
+            commands.commit()
+            if bake.isEmpty {
+                break
+            }
+        }
+        return (surface, frames.joined(separator: "\n"))
+    }
+
 }
 
 /// Counts the loads asked for.

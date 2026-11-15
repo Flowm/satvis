@@ -7,10 +7,7 @@ import Testing
 /// (useSatelliteBrowser.ts, through scripts/parity/generate.mjs).
 @Suite struct GroupOrderTests {
     @Test func sortsTheGroupsAsTheWebAppDoes() throws {
-        struct Root: Decodable {
-            let groupOrder: [String]
-        }
-        let order = try JSONDecoder().decode(Root.self, from: Parity.fixture("parity")).groupOrder
+        let order = try Parity.section("groupOrder", as: [String].self)
         #expect(order.count > 1)
         #expect(order.reversed().alphabetical() == order)
     }

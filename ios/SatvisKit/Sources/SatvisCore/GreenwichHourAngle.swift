@@ -23,6 +23,14 @@ public func greenwichHourAngle(epochMilliseconds: Double) -> Double {
     return angleAt0h + rotationRate * secondsSinceMidnight
 }
 
+/// satellite.js's `gstime`, which is Vallado's.
+func satelliteJSGstime(_ julianDate: Double) -> Double {
+    let tut1 = (julianDate - 2451545.0) / 36525.0
+    var temp = -6.2e-6 * tut1 * tut1 * tut1 + 0.093104 * tut1 * tut1 + (876600.0 * 3600 + 8640184.812866) * tut1 + 67310.54841
+    temp = ((temp * Double.pi / 180) / 240.0).truncatingRemainder(dividingBy: 2 * Double.pi)
+    return temp < 0 ? temp + 2 * Double.pi : temp
+}
+
 private let gmstC0 = 6.0 * 3600 + 41 * 60 + 50.54841
 private let gmstC1 = 8640184.812866
 private let gmstC2 = 0.093104

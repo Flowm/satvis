@@ -5,15 +5,17 @@ import Testing
 
 @Suite struct GPRecordDecodingTests {
     @Test func keepsTheMetadataBag() throws {
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         let metop = try #require(records.first { $0.name == "METOP-C" })
         #expect(metop.metadata["country"]?.string == "EUMETSAT")
-        guard case .omm(let omm) = metop.elements else {
+        guard case .omm(let objectID, let noradCatID) = metop.elements else {
             Issue.record("METOP-C is an OMM")
             return
         }
-        #expect(omm.noradCatID == "43689")
-        #expect(omm.epoch == "2026-10-02T13:12:07.842528")
+        #expect(objectID == "2018-087A")
+        #expect(noradCatID == "43689")
+        // EPOCH 2026-10-02T13:12:07.842528, to the millisecond.
+        #expect(metop.meanElements.epoch == .init(year: 2026, dayOfYear: Double(274 * 86_400_000 + 47_527_842) / msPerDay + 1))
     }
 
     @Test func namesAnUnnamedTLEByItsCatalogNumber() throws {

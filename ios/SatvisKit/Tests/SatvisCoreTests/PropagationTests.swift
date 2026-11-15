@@ -11,7 +11,7 @@ import Testing
     // The deep-space integrator goes on in place from its last step: whatever was
     // asked before, the state is the one a fresh propagator gives.
     @Test func givesTheSameDeepSpaceStatesInAnyOrder() throws {
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         for name in ["GOES 19", "POLAR", "GPS BIIR-5  (PRN 22)"] {
             let record = try #require(records.first { $0.name == name })
             let reused = try SGP4Propagator(record.meanElements)

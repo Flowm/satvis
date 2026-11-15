@@ -60,17 +60,8 @@ inline void coneBasis(float3 position, thread float3 &axis, thread float3 &acros
 /// How far from `origin` along `direction` the ellipsoid is, or `limit` when it is
 /// not hit sooner.
 inline float distanceToGround(float3 origin, float3 direction, float limit) {
-    float3 o = origin / ellipsoidRadii;
-    float3 d = direction / ellipsoidRadii;
-    float a = dot(d, d);
-    float b = 2.0 * dot(o, d);
-    float c = dot(o, o) - 1.0;
-    float discriminant = b * b - 4.0 * a * c;
-    if (discriminant < 0.0) {
-        return limit;
-    }
-    float t = (-b - sqrt(discriminant)) / (2.0 * a);
-    return t > 0.0 ? min(t, limit) : limit;
+    RaySegment hit = raySphereIntersection(origin / ellipsoidRadii, direction / ellipsoidRadii, 1.0);
+    return hit.start > 0.0 ? min(hit.start, limit) : limit;
 }
 
 /// Where the edge of the cone ends on side `k`, from the apex: on the ground, or

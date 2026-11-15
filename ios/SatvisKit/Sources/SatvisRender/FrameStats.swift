@@ -180,33 +180,57 @@ struct GPUSpans {
 
 /// Collects frames on the main thread and GPU times on Metal's.
 final class FrameMeter: Sendable {
+    /// The half second's sums, begun afresh as each is published.
     private struct Window {
         var start: Double?
+        /// Process CPU seconds at the window's start.
+        var processCPU: Double?
         var frames = 0
         var cpu = 0.0
         var skippedCPU = 0.0
         var gpu = 0.0
         var gpuFrames = 0
         var gpuActive = 0.0
+    }
+
+    private struct State {
+        var window = Window()
         var recent: [MeteredFrame] = []
         var published: FrameStats?
+        /// As of the last frame drawn or skipped.
+        var paced = false
+        var displayRate = 60.0
         var recording: FrameRecording?
         var recordingStart: Double?
-        /// Process CPU seconds at the window's start, and at the recording's.
-        var processCPU: Double?
+        /// Process CPU seconds at the recording's start.
         var recordingProcessCPU: Double?
         var lastFrame: Double?
         var spans = GPUSpans()
         /// GPU times, in milliseconds, of frames not yet in `recent`, by id.
         var earlyGPU: [Int: Double] = [:]
+
+        /// Paced at under half the display's rate: dragging the globe, paced still, draws every frame.
+        func isIdle(framesPerSecond: Double?) -> Bool {
+            paced && (framesPerSecond ?? 0) < displayRate / 2
+        }
     }
 
     private static let window = 0.5
     /// Seconds.
     static let graphWindow = 5.0
-    private let state = Mutex(Window())
+    private let state = Mutex(State())
 
-    var stats: FrameStats? { state.withLock { $0.published } }
+    var stats: FrameStats? {
+        state.withLock { state in
+            state.published.map {
+                var stats = $0
+                stats.paced = state.paced
+                stats.idle = state.isIdle(framesPerSecond: stats.framesPerSecond)
+                return stats
+            }
+        }
+    }
+
     var recentFrames: [MeteredFrame] { state.withLock { $0.recent } }
 
     func startRecording(at now: Double) {
@@ -220,64 +244,66 @@ final class FrameMeter: Sendable {
     }
 
     func stopRecording(at now: Double) -> FrameRecording {
-        state.withLock { window in
-            defer { window.recording = nil }
-            guard var recording = window.recording, let start = window.recordingStart else {
+        state.withLock { state in
+            defer { state.recording = nil }
+            guard var recording = state.recording, let start = state.recordingStart else {
                 return FrameRecording()
             }
             recording.duration = (now - start) * 1000
-            recording.totalCPU = window.recordingProcessCPU.map { (Self.processCPUSeconds() - $0) * 1000 }
+            recording.totalCPU = state.recordingProcessCPU.map { (Self.processCPUSeconds() - $0) * 1000 }
+            recording.idle = state.isIdle(framesPerSecond: recording.framesPerSecond)
             return recording
         }
     }
 
-    func skipped(cpuSeconds: Double) {
+    func skipped(cpuSeconds: Double, paced: Bool = false) {
         state.withLock {
             $0.recording?.skippedCPU.append(cpuSeconds * 1000)
-            $0.skippedCPU += cpuSeconds
+            $0.window.skippedCPU += cpuSeconds
+            $0.paced = paced
         }
     }
 
-    /// `displayInterval` in seconds.
+    /// `displayRate` in frames a second.
     func frame(
         cpuSeconds: Double, bufferWaitSeconds: Double, drawableWaitSeconds: Double, at now: Double, satellites: Int, paced: Bool = false,
-        displayInterval: Double = 1.0 / 60, id: Int
+        displayRate: Double = 60, id: Int
     ) {
-        state.withLock { window in
-            if window.recording != nil {
-                if let last = window.lastFrame {
-                    window.recording?.intervals.append((now - last) * 1000)
+        state.withLock { state in
+            state.paced = paced
+            state.displayRate = displayRate
+            if state.recording != nil {
+                if let last = state.lastFrame {
+                    state.recording?.intervals.append((now - last) * 1000)
                 }
-                window.recording?.cpu.append(cpuSeconds * 1000)
-                window.recording?.bufferWait.append(bufferWaitSeconds * 1000)
-                window.recording?.drawableWait.append(drawableWaitSeconds * 1000)
-                window.lastFrame = now
+                state.recording?.cpu.append(cpuSeconds * 1000)
+                state.recording?.bufferWait.append(bufferWaitSeconds * 1000)
+                state.recording?.drawableWait.append(drawableWaitSeconds * 1000)
+                state.lastFrame = now
             }
-            let idle = paced && (window.recent.last.map { now - $0.at > 2 * displayInterval } ?? true)
-            window.recent.append(MeteredFrame(at: now, cpu: cpuSeconds * 1000, gpu: window.earlyGPU.removeValue(forKey: id), idle: idle, id: id))
-            window.recent.removeFirst(window.recent.prefix { $0.at < now - Self.graphWindow }.count)
-            guard let start = window.start else {
-                window.start = now
-                window.processCPU = Self.processCPUSeconds()
+            let idle = paced && (state.recent.last.map { now - $0.at > 2 * (1 / displayRate) } ?? true)
+            state.recent.append(MeteredFrame(at: now, cpu: cpuSeconds * 1000, gpu: state.earlyGPU.removeValue(forKey: id), idle: idle, id: id))
+            state.recent.removeFirst(state.recent.prefix { $0.at < now - Self.graphWindow }.count)
+            guard let start = state.window.start else {
+                state.window.start = now
+                state.window.processCPU = Self.processCPUSeconds()
                 return
             }
-            window.frames += 1
-            window.cpu += cpuSeconds
+            state.window.frames += 1
+            state.window.cpu += cpuSeconds
             let elapsed = now - start
             guard elapsed >= Self.window else {
                 return
             }
+            let window = state.window
             let frames = Double(window.frames)
             let processCPU = Self.processCPUSeconds()
-            window.published = FrameStats(
+            state.published = FrameStats(
                 framesPerSecond: frames / elapsed, cpuMilliseconds: window.cpu / frames * 1000,
                 gpuMilliseconds: window.gpuFrames > 0 ? window.gpu / Double(window.gpuFrames) * 1000 : nil, satellites: satellites,
                 cpuBusy: (window.cpu + window.skippedCPU) / elapsed * 100, gpuBusy: window.gpuFrames > 0 ? min(window.gpuActive / elapsed * 100, 100) : nil,
                 cpuTotal: window.processCPU.map { (processCPU - $0) / elapsed * 100 })
-            window = Window(
-                start: now, recent: window.recent, published: window.published, recording: window.recording,
-                recordingStart: window.recordingStart, processCPU: processCPU, recordingProcessCPU: window.recordingProcessCPU, lastFrame: window.lastFrame,
-                spans: window.spans)
+            state.window = Window(start: now, processCPU: processCPU)
         }
     }
 
@@ -287,25 +313,25 @@ final class FrameMeter: Sendable {
         guard seconds > 0 else {
             return
         }
-        state.withLock { window in
-            window.gpu += seconds
-            window.gpuFrames += 1
-            let joined = window.spans.join(start: start, end: end)
-            window.gpuActive += joined
-            window.recording?.gpu.append(seconds * 1000)
-            window.recording?.gpuActive? += joined * 1000
-            if let index = window.recent.lastIndex(where: { $0.id == id }) {
-                window.recent[index].gpu = seconds * 1000
+        state.withLock { state in
+            state.window.gpu += seconds
+            state.window.gpuFrames += 1
+            let joined = state.spans.join(start: start, end: end)
+            state.window.gpuActive += joined
+            state.recording?.gpu.append(seconds * 1000)
+            state.recording?.gpuActive? += joined * 1000
+            if let index = state.recent.lastIndex(where: { $0.id == id }) {
+                state.recent[index].gpu = seconds * 1000
             } else {
                 // Done before the frame was counted; the few kept are those in flight.
-                window.earlyGPU = window.earlyGPU.filter { $0.key > id - 8 }
-                window.earlyGPU[id] = seconds * 1000
+                state.earlyGPU = state.earlyGPU.filter { $0.key > id - 8 }
+                state.earlyGPU[id] = seconds * 1000
             }
         }
     }
 
     func reset() {
-        state.withLock { $0 = Window() }
+        state.withLock { $0 = State() }
     }
 
     /// User and system time, every thread's.

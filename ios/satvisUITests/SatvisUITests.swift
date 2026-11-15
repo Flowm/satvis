@@ -65,8 +65,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testListsTheGroupsAToZ() {
         let app = launch()
-        openMenu(app)
-        app.buttons["Satellites"].tap()
+        openFromMenu(app, "Satellites")
         let rows = ["Active", "Cubesat", "Eutelsat", "Globalstar", "GNSS"].map { app.staticTexts[$0].firstMatch }
         XCTAssert(rows[0].waitForExistence(timeout: 10))
         let tops = rows.map(\.frame.minY)
@@ -210,8 +209,7 @@ nonisolated class SatvisUITests: XCTestCase {
         }
         XCTAssert(link.exists)
         app.navigationBars.buttons["Close"].firstMatch.tap()
-        openMenu(app)
-        app.buttons["Map"].tap()
+        openFromMenu(app, "Map")
         let listed = app.switches["METEOSAT-12 (MTG-I1) FCI GeoColour"]
         XCTAssert(listed.waitForExistence(timeout: 10))
         XCTAssertEqual(listed.value as? String, "1")
@@ -225,8 +223,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testDrawsALayerFromTheMapPanel() {
         let app = launch()
-        openMenu(app)
-        app.buttons["Map"].tap()
+        openFromMenu(app, "Map")
         let leo = app.buttons["LEO satellites"]
         XCTAssert(leo.waitForExistence(timeout: 10))
         // Closed until one is opened, with no layer on.
@@ -246,8 +243,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testShowsTheImageryOfACompositesSatellite() {
         let app = launch()
-        openMenu(app)
-        app.buttons["Map"].tap()
+        openFromMenu(app, "Map")
         let geo = app.buttons["GEO satellites"]
         XCTAssert(geo.waitForExistence(timeout: 10))
         geo.tap()
@@ -271,8 +267,7 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(mosaic.exists)
 
         app.navigationBars.buttons["Close"].firstMatch.tap()
-        openMenu(app)
-        app.buttons["Map"].tap()
+        openFromMenu(app, "Map")
         // Open again on no group, as no layer is on.
         XCTAssert(geo.waitForExistence(timeout: 10))
         geo.tap()
@@ -287,8 +282,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testDrawsTheImageryALinkNames() {
         let app = launch(link: "/?imagery=eumetview:mtg_fd:rgb_geocolour")
-        openMenu(app)
-        app.buttons["Map"].tap()
+        openFromMenu(app, "Map")
         let listed = app.switches["METEOSAT-12 (MTG-I1) FCI GeoColour"]
         XCTAssert(listed.waitForExistence(timeout: 10))
         XCTAssertEqual(listed.value as? String, "1")
@@ -299,8 +293,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testNamesAStoppedLayerALinkDraws() {
         let app = launch(link: "/?imagery=gibs:MISR_AM1_Ellipsoid_Radiance_RGB_AN")
-        openMenu(app)
-        app.buttons["Map"].tap()
+        openFromMenu(app, "Map")
         let listed = app.switches["True colour, nadir camera"]
         XCTAssert(listed.waitForExistence(timeout: 10))
         XCTAssertEqual(listed.value as? String, "1")
@@ -343,8 +336,7 @@ nonisolated class SatvisUITests: XCTestCase {
         let app = launch()
         XCTAssert(app.buttons["Home view"].waitForExistence(timeout: 30))
         XCTAssertFalse(app.buttons["Show UI"].exists)
-        openMenu(app)
-        app.buttons["Graphics"].tap()
+        openFromMenu(app, "Graphics")
         app.buttons["Hide UI"].tap()
         let show = app.buttons["Show UI"]
         XCTAssert(show.waitForExistence(timeout: 5))
@@ -385,8 +377,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testClosesTheMenuOnATapOnTheGlobe() {
         let app = launch()
-        openMenu(app)
-        app.buttons["Components"].tap()
+        openFromMenu(app, "Components")
         let panel = app.descendants(matching: .any)["Orbit track"]
         XCTAssert(panel.waitForExistence(timeout: 5))
         // Right of the globe's middle, clear of the menu and its panel, the buttons
@@ -419,12 +410,7 @@ nonisolated class SatvisUITests: XCTestCase {
     // scroll under the toggle, and the last of them is still reached.
     @MainActor
     func testScrollsTheMenuAtTheLargestText() {
-        let app = XCUIApplication()
-        app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
-        app.launchEnvironment["SATVIS_API"] = "http://127.0.0.1:9"
-        app.launchEnvironment["SATVIS_TEST_CATALOG"] = "1"
-        app.launchEnvironment["SATVIS_LINK"] = "/"
-        app.launch()
+        let app = launch(arguments: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         openMenu(app)
         let about = app.buttons["About"]
         // Dragged from inside the column, under the toggle, whichever entries are there.
@@ -444,8 +430,7 @@ nonisolated class SatvisUITests: XCTestCase {
     func testEditsLocationsInTheirPanel() {
         // Each launch starts with no saved stations (`TestCatalog.stationDefaults`).
         let app = launch(link: "/?gs=48.1372,11.5756,Testhausen_47.2692,11.4041,Probeburg")
-        openMenu(app)
-        app.buttons["Locations"].tap()
+        openFromMenu(app, "Locations")
         for _ in 0..<2 {
             let save = app.buttons["Save"].firstMatch
             XCTAssert(save.waitForExistence(timeout: 5))
@@ -482,8 +467,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testPlacesAndRemovesAStationFromTheGlobe() {
         let app = launch()
-        openMenu(app)
-        app.buttons["Components"].tap()
+        openFromMenu(app, "Components")
         let panel = app.descendants(matching: .any)["Orbit track"]
         XCTAssert(panel.waitForExistence(timeout: 5))
         // On the globe, right of its middle and below the panel, which reaches 475 pt
@@ -522,8 +506,7 @@ nonisolated class SatvisUITests: XCTestCase {
         app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.9)).tap()
         XCTAssert(add.waitForNonExistence(timeout: 5))
         if !panel.exists {
-            openMenu(app)
-            app.buttons["Components"].tap()
+            openFromMenu(app, "Components")
             XCTAssert(panel.waitForExistence(timeout: 5))
         }
         spot.tap()
@@ -552,8 +535,7 @@ nonisolated class SatvisUITests: XCTestCase {
         let app = XCUIApplication()
         app.resetAuthorizationStatus(for: .location)
         let launched = launch(link: "/?gs=48.1372,11.5756,Munich")
-        openMenu(launched)
-        launched.buttons["Sky"].tap()
+        openFromMenu(launched, "Sky")
         let here = launched.buttons["My location"]
         XCTAssert(here.waitForExistence(timeout: 5))
         here.tap()
@@ -585,8 +567,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testLooksUpFromALocation() {
         let app = launch(link: "/?gs=48.1372,11.5756,Munich")
-        openMenu(app)
-        app.buttons["Sky"].tap()
+        openFromMenu(app, "Sky")
         let munich = app.buttons["Munich"]
         XCTAssert(munich.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Back to the globe"].exists)
@@ -605,8 +586,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testReturnsToTheGlobeFromTheGlobePanel() {
         let app = launch(link: "/?gs=48.1372,11.5756,Munich&scene=Sky&camera=Inertial")
-        openMenu(app)
-        app.buttons["Globe"].tap()
+        openFromMenu(app, "Globe")
         let projection = app.buttons["3D"]
         XCTAssert(projection.waitForExistence(timeout: 5))
         XCTAssertFalse(projection.isSelected)
@@ -631,8 +611,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testSwitchesTo2DAndBack() {
         let app = launch(link: "/?scene=2D&gs=48.1372,11.5756,Munich")
-        openMenu(app)
-        app.buttons["Globe"].tap()
+        openFromMenu(app, "Globe")
         let twoD = app.buttons["2D"]
         let threeD = app.buttons["3D"]
         XCTAssert(twoD.waitForExistence(timeout: 5))
@@ -661,8 +640,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testSavesAndReopensABookmark() {
         let app = launch(link: "/?tags=&sats=METOP-B&elements=Point,Label")
-        openMenu(app)
-        app.buttons["Bookmarks"].tap()
+        openFromMenu(app, "Bookmarks")
         XCTAssert(app.buttons["Recent (1)"].waitForExistence(timeout: 10))
         // The view is shared from here, the corner holding the ways back alone.
         XCTAssert(app.buttons["Share this view"].exists)
@@ -680,8 +658,7 @@ nonisolated class SatvisUITests: XCTestCase {
         let sheet = app.navigationBars["Bookmarks"]
         app.buttons["Default view"].tap()
         XCTAssert(sheet.waitForNonExistence(timeout: 5))
-        openMenu(app)
-        app.buttons["Bookmarks"].tap()
+        openFromMenu(app, "Bookmarks")
         let card = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Mine'")).firstMatch
         XCTAssert(card.waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["Default view"].isEnabled)
@@ -693,8 +670,7 @@ nonisolated class SatvisUITests: XCTestCase {
             sleep(1)
             XCTAssertEqual(menuToggle(app).label, "Menu")
         }
-        openMenu(app)
-        app.buttons["Bookmarks"].tap()
+        openFromMenu(app, "Bookmarks")
         XCTAssert(card.waitForExistence(timeout: 10))
         XCTAssert(card.isSelected)
         XCTAssert(app.buttons["Default view"].isEnabled)
@@ -705,8 +681,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testOpensAFeaturedBookmarkFromAbout() {
         let app = launch()
-        openMenu(app)
-        app.buttons["About"].tap()
+        openFromMenu(app, "About")
         let sheet = app.navigationBars["About Satvis"]
         XCTAssert(sheet.waitForExistence(timeout: 5))
         let next = app.buttons["Next bookmark"].firstMatch
@@ -740,8 +715,7 @@ nonisolated class SatvisUITests: XCTestCase {
         var app = XCUIApplication()
         for (link, ticked) in [("/?stars=DeepStar2K", "Deep Star (2K)"), ("/?stars=Tycho1K", "Deep Star (1K)")] {
             app = launch(link: link)
-            openMenu(app)
-            app.buttons["Map"].tap()
+            openFromMenu(app, "Map")
             let choice = app.buttons[ticked]
             XCTAssert(choice.waitForExistence(timeout: 5), link)
             XCTAssert(choice.isSelected, link)
@@ -758,8 +732,7 @@ nonisolated class SatvisUITests: XCTestCase {
         let app = launch()
         XCTAssert(menuToggle(app).waitForExistence(timeout: 30))
         XCTAssertFalse(app.buttons["© OpenStreetMap"].exists)
-        openMenu(app)
-        app.buttons["About"].tap()
+        openFromMenu(app, "About")
         XCTAssert(app.navigationBars["About Satvis"].waitForExistence(timeout: 5))
         // At the foot of a lazy list, which has no rows off screen.
         let sharing = app.switches["Share usage data"]
@@ -789,13 +762,7 @@ nonisolated class SatvisUITests: XCTestCase {
     // UTC on a 24-hour clock, in a locale whose own clock has 12 hours.
     @MainActor
     func testReadsUTCOnA24HourClock() {
-        let app = XCUIApplication()
-        app.launchArguments += ["-AppleLocale", "en_US", "-AppleLanguages", "(en)"]
-        app.launchEnvironment["SATVIS_API"] = "http://127.0.0.1:9"
-        app.launchEnvironment["SATVIS_TEST_CATALOG"] = "1"
-        app.launchEnvironment["SATVIS_LINK"] = "/"
-        app.launchEnvironment["SATVIS_TIME"] = "2026-10-04T19:22:00Z"
-        app.launch()
+        let app = launch(arguments: ["-AppleLocale", "en_US", "-AppleLanguages", "(en)"], time: "2026-10-04T19:22:00Z")
         let stamp = app.buttons.matching(NSPredicate(format: "label CONTAINS 'UTC'")).firstMatch
         XCTAssert(stamp.waitForExistence(timeout: 30))
         XCTAssert(stamp.label.contains("19:22"), "The clock read \(stamp.label)")
@@ -812,8 +779,7 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssertEqual(overlay.value as? String, "Graph")
         overlay.tap()
         XCTAssertEqual(overlay.value as? String, "Compact")
-        openMenu(app)
-        app.buttons["Graphics"].tap()
+        openFromMenu(app, "Graphics")
         flip(app, "FPS")
         XCTAssert(overlay.waitForNonExistence(timeout: 5))
     }
@@ -828,8 +794,7 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(start.waitForExistence(timeout: 30))
         app.buttons["Close"].firstMatch.tap()
         XCTAssert(start.waitForNonExistence(timeout: 5))
-        openMenu(app)
-        app.buttons["Graphics"].tap()
+        openFromMenu(app, "Graphics")
         flip(app, "Benchmark")
         XCTAssert(start.waitForExistence(timeout: 5))
         XCTAssert(app.switches["Benchmark"].waitForNonExistence(timeout: 5))
@@ -897,8 +862,7 @@ nonisolated class SatvisUITests: XCTestCase {
         try XCTSkipIf(isRoomy(app), "A regular width's satellite panel is a card")
         app.buttons["Details of METOP-C"].tap()
         XCTAssert(app.navigationBars["METOP-C"].waitForExistence(timeout: 10))
-        openMenu(app)
-        app.buttons["Bookmarks"].tap()
+        openFromMenu(app, "Bookmarks")
         XCTAssert(app.navigationBars["Bookmarks"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.navigationBars["METOP-C"].exists)
     }
@@ -908,8 +872,7 @@ nonisolated class SatvisUITests: XCTestCase {
     @MainActor
     func testClosesAStationsPanelForItsSky() {
         let app = launch(link: "/?gs=48.1372,11.5756,Munich")
-        openMenu(app)
-        app.buttons["Locations"].tap()
+        openFromMenu(app, "Locations")
         // A link's station has no panel of its own until saved.
         let save = app.buttons["Save"].firstMatch
         XCTAssert(save.waitForExistence(timeout: 5))
@@ -958,9 +921,9 @@ nonisolated class SatvisUITests: XCTestCase {
 
     /// Unfolds the menu column, unless it is open already, as on an iPad.
     @MainActor
-    private func openMenu(_ app: XCUIApplication) {
+    private func openMenu(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         let toggle = menuToggle(app)
-        XCTAssert(toggle.waitForExistence(timeout: 30))
+        XCTAssert(toggle.waitForExistence(timeout: 30), file: file, line: line)
         if toggle.label == "Menu" {
             toggle.tap()
             // Its rows take no taps while they fade in, and one reaches the globe.
@@ -968,15 +931,24 @@ nonisolated class SatvisUITests: XCTestCase {
         }
     }
 
+    /// Unfolds the menu column and taps its entry `entry`.
+    @MainActor
+    private func openFromMenu(_ app: XCUIApplication, _ entry: String, file: StaticString = #filePath, line: UInt = #line) {
+        openMenu(app, file: file, line: line)
+        app.buttons[entry].tap()
+    }
+
     /// Launches with no worker to answer, on the app's fixed test catalog
     /// (`TestCatalog`), on a link: by default the plain site, rather than the view
-    /// an earlier run left.
+    /// an earlier run left. `time` (ISO 8601) stops the clock there.
     @MainActor
-    private func launch(link: String = "/") -> XCUIApplication {
+    private func launch(link: String = "/", arguments: [String] = [], time: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
+        app.launchArguments += arguments
         app.launchEnvironment["SATVIS_API"] = "http://127.0.0.1:9"
         app.launchEnvironment["SATVIS_TEST_CATALOG"] = "1"
         app.launchEnvironment["SATVIS_LINK"] = link
+        app.launchEnvironment["SATVIS_TIME"] = time
         app.launch()
         return app
     }
@@ -993,8 +965,7 @@ nonisolated class SatvisUITests: XCTestCase {
     private func search(_ name: String) -> XCUIApplication {
         let app = launch()
 
-        openMenu(app)
-        app.buttons["Satellites"].tap()
+        openFromMenu(app, "Satellites")
         let search = app.searchFields["Search satellites"]
         // A sheet on a phone, a panel with no bar where there is room.
         XCTAssert((isRoomy(app) ? search : app.navigationBars["Satellites"]).waitForExistence(timeout: 10))

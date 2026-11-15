@@ -20,16 +20,8 @@ struct LocationsPanel: View {
             } else {
                 PanelCard {
                     ForEach(passes.saved) { station in
-                        StationRow(station: station) { edited in
-                            passes.setStations(passes.saved.map { $0.id == edited.id ? edited : $0 })
-                        } onShow: {
+                        StationRow(station: station, passes: passes) {
                             onSelect(station.id)
-                        } onRemove: {
-                            passes.remove(station.id)
-                        } onMove: { moved, offset in
-                            move(moved, by: offset)
-                        } onDrop: { dropped in
-                            move(dropped, to: station.id)
                         }
                     }
                 }
@@ -72,30 +64,6 @@ struct LocationsPanel: View {
             Text("No position came back. Check that Satvis may use your location in Settings.")
         }
     }
-
-    /// One place up or down the list, as the grip's VoiceOver actions say.
-    private func move(_ id: UUID, by offset: Int) {
-        guard let from = passes.saved.firstIndex(where: { $0.id == id }) else {
-            return
-        }
-        let to = from + offset
-        guard passes.saved.indices.contains(to) else {
-            return
-        }
-        move(id, to: passes.saved[to].id)
-    }
-
-    /// Into the place of the station it was dropped on, which moves aside.
-    private func move(_ id: UUID, to target: UUID) {
-        guard let from = passes.saved.firstIndex(where: { $0.id == id }),
-            let to = passes.saved.firstIndex(where: { $0.id == target }), from != to
-        else {
-            return
-        }
-        var stations = passes.saved
-        stations.move(fromOffsets: [from], toOffset: to > from ? to + 1 : to)
-        passes.setStations(stations)
-    }
 }
 
 /// One station: a grip to drag it by, its name, latitude and longitude, each
@@ -103,13 +71,8 @@ struct LocationsPanel: View {
 /// coordinate, its passes and a cross that removes it, as the web app's row.
 private struct StationRow: View {
     let station: GroundStation
-    let onEdit: (GroundStation) -> Void
+    let passes: PassModel
     let onShow: () -> Void
-    let onRemove: () -> Void
-    /// By one place, up (-1) or down (1).
-    let onMove: (UUID, Int) -> Void
-    /// Another station dropped on this one.
-    let onDrop: (UUID) -> Void
     @State private var name = ""
     @State private var latitude = ""
     @State private var longitude = ""
@@ -150,7 +113,7 @@ private struct StationRow: View {
             Button("Show passes", systemImage: "chevron.right", action: onShow)
                 .labelStyle(.iconOnly)
                 .foregroundStyle(.secondary)
-            Button("Remove \(station.displayName)", systemImage: "xmark", action: onRemove)
+            Button("Remove \(station.displayName)", systemImage: "xmark") { passes.remove(station.id) }
                 .labelStyle(.iconOnly)
                 .foregroundStyle(.secondary)
         }
@@ -162,7 +125,7 @@ private struct StationRow: View {
             guard let id = items.first.flatMap(UUID.init(uuidString:)), id != station.id else {
                 return false
             }
-            onDrop(id)
+            passes.move(id, onto: station.id)
             return true
         }
         .onAppear(perform: reset)
@@ -197,8 +160,8 @@ private struct StationRow: View {
             }
             .accessibilityElement()
             .accessibilityLabel("Reorder \(station.displayName)")
-            .accessibilityAction(named: "Move up") { onMove(station.id, -1) }
-            .accessibilityAction(named: "Move down") { onMove(station.id, 1) }
+            .accessibilityAction(named: "Move up") { passes.move(station.id, by: -1) }
+            .accessibilityAction(named: "Move down") { passes.move(station.id, by: 1) }
     }
 
     /// A latitude or longitude field, typed with a sign.
@@ -236,7 +199,7 @@ private struct StationRow: View {
             edited.longitude = value
         }
         if edited != station {
-            onEdit(edited)
+            passes.update(edited)
         }
         reset()
     }

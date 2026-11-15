@@ -99,7 +99,7 @@ private final class RecordingGlobe: Globe {
         #expect(!drawn)
 
         let globe = RecordingGlobe()
-        binding.attach(globe)
+        binding.attach(globe: globe)
         await Self.waitFor("satellites 1", on: globe)
         #expect(
             Set(globe.calls) == [
@@ -123,7 +123,7 @@ private final class RecordingGlobe: Globe {
     @Test func passesChangesThroughOnceAttached() async {
         let binding = GlobeBinding()
         let globe = RecordingGlobe()
-        binding.attach(globe)
+        binding.attach(globe: globe)
         globe.calls = []
 
         binding.terrain = true
@@ -142,7 +142,7 @@ private final class RecordingGlobe: Globe {
     @Test func givesComponentsWithTheirSatellites() async {
         let binding = GlobeBinding()
         let globe = RecordingGlobe()
-        binding.attach(globe)
+        binding.attach(globe: globe)
         globe.calls = []
 
         await binding.setSatellites([], components: [.point, .model]) {}
@@ -155,33 +155,21 @@ private final class RecordingGlobe: Globe {
         let binding = GlobeBinding()
         binding.track("25544", animated: false)
         let first = RecordingGlobe()
-        binding.attach(first)
+        binding.attach(globe: first)
         await Self.waitFor("onGPUFault", on: first)
 
         binding.stopTracking(animated: true)
         binding.enterSky(SkyCamera(latitude: 48, longitude: 11), animated: true)
         binding.unseen = .show
         let second = RecordingGlobe()
-        binding.attach(second)
+        binding.attach(globe: second)
         #expect(second.calls.contains("unseen show"))
         #expect(second.calls.contains("enterSky 48.0 false"))
         #expect(!second.calls.contains { $0.hasPrefix("track") })
 
         binding.leaveSky(animated: true)
         let third = RecordingGlobe()
-        binding.attach(third)
+        binding.attach(globe: third)
         #expect(!third.calls.contains { $0.hasPrefix("enterSky") || $0.hasPrefix("track") })
-    }
-
-    // The launch benchmark waits for the renderer; once there, nobody waits.
-    @Test func resumesThoseWaitingForAGlobe() async {
-        let binding = GlobeBinding()
-        let waiter = Task { await binding.untilAttached() }
-        await Task.yield()
-        #expect(!binding.isAttached)
-        binding.attach(RecordingGlobe())
-        await waiter.value
-        await binding.untilAttached()
-        #expect(binding.isAttached)
     }
 }

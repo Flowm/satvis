@@ -18,7 +18,6 @@ struct SatvisApp: App {
 
     init() {
         let site = Self.site
-        Analytics.setup(site: site)
         let loader = GroupLoader(repository: Self.repository(site: site))
         _session = State(initialValue: Session(loader: loader, site: site, alerts: PassAlerts(loader: loader)))
     }
@@ -103,9 +102,7 @@ struct ContentView: View {
     /// The sheet a menu entry or the map's credit opened; never the info sheet,
     /// which is the selection's.
     @State private var openSheet: AppSheet?
-    @State private var showsTools = false
-    /// The Graphics panel's Hide UI, as the web app's (`hideUI`).
-    @State private var showsUI = true
+    @State private var chrome = WindowChrome()
     /// Whether a sheet folded the column on a phone, to unfold it again when the
     /// sheet closes.
     @State private var sheetFoldedColumn = false
@@ -113,8 +110,6 @@ struct ContentView: View {
     /// which opens again if the pick is cancelled; a placed station opens its own
     /// panel instead. Nil while no pick started there.
     @State private var pickingFromLocations: Selection??
-    /// The panel open beside the menu column, if any.
-    @State private var panel: ToolPanel?
     /// Whether the last tap on the globe closed the menu, for its selection to
     /// keep once no double tap can follow.
     @State private var tapClosedMenu = false
@@ -140,21 +135,13 @@ struct ContentView: View {
     /// Dynamic Type's scale, as the menu toggle and the corner's buttons take it.
     @ScaledMetric(relativeTo: .body) private var textScale = 1.0
 
-    /// Hides the menu column, its panel, the clock deck and the corner's buttons, for
-    /// a picture of the globe. The menu closes first, so Show UI brings none of it back
-    /// open, as on the web.
-    private func hideUI() {
-        clearTheGlobe()
-        showsUI = false
-    }
-
     /// Escape on the globe, as on the web: shows the UI again, else closes the
     /// panel, else lets go of what is selected.
     private func escape() {
-        if !showsUI {
-            showsUI = true
-        } else if panel != nil {
-            panel = nil
+        if !chrome.showsUI {
+            chrome.showsUI = true
+        } else if chrome.panel != nil {
+            chrome.show(nil)
         } else if session.selection != nil {
             session.select(nil)
         }
@@ -166,8 +153,8 @@ struct ContentView: View {
             onEveryTap: {
                 // As the web app's: no panel and on a phone a folded column. As the
                 // finger lifts, not 350 ms later once `onTap` rules out a double tap.
-                let foldsColumn = sizeClass != .regular && showsTools
-                tapClosedMenu = !session.isPicking && (panel != nil || foldsColumn)
+                let foldsColumn = sizeClass != .regular && chrome.showsTools
+                tapClosedMenu = !session.isPicking && (chrome.panel != nil || foldsColumn)
                 if tapClosedMenu {
                     clearTheGlobe()
                 }
@@ -190,27 +177,7 @@ struct ContentView: View {
         )
         .ignoresSafeArea()
         #if os(macOS)
-            .focusedSceneValue(
-                \.windowCommands,
-                WindowCommands(
-                    showsUI: showsUI,
-                    toggleUI: {
-                        if showsUI {
-                            hideUI()
-                        } else {
-                            showsUI = true
-                        }
-                    },
-                    panel: panel,
-                    showPanel: { which in
-                        if which != nil {
-                            showsUI = true
-                            showsTools = true
-                        }
-                        panel = which
-                    }
-                )
-            )
+            .focusedSceneValue(\.windowChrome, $chrome)
         #endif
         .overlay {
             // In the whole screen's points, as the globe reports them: anchored on the
@@ -237,7 +204,7 @@ struct ContentView: View {
                 // In the renderer's frame, the whole screen, since it projects into it.
                 SkyHUD(
                     renderer: renderer, onOpen: { session.select(.satellite($0)) }, controls: topControls, infoCard: showsCard ? cardFrame : nil,
-                    deckTop: showsUI ? deckFrame?.minY : nil, notice: session.notice ?? session.aim.cameraWarning
+                    deckTop: chrome.showsUI ? deckFrame?.minY : nil, notice: session.notice ?? session.aim.cameraWarning
                 )
                 .ignoresSafeArea()
             }
@@ -256,32 +223,29 @@ struct ContentView: View {
         .overlay(alignment: .topTrailing) {
             // The web app's buttons, in its order.
             VStack(spacing: PanelMetrics.gap) {
-                if !showsUI {
-                    Button("Show UI", systemImage: "eye") { showsUI = true }
+                if !chrome.showsUI {
+                    Button("Show UI", systemImage: "eye") { chrome.showsUI = true }
                 } else {
                     Button(session.observer != nil ? "Leave the sky view" : "Home view", systemImage: "globe") { session.goHome() }
-                    // A Mac has no motion sensor to aim by, nor a camera facing the sky.
-                    #if os(iOS)
-                        if session.observer != nil {
-                            Button {
-                                session.aim.toggleCompass()
-                            } label: {
-                                Label {
-                                    Text(session.aim.compass.isAiming ? "Stop aiming by compass" : "Aim by compass")
-                                } icon: {
-                                    // The menu toggle's Lucide side, Dynamic Type scaling it as the symbols beside it.
-                                    Image(.lucideCompass).resizable().frame(width: 22 * textScale, height: 22 * textScale)
-                                }
+                    if session.observer != nil, Platform.aimsByDevice {
+                        Button {
+                            session.aim.toggleCompass()
+                        } label: {
+                            Label {
+                                Text(session.aim.compass.isAiming ? "Stop aiming by compass" : "Aim by compass")
+                            } icon: {
+                                // The menu toggle's Lucide side, Dynamic Type scaling it as the symbols beside it.
+                                Image(.lucideCompass).resizable().frame(width: 22 * textScale, height: 22 * textScale)
                             }
-                            // Lucide has no filled compass: on, it takes the accent, as on the web.
-                            .buttonStyle(PanelButtonStyle(emphasis: session.aim.compass.isAiming ? .accent : .plain, square: true))
-                            Button(
-                                session.aim.passthrough.isShowing ? "Hide the camera" : "Show the camera",
-                                systemImage: session.aim.passthrough.isShowing ? "camera.fill" : "camera"
-                            ) { session.aim.togglePassthrough() }
-                            .disabled(session.aim.isStartingCamera)
                         }
-                    #endif
+                        // Lucide has no filled compass: on, it takes the accent, as on the web.
+                        .buttonStyle(PanelButtonStyle(emphasis: session.aim.compass.isAiming ? .accent : .plain, square: true))
+                        Button(
+                            session.aim.passthrough.isShowing ? "Hide the camera" : "Show the camera",
+                            systemImage: session.aim.passthrough.isShowing ? "camera.fill" : "camera"
+                        ) { session.aim.togglePassthrough() }
+                        .disabled(session.aim.isStartingCamera)
+                    }
                     // The way out of following something once its panel is closed.
                     if session.tracked != nil {
                         Button("Stop tracking", systemImage: "video.slash") { session.stopTracking(animated: true) }
@@ -337,22 +301,22 @@ struct ContentView: View {
         .overlay(alignment: .topLeading) {
             GeometryReader { _ in
                 HStack(alignment: .top, spacing: PanelMetrics.gap) {
-                    ToolMenu(isOpen: $showsTools, maxHeight: panelMaxHeight) {
+                    ToolMenu(isOpen: $chrome.showsTools, maxHeight: panelMaxHeight) {
                         // The web app's menu column: its entries, icons, order and hints.
                         ToolEntry(
                             title: "Bookmarks", image: .lucideBookmark, hint: "Featured and saved views, links you opened, and the way back to the default view",
-                            isSelected: panel == .bookmarks
+                            isSelected: chrome.panel == .bookmarks
                         ) {
                             #if os(macOS)
-                                panel = panel == .bookmarks ? nil : .bookmarks
+                                chrome.toggle(.bookmarks)
                             #else
                                 openSheet = .bookmarks
                             #endif
                         }
                         // A panel where there is room, as on the web; on a phone a sheet.
-                        ToolEntry(title: "Satellites", image: .lucideOrbit, hint: "Search and pick which satellites to show", isSelected: panel == .satellites) {
+                        ToolEntry(title: "Satellites", image: .lucideOrbit, hint: "Search and pick which satellites to show", isSelected: chrome.panel == .satellites) {
                             if sizeClass == .regular {
-                                panel = panel == .satellites ? nil : .satellites
+                                chrome.toggle(.satellites)
                             } else {
                                 openSheet = .browser
                             }
@@ -373,10 +337,10 @@ struct ContentView: View {
                             #endif
                         }
                     }
-                    .environment(\.toolNamesFolded, !roomy && panel != nil)
+                    .environment(\.toolNamesFolded, !roomy && chrome.panel != nil)
                     .reportsFrame { menuFrame = $0 }
-                    if let panel {
-                        ToolPanelView(panel: panel, maxHeight: panelMaxHeight, onClose: { self.panel = nil }) {
+                    if let panel = chrome.panel {
+                        ToolPanelView(panel: panel, maxHeight: panelMaxHeight, onClose: { chrome.show(nil) }) {
                             switch panel {
                             case .satellites:
                                 // Closed under the info card, as the web app's.
@@ -397,42 +361,35 @@ struct ContentView: View {
                                 }
                             case .globe: GlobePanel(session: session)
                             case .sky: SkyPanel(session: session)
-                            case .graphics: GraphicsPanel(session: session, hideUI: hideUI)
-                            case .bookmarks: BookmarksView(session: session) { self.panel = nil }
+                            case .graphics: GraphicsPanel(session: session) { chrome.hideUI(compact: sizeClass != .regular) }
+                            case .bookmarks: BookmarksView(session: session) { chrome.show(nil) }
                             }
                         }
                         .id(panel)
                         .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topLeading)))
                     }
                 }
-                .animation(.snappy(duration: 0.2), value: panel)
+                .animation(.snappy(duration: 0.2), value: chrome.panel)
                 .frame(maxWidth: panelReach, alignment: .topLeading)
                 .padding(PanelMetrics.edge)
             }
             .reportsFrame { toolsFrame = $0 }
-            .shown(showsUI)
+            .shown(chrome.showsUI)
         }
         // Open from the start where there is room, as the web app's is on a desktop
         // and folded on a phone, and again as the room changes: an iPhone Duo opened
         // is an iPad's width, and closed a phone's.
-        .onChange(of: sizeClass, initial: true) { _, size in showsTools = size == .regular }
-        // A panel goes with the column.
-        .onChange(of: showsTools) { _, open in
-            if !open {
-                panel = nil
-            }
-        }
+        .onChange(of: sizeClass, initial: true) { _, size in chrome.showsTools = size == .regular }
         // The benchmark's panel stood over the Graphics panel that opened it.
         .onChange(of: session.showsBenchmark) { _, shows in
             if shows {
-                panel = nil
-                showsTools = false
+                chrome.showsTools = false
             }
         }
         // Out of the way of the sky the compass now aims, as on the web.
         .onChange(of: session.aim.compass.isAiming && !session.aim.compass.isProbing) { _, aiming in
-            if aiming, panel == .sky {
-                panel = nil
+            if aiming, chrome.panel == .sky {
+                chrome.show(nil)
             }
         }
         .overlay(alignment: .top) {
@@ -468,7 +425,7 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .reportsFrame { deckFrame = $0 }
-                .shown(showsUI)
+                .shown(chrome.showsUI)
             }
             // A benchmark panel taller than the room scrolls under the top row
             // rather than running off the top, as on an iPhone Duo opened.
@@ -477,9 +434,10 @@ struct ContentView: View {
         .onChange(of: session.isPicking) { _, picking in
             if !picking, let selection = pickingFromLocations {
                 pickingFromLocations = nil
+                // The UI stays as it was: hidden during the pick, it shows the panel
+                // when it shows again.
                 if session.selection == selection {
-                    showsTools = true
-                    panel = .locations
+                    chrome.show(.locations)
                 }
             }
         }
@@ -488,20 +446,20 @@ struct ContentView: View {
         // would be under the column.
         .onChange(of: openSheet != nil && openSheet != .acknowledgements) { _, presenting in
             if presenting {
-                panel = nil
+                chrome.show(nil)
                 // The satellite's sheet gives way to it, and does not come back
                 // over a scene a bookmark opened.
                 if sizeClass != .regular {
                     session.select(nil)
                 }
-                if sizeClass != .regular, showsTools {
-                    showsTools = false
+                if sizeClass != .regular, chrome.showsTools {
+                    chrome.showsTools = false
                     sheetFoldedColumn = true
                 }
             } else if sheetFoldedColumn {
                 sheetFoldedColumn = false
                 if session.selection == nil {
-                    showsTools = true
+                    chrome.showsTools = true
                 }
             }
         }
@@ -510,7 +468,10 @@ struct ContentView: View {
             case .bookmarks:
                 // The column stays folded over the scene a bookmark opened, as a tap on
                 // the globe leaves it.
-                BookmarksView(session: session) { sheetFoldedColumn = false }
+                BookmarksView(session: session) {
+                    sheetFoldedColumn = false
+                    openSheet = nil
+                }
             case .browser:
                 BrowserView(catalog: session.catalog) { session.select(.satellite($0.id)) }
             case .about:
@@ -602,19 +563,15 @@ struct ContentView: View {
         session.setPicking(true)
     }
 
-    /// Closes the panel, and on a phone folds the column, for what happens next on
-    /// the globe: a panel opened there would be under the column.
+    /// `WindowChrome.clearTheGlobe` at this width.
     private func clearTheGlobe() {
-        panel = nil
-        if sizeClass != .regular {
-            showsTools = false
-        }
+        chrome.clearTheGlobe(compact: sizeClass != .regular)
     }
 
     /// An entry that opens its panel, or closes it if it is open.
     private func entry(_ which: ToolPanel, image: ImageResource, hint: LocalizedStringKey) -> some View {
-        ToolEntry(title: which.title, image: image, hint: hint, isSelected: panel == which) {
-            panel = panel == which ? nil : which
+        ToolEntry(title: which.title, image: image, hint: hint, isSelected: chrome.panel == which) {
+            chrome.toggle(which)
         }
     }
 
@@ -709,33 +666,14 @@ struct ContentView: View {
         switch session.selection {
         case .satellite(let id):
             if let entry = session.catalog.catalog.entries[id] {
-                InfoPanel(
-                    entry: entry, clock: session.clock, passes: session.passes, alerts: session.alerts, closeUp: session.closeUpContext,
-                    instrumentImagery: session.instrumentImagery,
-                    isTracked: session.tracked == .satellite(id), onTrack: session.observer != nil ? nil : { track(.satellite(id), on: $0) },
-                    onClose: { session.select(nil) }
-                )
+                InfoPanel(entry: entry, session: session)
             }
         case .station(let stationID):
             if let station = session.passes.station(stationID) {
-                StationPanel(
-                    station: station, clock: session.clock, passes: session.passes, alerts: session.alerts, catalog: session.catalog,
-                    isTracked: session.tracked == .station(stationID), onTrack: session.observer != nil ? nil : { track(.station(stationID), on: $0) },
-                    onSky: { session.enterSky(at: stationID) },
-                    onClose: { session.select(nil) }
-                )
+                StationPanel(station: station, session: session)
             }
         case nil:
             EmptyView()
-        }
-    }
-
-    /// A panel's Track button: the camera flies there, or back.
-    private func track(_ target: Selection, on: Bool) {
-        if on {
-            session.follow(target, animated: true)
-        } else {
-            session.stopTracking(animated: true)
         }
     }
 }

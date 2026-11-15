@@ -43,6 +43,13 @@ final class ViewerClock {
         clock.setPlaying(!clock.isPlaying, at: Self.real())
     }
 
+    /// Leaves the clock untouched when it already is.
+    func setPlaying(_ playing: Bool) {
+        if clock.isPlaying != playing {
+            togglePlaying()
+        }
+    }
+
     func setMultiplier(_ multiplier: Double) {
         clock.setMultiplier(multiplier, at: Self.real())
     }

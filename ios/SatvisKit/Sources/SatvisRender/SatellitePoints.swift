@@ -88,7 +88,7 @@ struct PointFrame {
 /// The satellites ready to draw: their samples and instances in GPU buffers, and
 /// their labels. Packed off the main thread (`GlobeRenderer.prepare`), because the
 /// samples of ten thousand satellites run to tens of megabytes.
-public struct PreparedSatellites: @unchecked Sendable {
+struct PreparedSatellites: @unchecked Sendable {
     /// The most an orbit's radius may vary for its line to step over samples: an
     /// eccentricity of about 0.03. Samples are a fixed time apart, so at perigee
     /// each covers 1.06 times a circle's arc there and its chord sags 1.12 times

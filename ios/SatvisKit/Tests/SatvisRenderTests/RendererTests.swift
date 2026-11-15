@@ -48,6 +48,61 @@ import simd
         }
     }
 
+    // A model reads its instance where `encodeParts` binds it, not from the
+    // frame's uniforms the scene leaves bound at 1: zeros there would place
+    // every vertex at the origin and draw nothing.
+    @MainActor
+    @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func drawsAModelThroughItsParts() async throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let model = try #require(await PreparedModel.prepare(try ModelAsset(glb: Fixtures.data("cube", ext: "glb")), device: device))
+        let library = try await ShaderLibrary.makeFast(device: device, files: ShaderLibrary.models)
+        let pipelines = try ModelPipelines(
+            device: device, vertex: library, fragment: library, targets: ModelPipelines.Targets(color: .rgba8Unorm, depth: .depth32Float))
+        let size = 16
+        let pixels = try Self.drawn(model, pipeline: pipelines.opaque, size: size, device: device)
+        #expect(pixels[4 * (size / 2 * size + size / 2) + 3] == 255)
+        #expect(pixels[3] == 0)
+    }
+
+    /// The cube drawn by `pipeline` into a `size`-pixel square RGBA image, over
+    /// a clear one, with zeros bound at the frame's uniforms.
+    private static func drawn(_ model: PreparedModel, pipeline: MTLRenderPipelineState, size: Int, device: MTLDevice) throws -> [UInt8] {
+        let colorDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm, width: size, height: size, mipmapped: false)
+        colorDescriptor.usage = .renderTarget
+        colorDescriptor.storageMode = .shared
+        let depthDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .depth32Float, width: size, height: size, mipmapped: false)
+        depthDescriptor.usage = .renderTarget
+        depthDescriptor.storageMode = .private
+        let color = try #require(device.makeTexture(descriptor: colorDescriptor))
+        let pass = MTLRenderPassDescriptor()
+        pass.colorAttachments[0].texture = color
+        pass.colorAttachments[0].loadAction = .clear
+        pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
+        pass.colorAttachments[0].storeAction = .store
+        pass.depthAttachment.texture = device.makeTexture(descriptor: depthDescriptor)
+        pass.depthAttachment.loadAction = .clear
+        pass.depthAttachment.storeAction = .dontCare
+        let commands = try #require(device.makeCommandQueue()?.makeCommandBuffer())
+        let encoder = try #require(commands.makeRenderCommandEncoder(descriptor: pass))
+        var frame = [UInt8](repeating: 0, count: MemoryLayout<FrameUniforms>.stride)
+        encoder.setVertexBytes(&frame, length: frame.count, index: 1)
+        encoder.setFragmentBytes(&frame, length: frame.count, index: 1)
+        encoder.setFrontFacing(.counterClockwise)
+        encoder.setRenderPipelineState(pipeline)
+        // The cube, 2 m across about (0, 0, 1), into the middle half of the image.
+        let toClip = float4x4(columns: (SIMD4(0.5, 0, 0, 0), SIMD4(0, 0.5, 0, 0), SIMD4(0, 0, 0.5, 0), SIMD4(0, 0, 0, 1)))
+        let base = ModelInstance(
+            modelViewProjection: toClip, rotation: matrix_identity_float3x3, modelToEye: matrix_identity_float4x4, baseColor: .one,
+            sunDirection: SIMD3(0, 0, 1), hasTexture: 0, metallic: 0, roughness: 0, alphaCutoff: 0, opacity: 1)
+        model.encodeParts(blended: false, wholeBlended: false, base: base, encoder: encoder)
+        encoder.endEncoding()
+        commands.commit()
+        commands.waitUntilCompleted()
+        var pixels = [UInt8](repeating: 0, count: 4 * size * size)
+        color.getBytes(&pixels, bytesPerRow: 4 * size, from: MTLRegionMake2D(0, 0, size, size), mipmapLevel: 0)
+        return pixels
+    }
+
     /// The web app's tiles, which the app target ships.
     static let naturalEarthTiles = URL(filePath: #filePath).deletingLastPathComponent().appending(path: "../../../../data/imagery/NaturalEarthII").standardized
 
@@ -75,6 +130,19 @@ import simd
         #expect(MemoryLayout<LinkInstance>.stride == 24)
         #expect(MemoryLayout<ModelVertex>.stride == 48)
         #expect(MemoryLayout<ModelInstance>.stride == 240)
+    }
+
+    // The draws' vertex counts follow these; a mismatch draws garbage, silently.
+    @MainActor
+    @Test func matchesTheShaderCounts() throws {
+        func constant(_ name: String, in file: String) throws -> Int? {
+            let match = try ShaderLibrary.source([file]).firstMatch(of: try Regex("constant int \(name) = ([0-9]+);"))
+            return match.flatMap { Int($0.output[1].substring ?? "") }
+        }
+        #expect(try constant("lineNodes", in: "Lines") == ScenePass.lineNodes)
+        #expect(try constant("coneSides", in: "Footprints") == ScenePass.coneSides)
+        #expect(try constant("skyRingColumns", in: "Sky") == ScenePipelines.skyRingColumns)
+        #expect(try constant("skyRingRows", in: "Sky") == ScenePipelines.skyRingRows)
     }
 
     // The way back from a tap on the globe to the place it touched.

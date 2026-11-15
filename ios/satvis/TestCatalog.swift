@@ -35,14 +35,14 @@
             }
             let store = PayloadStore(directory: URL.temporaryDirectory.appending(path: "UITestCatalog", directoryHint: .isDirectory))
             do {
-                try store.write(.index, data: JSONSerialization.data(withJSONObject: index), etag: nil, confirmed: .distantPast)
+                try store.write(.index, data: JSONSerialization.data(withJSONObject: index), etag: nil)
                 for (name, records) in groups {
-                    try store.write(.group(name), data: JSONSerialization.data(withJSONObject: records), etag: nil, confirmed: .distantPast)
+                    try store.write(.group(name), data: JSONSerialization.data(withJSONObject: records), etag: nil)
                 }
                 if let face = blackFace() {
                     for map in [StarMapName.deepStar1K, .deepStar2K] {
                         for path in GroupRepository.starMapFaces(map) {
-                            try store.write(.file(path), data: face, etag: nil, confirmed: .distantPast)
+                            try store.write(.file(path), data: face, etag: nil)
                         }
                     }
                 }

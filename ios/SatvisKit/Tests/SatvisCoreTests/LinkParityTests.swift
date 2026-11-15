@@ -25,7 +25,7 @@ import Testing
         #expect(vocabulary["layers"] == LinkCodec.layers)
         #expect(vocabulary["terrain"] == LinkCodec.terrains)
         #expect(vocabulary["stars"] == StarMapName.allCases.map(\.rawValue))
-        #expect(vocabulary["overpass"] == LinkCodec.overpassModes)
+        #expect(vocabulary["overpass"] == OverpassMode.allCases.map(\.rawValue))
         #expect(vocabulary["scenes"] == LinkCodec.scenes)
         #expect(vocabulary["unseen"] == UnseenMode.allCases.map(\.rawValue))
         #expect(vocabulary["cameras"] == CameraFrame.allCases.map(\.rawValue))
@@ -61,7 +61,7 @@ import Testing
                 switch kind {
                 case "plainString": #expect(FieldKind<String>.plain.parse(raw) == want as? String, "\(label)")
                 case "pixelRatio": #expect(FieldKind<String>.ratioOrNative(PixelRatioLadder.range).parse(raw) == want as? String, "\(label)")
-                case "overpass": #expect(FieldKind<String>.oneOf(LinkCodec.overpassModes).parse(raw) == want as? String, "\(label)")
+                case "overpass": #expect(FieldKind<OverpassMode>.enumeration.parse(raw)?.rawValue == want as? String, "\(label)")
                 case "fpsPanel": #expect(FieldKind<SceneState.FPSPanel>.enumeration.parse(raw)?.rawValue == want as? String, "\(label)")
                 case "benchmarkMode": #expect(FieldKind<SceneState.BenchmarkMode>.enumeration.parse(raw)?.rawValue == want as? String, "\(label)")
                 case "stringList": #expect(FieldKind<[String]>.list.parse(raw) == want as? [String], "\(label)")
@@ -87,7 +87,7 @@ import Testing
                 switch kind {
                 case "plainString": #expect(FieldKind<String>.plain.format(input as! String) == want, "\(label)")
                 case "pixelRatio": #expect(FieldKind<String>.ratioOrNative(PixelRatioLadder.range).format(input as! String) == want, "\(label)")
-                case "overpass": #expect(FieldKind<String>.oneOf(LinkCodec.overpassModes).format(input as! String) == want, "\(label)")
+                case "overpass": #expect(OverpassMode(rawValue: input as! String).flatMap(FieldKind<OverpassMode>.enumeration.format) == want, "\(label)")
                 case "fpsPanel": #expect(SceneState.FPSPanel(rawValue: input as! String).flatMap(FieldKind<SceneState.FPSPanel>.enumeration.format) == want, "\(label)")
                 case "benchmarkMode":
                     #expect(SceneState.BenchmarkMode(rawValue: input as! String).flatMap(FieldKind<SceneState.BenchmarkMode>.enumeration.format) == want, "\(label)")
@@ -121,7 +121,7 @@ import Testing
             #expect(read.state.tags == want["tags"] as? [String], "\(label)")
             #expect(read.state.gs == Self.stations(want["gs"]), "\(label)")
             #expect(read.state.track == want["track"] as? String, "\(label)")
-            #expect(read.state.overpass == want["overpass"] as? String, "\(label)")
+            #expect(read.state.overpass.rawValue == want["overpass"] as? String, "\(label)")
             #expect(read.state.layers == want["layers"] as? [String], "\(label)")
             #expect(read.state.terrain == want["terrain"] as? String, "\(label)")
             #expect(read.state.stars.rawValue == want["stars"] as? String, "\(label)")

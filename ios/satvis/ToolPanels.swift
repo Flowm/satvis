@@ -42,6 +42,72 @@ enum ToolPanel: Hashable {
     }
 }
 
+/// What a window shows over the globe: the UI, the menu column and the panel
+/// beside it, which goes with the column. The UI hidden hides both, and keeps
+/// them as they were.
+struct WindowChrome {
+    /// The Graphics panel's Hide UI, as the web app's (`hideUI`).
+    var showsUI = true
+    var showsTools = false {
+        didSet {
+            if !showsTools {
+                panel = nil
+            }
+        }
+    }
+    /// The panel open beside the menu column, if any.
+    private(set) var panel: ToolPanel?
+
+    /// Opens a panel, and the column for it, or closes it for nil.
+    mutating func show(_ which: ToolPanel?) {
+        if which != nil {
+            showsTools = true
+        }
+        panel = which
+    }
+
+    /// Opens a panel, bringing the UI and the column back for it.
+    mutating func reveal(_ which: ToolPanel) {
+        showsUI = true
+        show(which)
+    }
+
+    /// Opens a panel as `reveal` does, or closes it if it is open.
+    mutating func toggle(_ which: ToolPanel) {
+        if panel == which {
+            panel = nil
+        } else {
+            reveal(which)
+        }
+    }
+
+    /// Closes the panel, and on a compact width folds the column, for what happens
+    /// next on the globe: a panel opened there would be under the column.
+    mutating func clearTheGlobe(compact: Bool) {
+        panel = nil
+        if compact {
+            showsTools = false
+        }
+    }
+
+    /// Hides the menu column, its panel, the clock deck and the corner's buttons, for
+    /// a picture of the globe. The menu closes first, so Show UI brings none of it back
+    /// open, as on the web.
+    mutating func hideUI(compact: Bool) {
+        clearTheGlobe(compact: compact)
+        showsUI = false
+    }
+
+    /// Hides the UI as `hideUI` does, or shows it again.
+    mutating func toggleUI(compact: Bool) {
+        if showsUI {
+            hideUI(compact: compact)
+        } else {
+            showsUI = true
+        }
+    }
+}
+
 extension EnvironmentValues {
     /// How tall what a panel holds may be, under its title, where it scrolls itself;
     /// nil where it may be as tall as it is.
@@ -816,8 +882,7 @@ struct SkyPanel: View {
                 Note("Locations you add are listed here too.")
             }
         }
-        // A Mac has no motion sensor to aim by, nor a camera facing the sky.
-        #if os(iOS)
+        if Platform.aimsByDevice {
             PanelSection("Aiming") {
                 // Waiting on the sensor, a second tap must not start a second probe.
                 PanelCard {
@@ -848,7 +913,7 @@ struct SkyPanel: View {
                 }
                 Note("The sky through the camera, aimed by compass.")
             }
-        #endif
+        }
         PanelSection("Out of sight") {
             Segments(title: "Out of sight", selection: $session.unseen, options: UnseenMode.allCases.map { ($0.rawValue.capitalized, $0) })
                 .disabled(!inSky)

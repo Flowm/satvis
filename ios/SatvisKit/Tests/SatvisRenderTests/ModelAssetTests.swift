@@ -10,8 +10,7 @@ import simd
     // A Draco-compressed cube under a node that doubles it and lifts it by 1
     // (ios/scripts/make-model-fixture.mjs): decoded, placed, and textured.
     @Test func readsADracoCompressedModel() throws {
-        let url = try #require(Bundle.module.url(forResource: "cube", withExtension: "glb", subdirectory: "Fixtures"))
-        let model = try ModelAsset(glb: Data(contentsOf: url))
+        let model = try ModelAsset(glb: Fixtures.data("cube", ext: "glb"))
         #expect(model.vertices.count == 24)
         #expect(model.indices.count == 36)
         #expect(model.parts.count == 1 && model.parts[0].indexCount == 36 && model.parts[0].material == 0)
@@ -32,8 +31,7 @@ import simd
 
     /// The cube with its JSON changed, its binary chunk as it was.
     private static func cube(_ change: (inout [String: Any]) -> Void) throws -> Data {
-        let url = try #require(Bundle.module.url(forResource: "cube", withExtension: "glb", subdirectory: "Fixtures"))
-        let data = try Data(contentsOf: url)
+        let data = try Fixtures.data("cube", ext: "glb")
         func word(_ offset: Int) -> Int { Int(data[offset]) | Int(data[offset + 1]) << 8 | Int(data[offset + 2]) << 16 | Int(data[offset + 3]) << 24 }
         let jsonLength = word(12)
         var document = try #require(try JSONSerialization.jsonObject(with: data.subdata(in: 20..<(20 + jsonLength))) as? [String: Any])

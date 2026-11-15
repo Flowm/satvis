@@ -31,8 +31,7 @@ struct TrackingCameraTests {
 
     // A low orbit's along its motion, a higher one's north-up.
     @Test func holdsTheOffsetInCesiumsAxes() throws {
-        let url = try #require(Bundle.module.url(forResource: "tracking-frames", withExtension: "json", subdirectory: "Fixtures"))
-        let frames = try JSONDecoder().decode(Frames.self, from: Data(contentsOf: url)).frames
+        let frames = try JSONDecoder().decode(Frames.self, from: Fixtures.data("tracking-frames", ext: "json")).frames
         #expect(frames.count == 30)
         for frame in frames {
             let target = Self.vector(frame.positionMetres)

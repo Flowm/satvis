@@ -1,4 +1,5 @@
 import Foundation
+import SatvisCore
 import Testing
 
 @testable import SatvisRender
@@ -31,7 +32,7 @@ struct SweepParityTests {
         struct Run: Decodable {
             var name: String
             var run: SweepRun
-            var report: ReportValue
+            var report: JSONValue
             var thin: Int
             var table: String
             var csv: String
@@ -56,8 +57,7 @@ struct SweepParityTests {
     }
 
     private static func fixture() throws -> Fixture {
-        let url = try #require(Bundle.module.url(forResource: "sweep", withExtension: "json", subdirectory: "Fixtures"))
-        return try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
+        return try JSONDecoder().decode(Fixture.self, from: Fixtures.data("sweep", ext: "json"))
     }
 
     @Test func sharesTheWebAppsDefaults() throws {
@@ -115,8 +115,8 @@ struct SweepParityTests {
         #expect(jsRound(2.675, 2) == 2.67)
         #expect(jsRound(-0.125, 2) == -0.13)
         #expect(jsRound(1.005, 2) == 1)
-        #expect(jsNumber(-0.0) == "0")
-        #expect(jsNumber(145) == "145")
-        #expect(jsNumber(0.83) == "0.83")
+        #expect(jsNumberString(-0.0) == "0")
+        #expect(jsNumberString(145) == "145")
+        #expect(jsNumberString(0.83) == "0.83")
     }
 }

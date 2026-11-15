@@ -125,7 +125,7 @@ extension PassParity.ExpectedPass {
 @Suite(.formatsInEnglishUS) struct PassParityTests {
     @Test func findsTheWebAppsPasses() throws {
         let parity = try JSONDecoder().decode(PassParity.self, from: Parity.fixture("parity"))
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         #expect(parity.passes.contains { !$0.passes.isEmpty && $0.mode == .swath && $0.swath?.starboardKm != $0.swath?.portKm })
         #expect(parity.passEdges.allSatisfy { !$0.passes.isEmpty })
         for expected in parity.passes + parity.passEdges {

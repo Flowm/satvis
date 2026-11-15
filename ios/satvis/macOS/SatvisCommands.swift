@@ -2,27 +2,17 @@ import SatvisCore
 import SatvisRender
 import SwiftUI
 
-/// What the window offers the menu bar: its panels, Bookmarks among them, and
-/// Hide UI, which are the window's state, not the session's.
-struct WindowCommands {
-    let showsUI: Bool
-    let toggleUI: () -> Void
-    /// The panel open beside the menu column, if any.
-    let panel: ToolPanel?
-    /// Opens a panel, bringing the UI and the column back for it, or closes it for nil.
-    let showPanel: (ToolPanel?) -> Void
-}
-
 extension FocusedValues {
-    /// The window's commands, while it is in front.
-    @Entry var windowCommands: WindowCommands?
+    /// The window's panels, Bookmarks among them, and Hide UI, while it is in
+    /// front: the window's state, not the session's.
+    @Entry var windowChrome: Binding<WindowChrome>?
 }
 
 /// The Mac's menu bar: the menu column's entries, the projection, the sky view and
 /// the base map, what is selected, the bookmarks and the links, with their shortcuts.
 struct SatvisCommands: Commands {
     let session: Session
-    @FocusedValue(\.windowCommands) private var window
+    @FocusedBinding(\.windowChrome) private var window
     @Environment(\.openWindow) private var openWindow
 
     /// The column's panels after Satellites, numbered in its order.
@@ -43,7 +33,7 @@ struct SatvisCommands: Commands {
         }
         CommandGroup(before: .toolbar) {
             ForEach(Array(Self.numbered.enumerated()), id: \.element) { index, panel in
-                Button(panel.title) { window?.showPanel(window?.panel == panel ? nil : panel) }
+                Button(panel.title) { window?.toggle(panel) }
                     .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")))
             }
             .disabled(window == nil)
@@ -66,13 +56,14 @@ struct SatvisCommands: Commands {
                 }
             }
             Button(session.observer != nil ? "Leave the Sky View" : "Home View") { session.goHome() }
-            Button(window?.showsUI == false ? "Show UI" : "Hide UI") { window?.toggleUI() }
+            // A Mac's window is laid out at the regular width (SatvisApp).
+            Button(window?.showsUI == false ? "Show UI" : "Hide UI") { window?.toggleUI(compact: false) }
                 .keyboardShortcut("h", modifiers: [.command, .shift])
                 .disabled(window == nil)
             Divider()
         }
         CommandMenu("Satellite") {
-            Button("Find Satellite…") { window?.showPanel(.satellites) }
+            Button("Find Satellite…") { window?.reveal(.satellites) }
                 .keyboardShortcut("f")
                 .disabled(window == nil)
             Divider()
@@ -80,7 +71,7 @@ struct SatvisCommands: Commands {
             info
         }
         CommandMenu("Bookmarks") {
-            Button("Show Bookmarks") { window?.showPanel(.bookmarks) }
+            Button("Show Bookmarks") { window?.reveal(.bookmarks) }
                 .keyboardShortcut("b")
                 .disabled(window == nil)
             Button("Save This View") { Task { await session.saveHere() } }

@@ -60,6 +60,13 @@ struct CameraRig {
     private static let homeFlightDuration = 1.5
     /// The pose of the last frame, which a flight sets off from.
     private var lastPose: CameraPose?
+    /// The view's width over its height in pixels; nil until it has a size.
+    private var aspectRatio: Double?
+    /// `aspectRatio` once a frame is drawn; before one, the sky view and the way
+    /// home leave the globe camera where it is.
+    private var drawnAspectRatio: Double? {
+        lastPose == nil ? nil : aspectRatio
+    }
     /// The projection asked for. The sky view is drawn in 3D whatever it is, and
     /// goes back to it.
     private(set) var projection = GlobeProjection.threeD
@@ -115,10 +122,10 @@ struct CameraRig {
         drawnProjection = shownProjection
     }
 
-    /// Shows the globe as a globe or as the flat map, keeping the place in sight on
-    /// a view of `aspectRatio`, nil before a frame is drawn. `animated` fades from
-    /// one to the other. In the sky view, the projection it goes back to.
-    mutating func setProjection(_ projection: GlobeProjection, animated: Bool, aspectRatio: Double?) {
+    /// Shows the globe as a globe or as the flat map, keeping the place in sight
+    /// once the view has a size. `animated` fades from one to the other. In the
+    /// sky view, the projection it goes back to.
+    mutating func setProjection(_ projection: GlobeProjection, animated: Bool) {
         guard projection != self.projection else {
             return
         }
@@ -153,24 +160,26 @@ struct CameraRig {
         }
     }
 
-    /// The home view, the first time the view has a size.
-    mutating func openHome(aspectRatio: Double) {
+    /// The view's new size, as its width over its height in pixels: the home
+    /// view, the first time it has one.
+    mutating func resize(aspectRatio: Double) {
+        self.aspectRatio = aspectRatio
         if orbitCamera == nil {
             orbitCamera = OrbitCamera.home(aspectRatio: aspectRatio)
         }
     }
 
     /// Stands on the ground at the camera's observer and looks up from there.
-    /// `animated` flies there from the last pose, as seen on a view of
-    /// `aspectRatio`, nil before a frame is drawn; without it the camera cuts.
-    mutating func enterSky(_ camera: SkyCamera, animated: Bool, uptime now: Double, aspectRatio: Double?) {
+    /// `animated` flies there from the last pose, once a frame is drawn; without
+    /// it the camera cuts.
+    mutating func enterSky(_ camera: SkyCamera, animated: Bool, uptime now: Double) {
         // From wherever a flight into or out of tracking has got to.
         poseFlight = nil
         mapFlight = nil
         fadesProjection = animated
         // From the map, the way back flies to the globe over it, which then gives
         // way to the map.
-        if cameraMode != .sky, projection == .twoD, let mapCamera, let aspectRatio {
+        if cameraMode != .sky, projection == .twoD, let mapCamera, let aspectRatio = drawnAspectRatio {
             orbitCamera = mapCamera.globe(aspectRatio: aspectRatio)
         }
         if var flight = skyFlight, !flight.entering {
@@ -188,12 +197,12 @@ struct CameraRig {
     }
 
     /// Back to the globe camera, by the flight in played backwards.
-    mutating func leaveSky(animated: Bool, uptime now: Double, aspectRatio: Double?) {
+    mutating func leaveSky(animated: Bool, uptime now: Double) {
         fadesProjection = animated
         if var flight = skyFlight, flight.entering {
             flight.reverse(at: now)
             skyFlight = flight
-        } else if animated, skyFlight == nil, cameraMode == .sky, var globe = orbitCamera?.pose(), let aspectRatio {
+        } else if animated, skyFlight == nil, cameraMode == .sky, var globe = orbitCamera?.pose(), let aspectRatio = drawnAspectRatio {
             globe.verticalFieldOfView = globe.verticalFieldOfView(aspectRatio: aspectRatio)
             skyFlight = SkyFlight(globe: globe, start: now, entering: false)
         } else if skyFlight == nil {
@@ -277,11 +286,11 @@ struct CameraRig {
         flyMap(animated, uptime: uptime, duration: PoseFlight.duration)
     }
 
-    /// Back to where the app opens on a view of `aspectRatio`, nil before a frame
-    /// is drawn, letting go of what is followed. `animated` flies there; without
-    /// it the camera cuts. Not from the sky view, which `leaveSky` leaves first.
-    mutating func flyHome(animated: Bool, uptime: Double, aspectRatio: Double?) {
-        guard cameraMode != .sky, let aspectRatio else {
+    /// Back to where the app opens, letting go of what is followed, once a frame
+    /// is drawn. `animated` flies there; without it the camera cuts. Not from the
+    /// sky view, which `leaveSky` leaves first.
+    mutating func flyHome(animated: Bool, uptime: Double) {
+        guard cameraMode != .sky, let aspectRatio = drawnAspectRatio else {
             return
         }
         stopTracking(animated: animated, uptime: uptime)
@@ -423,18 +432,18 @@ struct CameraRig {
         return pose
     }
 
-    /// Where the frame drawn at `time` (UTC milliseconds) on a view of
-    /// `aspectRatio` is seen from: the free camera, what is tracked or the sky
-    /// view, partway through any flight between them. `model` is how the tracked
-    /// satellite's 3D model can be framed, `target` where what has an id is at a
-    /// time (UTC milliseconds), and `groundHeight` the ground's height in metres
-    /// at a place. Nil before the view has a size, and nil, with the cameras put
-    /// back home, where the pose is not finite.
+    /// Where the frame drawn at `time` (UTC milliseconds) is seen from: the free
+    /// camera, what is tracked or the sky view, partway through any flight
+    /// between them. `model` is how the tracked satellite's 3D model can be
+    /// framed, `target` where what has an id is at a time (UTC milliseconds),
+    /// and `groundHeight` the ground's height in metres at a place. Nil before
+    /// the view has a size, and nil, with the cameras put back home, where the
+    /// pose is not finite.
     mutating func pose(
-        uptime: Double, time now: Double, aspectRatio: Double, model: (String) -> TrackedModel, target: (String, Double) -> SIMD3<Double>?,
+        uptime: Double, time now: Double, model: (String) -> TrackedModel, target: (String, Double) -> SIMD3<Double>?,
         groundHeight: (GeoCoordinate) -> Double?
     ) -> CameraPose? {
-        guard var orbitCamera else {
+        guard var orbitCamera, let aspectRatio else {
             return nil
         }
         if drawnProjection == .twoD {

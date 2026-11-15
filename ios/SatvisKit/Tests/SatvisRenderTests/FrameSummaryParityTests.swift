@@ -46,8 +46,7 @@ struct FrameSummaryParityTests {
     }
 
     @Test func summarisesEachRecordingAsTheWebAppDoes() throws {
-        let url = try #require(Bundle.module.url(forResource: "frame-summaries", withExtension: "json", subdirectory: "Fixtures"))
-        let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
+        let fixture = try JSONDecoder().decode(Fixture.self, from: Fixtures.data("frame-summaries", ext: "json"))
         #expect(!fixture.cases.isEmpty)
         for test in fixture.cases {
             let given = test.recording

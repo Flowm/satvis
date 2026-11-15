@@ -14,18 +14,13 @@ struct AboutView: View {
     /// The about page's opening.
     private static let introduction: LocalizedStringKey =
         "Satvis is a free, open-source satellite tracker for iPhone, iPad and Mac. It draws more than 16,000 satellites on a 3D globe in real time: Starlink, GPS, weather satellites, the ISS and many more. Set your location and it predicts when each one passes overhead. The sky view shows the sky from where you stand.\(pointing)"
-    #if os(macOS)
-        /// A Mac has no motion sensor or camera to aim the sky view by.
-        private static let pointing = ""
-        /// How the sky view is aimed.
-        private static let skyViewFeature: LocalizedStringKey = "Find satellites overhead in the ground-level sky view, aimed by dragging"
-    #else
-        /// How the sky view is aimed by the device.
-        private static let pointing = " Point your \(Platform.deviceKind) up to see the satellites in that direction."
-        /// How the sky view is aimed, the device and its camera among them.
-        private static let skyViewFeature: LocalizedStringKey =
-            "Find satellites overhead in the ground-level sky view, aimed by dragging or by pointing your \(Platform.deviceKind), with the camera's picture of the sky behind them"
-    #endif
+    /// How the sky view is aimed by the device, where it can be.
+    private static let pointing = Platform.aimsByDevice ? " Point your \(Platform.deviceKind) up to see the satellites in that direction." : ""
+    /// How the sky view is aimed, the device and its camera among them where it can be.
+    private static let skyViewFeature: LocalizedStringKey =
+        Platform.aimsByDevice
+        ? "Find satellites overhead in the ground-level sky view, aimed by dragging or by pointing your \(Platform.deviceKind), with the camera's picture of the sky behind them"
+        : "Find satellites overhead in the ground-level sky view, aimed by dragging"
 
     /// The web app's feature rows, each with the Lucide icon the about page gives it.
     private static let features: [(icon: ImageResource, text: LocalizedStringKey)] = [
@@ -98,7 +93,7 @@ struct AboutView: View {
                     }
                     // Nothing is counted where usage may not be at all: not a
                     // debug build, and not another site than satvis.space.
-                    .disabled(!Analytics.isAvailable)
+                    .disabled(!session.analytics.isAvailable)
                     NavigationLink {
                         AcknowledgementsView(map: session.mapCredits)
                     } label: {

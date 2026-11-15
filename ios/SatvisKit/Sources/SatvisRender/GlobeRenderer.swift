@@ -49,7 +49,7 @@ enum ShaderLibrary {
         return try await device.makeLibrary(source: try source(files), options: options)
     }
 
-    private static func source(_ files: [String]) throws -> String {
+    static func source(_ files: [String]) throws -> String {
         try files.map { name in
             guard let url = Bundle.module.url(forResource: name, withExtension: "msl", subdirectory: "Shaders") else {
                 throw RendererError.missingShader(name)
@@ -69,7 +69,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     var cameraMode: CameraMode { rig.cameraMode }
     /// The sky view's camera, while it is on the ground.
     public var skyCamera: SkyCamera? { rig.skyCamera }
-    public var components: SatelliteComponents = [.point, .label] {
+    var components: SatelliteComponents = [.point, .label] {
         didSet {
             keepModelsInUse()
             pacer.needsDraw = true
@@ -84,7 +84,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// What the free camera holds still in. Tracking keeps the satellite's own
     /// frame, and the sky view the observer's, so it waits while either is up:
     /// the free camera does not turn meanwhile.
-    public var cameraFrame: CameraFrame {
+    var cameraFrame: CameraFrame {
         get { rig.cameraFrame }
         set {
             rig.cameraFrame = newValue
@@ -92,18 +92,16 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
     }
     /// In the sky view, how the satellites that cannot be seen are drawn (ADR 0010).
-    public var unseen = UnseenMode.dim {
+    var unseen = UnseenMode.dim {
         didSet {
             pacer.needsDraw = true
-            // The crosshair passes over hidden ones: judged again at once.
-            skyCache.lockAt = -.infinity
         }
     }
     /// The camera whose picture the sky view is drawn over, while it is shown
     /// (ADR 0013): the view is then clear where the scene leaves the sky, the
     /// ground hides what is behind it without hiding the picture, and the field of
     /// view is the camera's.
-    public var passthrough: CameraLens? {
+    var passthrough: CameraLens? {
         get { rig.passthrough }
         set {
             rig.passthrough = newValue
@@ -112,12 +110,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
     /// The instant to draw `ahead` seconds from now, in UTC milliseconds since
     /// 1970: a frame is drawn for when it will be shown (`FramePresentation`).
-    public var clock: (_ ahead: Double) -> Double = wallClock {
+    var clock: (_ ahead: Double) -> Double = wallClock {
         didSet { pacer.needsDraw = true }
     }
 
     /// The device's own clock, for `clock`.
-    public static let wallClock: @Sendable (_ ahead: Double) -> Double = { (Date().timeIntervalSince1970 + $0) * 1000 }
+    static let wallClock: @Sendable (_ ahead: Double) -> Double = { (Date().timeIntervalSince1970 + $0) * 1000 }
 
     private nonisolated let device: MTLDevice
     private let queue: MTLCommandQueue
@@ -153,9 +151,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let snapshots = SnapshotRequests()
 
     /// Called with the first frame the GPU fails of each kind, which it logs.
-    public var onGPUFault: (@MainActor @Sendable (GPUFault) -> Void)? {
-        get { loop.faults.onFault }
-        set { loop.faults.onFault = newValue }
+    var onGPUFault: (@MainActor @Sendable (GPUFault) -> Void)? {
+        get { loop.onFault }
+        set { loop.onFault = newValue }
     }
 
     /// Who measures the frames: the performance panel, the benchmark. Nothing is
@@ -163,7 +161,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private var measurers: Set<String> = []
 
     /// Whether frames are measured.
-    public var measuresFrames: Bool { !measurers.isEmpty }
+    var measuresFrames: Bool { !measurers.isEmpty }
 
     /// Measures frames for `user`, or stops once its last user does.
     public func measureFrames(_ on: Bool, for user: String) {
@@ -182,9 +180,6 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// are paced as anywhere else in the app.
     public var drawsEveryFrame = false
 
-    /// Whether the last frame was paced: drawn only once something could have moved.
-    public private(set) var isPaced = false
-
     /// The last frame of the other projection, fading out over the frames since
     /// the change.
     private var fade: ProjectionFade
@@ -192,19 +187,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// counting up alone.
     private var contentRevision: Int { surface.revision + models.revision + overlay.revision }
     /// The frames' averages over the last half second, while measured.
-    public var frameStats: FrameStats? {
-        guard measuresFrames, var stats = meter.stats else {
-            return nil
-        }
-        stats.paced = isPaced
-        stats.idle = isIdle(framesPerSecond: stats.framesPerSecond)
-        return stats
-    }
-
-    /// Paced at under half the display's rate: dragging the globe, paced still, draws every frame.
-    private func isIdle(framesPerSecond: Double?) -> Bool {
-        isPaced && (framesPerSecond ?? 0) < Double(Self.displayMaximumFramesPerSecond) / 2
-    }
+    public var frameStats: FrameStats? { measuresFrames ? meter.stats : nil }
 
     /// The frames drawn over the last `recentWindow`, oldest first, while measured.
     public var recentFrames: [MeteredFrame] { measuresFrames ? meter.recentFrames : [] }
@@ -220,9 +203,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     public func stopRecordingFrames() -> FrameRecording {
         defer { measureFrames(false, for: "recording") }
-        var recording = meter.stopRecording(at: ProcessInfo.processInfo.systemUptime)
-        recording.idle = isIdle(framesPerSecond: recording.framesPerSecond)
-        return recording
+        return meter.stopRecording(at: ProcessInfo.processInfo.systemUptime)
     }
 
     /// Lets go of what is kept only for later: the surface's tiles and terrain
@@ -297,7 +278,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The star map behind everything: six encoded square faces in the order
     /// +X, −X, +Y, −Y, +Z, −Z, oriented as a CesiumJS sky box is. The sky is black
     /// until it is set.
-    public func setStarMap(faces: [Data]) {
+    func setStarMap(faces: [Data]) {
         Task.detached(priority: .utility) {
             let bitmaps = Textures.cubeFaces(faces)
             await MainActor.run {
@@ -309,7 +290,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// Packs satellites for drawing, off the main thread. Hand the result to
     /// `setSatellites`. Unlabelled, it sets no names: tens of milliseconds for 16,000.
-    public nonisolated func prepare(_ satellites: [PointSatellite], labelled: Bool = true) async -> PreparedSatellites {
+    nonisolated func prepare(_ satellites: [PointSatellite], labelled: Bool = true) async -> PreparedSatellites {
         let device = device
         let scale = screenScale
         return await Task.detached(priority: .userInitiated) {
@@ -317,7 +298,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }.value
     }
 
-    public func setSatellites(_ prepared: PreparedSatellites) {
+    func setSatellites(_ prepared: PreparedSatellites) {
         placer.keep(prepared)
         points.install(prepared)
         keepModelsInUse()
@@ -357,20 +338,20 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     /// The base map, and the site the shipped one's finer levels come from.
-    public func setImagery(_ layer: BaseLayer, site: URL) {
+    func setImagery(_ layer: BaseLayer, site: URL) {
         surface.setLayer(layer, site: site)
         pacer.needsDraw = true
     }
 
     /// The instrument imagery over the base map, the last on top (ADR 0020).
-    public func setInstrumentImagery(_ overlays: [ImageryOverlay]) {
+    func setInstrumentImagery(_ overlays: [ImageryOverlay]) {
         surface.setOverlays(overlays)
         pacer.needsDraw = true
     }
 
     /// Whether the globe follows Re:Earth's terrain, the sky view's ground too.
     /// Off by default, as on the web.
-    public func setTerrain(_ enabled: Bool) {
+    func setTerrain(_ enabled: Bool) {
         surface.setTerrain(enabled)
         pacer.needsDraw = true
     }
@@ -378,25 +359,19 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Stands on the ground at the camera's observer and looks up from there,
     /// over the terrain, which the horizon and the eye's height need. `animated`
     /// flies there; without it, as reduced motion asks, the camera cuts.
-    public func enterSky(_ camera: SkyCamera, animated: Bool = true) {
-        rig.enterSky(camera, animated: animated, uptime: ProcessInfo.processInfo.systemUptime, aspectRatio: lastAspectRatio)
+    func enterSky(_ camera: SkyCamera, animated: Bool = true) {
+        rig.enterSky(camera, animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
     }
 
     /// Back to the globe camera, by the flight in played backwards.
-    public func leaveSky(animated: Bool = true) {
-        rig.leaveSky(animated: animated, uptime: ProcessInfo.processInfo.systemUptime, aspectRatio: lastAspectRatio)
+    func leaveSky(animated: Bool = true) {
+        rig.leaveSky(animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
     }
 
     /// Whether the sky view has landed, and what is on screen is what it aims at.
     /// Its instruments and its gestures wait for this.
     public var isSkySettled: Bool {
         rig.isSkySettled
-    }
-
-    /// The last frame's width over its height, which a flight sets off at; nil
-    /// before one is drawn.
-    private var lastAspectRatio: Double? {
-        lastFrame.map { $0.size.x / $0.size.y }
     }
 
     /// The device's attitude, in the observer's east, north and up, while the
@@ -413,26 +388,26 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// What fetches a 3D model's bytes by its path under /data/models/; models
     /// are not drawn without one.
-    public var modelLoader: (@Sendable (String) async -> Data?)? {
+    var modelLoader: (@Sendable (String) async -> Data?)? {
         get { models.loader }
         set { models.loader = newValue }
     }
 
     /// What fetches a map tile's bytes; tiles are not fetched without one.
-    public var tileLoader: (@Sendable (TileRequest) async -> Data?)? {
+    var tileLoader: (@Sendable (TileRequest) async -> Data?)? {
         get { surface.loader }
         set { surface.loader = newValue }
     }
 
     /// The ground stations to stand pins on.
-    public func setStations(_ stations: [StationMarker]) {
+    func setStations(_ stations: [StationMarker]) {
         self.stations = stations
         pacer.needsDraw = true
     }
 
     /// The ground station links, each drawn while its pass lasts and the component
     /// is on.
-    public func setLinks(_ links: [StationLink]) {
+    func setLinks(_ links: [StationLink]) {
         self.links = links
         pacer.needsDraw = true
     }
@@ -441,7 +416,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// view opens.
     /// Follows what has this id. `animated` flies there from where the camera
     /// is, as the web app's Track button does; a link or a double tap cuts.
-    public func track(_ id: String, animated: Bool = false) {
+    func track(_ id: String, animated: Bool = false) {
         rig.track(id, animated: animated, uptime: ProcessInfo.processInfo.systemUptime, model: { self.trackedModel($0) })
     }
 
@@ -462,22 +437,22 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Lets go, and goes back to the view tracking began from, as the web app
     /// does: the free camera is kept while tracking, through switches from one
     /// satellite to another. `animated` flies back.
-    public func stopTracking(animated: Bool = false) {
+    func stopTracking(animated: Bool = false) {
         rig.stopTracking(animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
     }
 
     /// Back to where the app opens, letting go of what is followed. `animated`
     /// flies there; without it, as reduced motion asks, the camera cuts. Not
     /// from the sky view, which `leaveSky` leaves first.
-    public func flyHome(animated: Bool = true) {
-        rig.flyHome(animated: animated, uptime: ProcessInfo.processInfo.systemUptime, aspectRatio: lastAspectRatio)
+    func flyHome(animated: Bool = true) {
+        rig.flyHome(animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
     }
 
     /// Draws the globe as a globe or as the flat map, keeping the place in sight.
     /// `animated` fades the one into the other; without it, as reduced motion
     /// asks, it cuts.
-    public func setProjection(_ projection: GlobeProjection, animated: Bool) {
-        rig.setProjection(projection, animated: animated, aspectRatio: lastAspectRatio ?? hdr.map { Double($0.width) / Double($0.height) })
+    func setProjection(_ projection: GlobeProjection, animated: Bool) {
+        rig.setProjection(projection, animated: animated)
         pacer.needsDraw = true
     }
 
@@ -527,7 +502,6 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         if view.bounds.width > 0 {
             pixelScale = Double(size.width / view.bounds.width)
         }
-        rig.openHome(aspectRatio: size.width / size.height)
         func target(_ format: MTLPixelFormat) -> MTLTexture? {
             let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: Int(size.width), height: Int(size.height), mipmapped: false)
             // In tile memory alone where the tonemap reads it there.
@@ -542,6 +516,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         hdr = target(ScenePipelines.hdrFormat)
         depth = target(ScenePipelines.depthFormat)
+        // In the whole pixels the frames are drawn at.
+        if let hdr {
+            rig.resize(aspectRatio: Double(hdr.width) / Double(hdr.height))
+        }
         pacer.needsDraw = true
     }
 
@@ -568,8 +546,6 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     public func draw(in view: MTKView) {
-        let interval = 1 / Double(max(1, view.preferredFramesPerSecond))
-        loop.drawables.setBehind((loop.presentation.perFrame ?? 0) > interval)
         // A change of projection that fades draws one frame more of the old one,
         // and keeps it to fade from; one that does not shows the new at once.
         let keepsFrame = rig.drawnProjection != rig.shownProjection && rig.fadesProjection && lastFrame != nil
@@ -586,21 +562,22 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         let started = ProcessInfo.processInfo.systemUptime
         // Flights and the clock as they stand when the frame is shown; drags as the
         // touches stand now.
-        let shown = loop.presentation.predict(at: started, refresh: 1 / Double(Self.displayMaximumFramesPerSecond), interval: interval)
+        let shown = loop.predict(view, at: started, refresh: 1 / Double(Self.displayMaximumFramesPerSecond))
         let now = clock(shown - ProcessInfo.processInfo.systemUptime)
         let size = SIMD2(Double(hdr.width), Double(hdr.height))
         let pose = rig.pose(
-            uptime: shown, time: now, aspectRatio: size.x / size.y, model: { self.trackedModel($0) },
+            uptime: shown, time: now, model: { self.trackedModel($0) },
             target: { self.position(of: $0, at: $1) }, groundHeight: { self.surface.groundHeight($0) })
-        guard let pose, mustDraw(pose: pose, time: now, size: size) else {
+        let paced = isPaced
+        guard let pose, mustDraw(pose: pose, time: now, size: size, paced: paced) else {
             if measuring {
-                meter.skipped(cpuSeconds: ProcessInfo.processInfo.systemUptime - started)
+                meter.skipped(cpuSeconds: ProcessInfo.processInfo.systemUptime - started, paced: paced)
             }
             return
         }
-        guard let target = loop.begin(view, measuring: measuring) else {
+        guard let target = loop.begin(view) else {
             if measuring {
-                meter.skipped(cpuSeconds: ProcessInfo.processInfo.systemUptime - started)
+                meter.skipped(cpuSeconds: ProcessInfo.processInfo.systemUptime - started, paced: paced)
             }
             pacer.needsDraw = true
             return
@@ -622,33 +599,26 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             encodeFade(onto: target.drawable.texture, commands: commands, at: shown)
         }
         snapshots.encode(of: target.drawable, into: commands, device: device)
-        let committed = ProcessInfo.processInfo.systemUptime
-        let cpu = committed - started - target.waitedForBuffer - target.waitedForDrawable
-        let id = loop.presentation.began(committed: committed, cpu: cpu, shown: shown)
-        commands.addCompletedHandler { [presentation = loop.presentation, meter] buffer in
-            let (start, end) = (buffer.gpuStartTime, buffer.gpuEndTime)
-            presentation.done(id, start: start, end: end)
-            if measuring {
-                meter.gpu(start: start, end: end, frame: id)
-            }
-        }
-        commands.present(target.drawable)
-        commands.commit()
+        let id = loop.commit(target, started: started, shown: shown, meter: measuring ? meter : nil)
         if measuring {
             let ended = ProcessInfo.processInfo.systemUptime
             meter.frame(
-                cpuSeconds: ended - started - target.waitedForBuffer - target.waitedForDrawable, bufferWaitSeconds: target.waitedForBuffer,
-                drawableWaitSeconds: target.waitedForDrawable, at: ended, satellites: points.count, paced: isPaced,
-                displayInterval: 1 / Double(Self.displayMaximumFramesPerSecond), id: id)
+                cpuSeconds: target.cpu(from: started, to: ended), bufferWaitSeconds: target.waitedForBuffer,
+                drawableWaitSeconds: target.waitedForDrawable, at: ended, satellites: points.count, paced: paced,
+                displayRate: Double(Self.displayMaximumFramesPerSecond), id: id)
         }
     }
 
-    /// Whether the frame has to be drawn (`FramePacer`): every frame is in the sky
-    /// view, while tracking, and for a benchmark step measured unpaced.
-    private func mustDraw(pose: CameraPose, time: Double, size: SIMD2<Double>) -> Bool {
-        let paced = !drawsEveryFrame && !snapshots.isWaiting && cameraMode == .orbit && !fade.isFading && rig.drawnProjection == rig.shownProjection
-        isPaced = paced
-        return pacer.mustDraw(
+    /// Whether frames are paced, drawn only once something could have moved
+    /// (`FramePacer`): not in the sky view, while tracking, or for a benchmark step
+    /// measured unpaced.
+    private var isPaced: Bool {
+        !drawsEveryFrame && !snapshots.isWaiting && cameraMode == .orbit && !fade.isFading && rig.drawnProjection == rig.shownProjection
+    }
+
+    /// Whether the frame has to be drawn (`FramePacer`).
+    private func mustDraw(pose: CameraPose, time: Double, size: SIMD2<Double>, paced: Bool) -> Bool {
+        pacer.mustDraw(
             pose: pose, time: time, paced: paced, settled: surface.isSettled, content: contentRevision,
             pixelRate: { FramePacer.pixelRate(points, components: components, links: links, pose: pose, time: time, size: size) },
             linkSpan: { FramePacer.linkSpan(links, shown: components.contains(.groundStationLink), around: time) })
@@ -678,23 +648,20 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         overlay.encode(commands, pipeline: pipelines.overlayPipeline, satellites: points.satellites, at: now, enabled: components.contains(.groundTrack), device: device)
         var surfaceTiles: [Surface.Tile] = []
         if let imagery {
-            let selection =
+            let view: Surface.SelectionView =
                 if let map = pose.mapCamera {
-                    surface.selectMap(map, viewportPixels: size)
+                    .map(map, viewportPixels: size)
                 } else {
-                    surface.select(
+                    .globe(
                         eye: pose.position, viewProjection: drawnFrame.viewProjection, viewportHeightPixels: size.y,
                         verticalFieldOfView: pose.verticalFieldOfView(aspectRatio: size.x / size.y), pixelsPerPoint: pixelScale)
                 }
-            // What is drawn now first, then the children waiting to replace it.
-            let drawn = Set(selection.draw.map(\.key))
-            let bakes = selection.bake.filter { drawn.contains($0.key) } + selection.bake.filter { !drawn.contains($0.key) }
-            surface.encodeBakes(bakes, base: imagery, commands: commands)
+            let selection = surface.select(view)
+            surface.encodeBakes(selection.bake, base: imagery, commands: commands)
             surfaceTiles = selection.draw.filter { $0.texture != nil }
         }
         let pointFrames = points.prepared?.samples != nil && points.prepared?.instances != nil ? pointFrames(at: now, models: placements) : nil
-        return FramePlan(
-            uniforms: frame, pose: pose, drawn: drawnFrame, placements: placements, surfaceTiles: surfaceTiles, pointFrames: pointFrames)
+        return FramePlan(uniforms: frame, drawn: drawnFrame, placements: placements, surfaceTiles: surfaceTiles, pointFrames: pointFrames)
     }
 
     /// Keeps the frame just drawn, the last of the old projection, to fade from,

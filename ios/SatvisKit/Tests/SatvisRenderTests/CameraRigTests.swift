@@ -17,7 +17,7 @@ import simd
     /// On the home view with a frame drawn, which a flight sets off from.
     private static func rig() -> CameraRig {
         var rig = CameraRig()
-        rig.openHome(aspectRatio: aspectRatio)
+        rig.resize(aspectRatio: aspectRatio)
         frame(&rig, at: 0)
         return rig
     }
@@ -26,12 +26,12 @@ import simd
     private static func frame(
         _ rig: inout CameraRig, at uptime: Double, time: Double = time, target: SIMD3<Double>? = nil, model: TrackedModel = .noModel
     ) -> CameraPose? {
-        rig.pose(uptime: uptime, time: time, aspectRatio: aspectRatio, model: { _ in model }, target: { _, _ in target }, groundHeight: { _ in 0 })
+        rig.pose(uptime: uptime, time: time, model: { _ in model }, target: { _, _ in target }, groundHeight: { _ in 0 })
     }
 
     @Test func landsInTheSkyViewAfterTheFlightAndHoldsTheGesturesTillThen() throws {
         var rig = Self.rig()
-        rig.enterSky(Self.observer, animated: true, uptime: 10, aspectRatio: Self.aspectRatio)
+        rig.enterSky(Self.observer, animated: true, uptime: 10)
         #expect(rig.cameraMode == .sky && !rig.isSkySettled)
         let aim = try #require(rig.skyCamera)
         Self.frame(&rig, at: 10 + SkyFlight.duration / 2)
@@ -52,9 +52,9 @@ import simd
     // forced on, and a stale flight for the next sky view to turn around.
     @Test func trackingOnTheWayOutOfTheSkyViewEndsTheFlight() {
         var rig = Self.rig()
-        rig.enterSky(Self.observer, animated: false, uptime: 10, aspectRatio: Self.aspectRatio)
+        rig.enterSky(Self.observer, animated: false, uptime: 10)
         Self.frame(&rig, at: 11)
-        rig.leaveSky(animated: true, uptime: 12, aspectRatio: Self.aspectRatio)
+        rig.leaveSky(animated: true, uptime: 12)
         Self.frame(&rig, at: 13)
         #expect(rig.cameraMode == .sky)
 
@@ -64,7 +64,7 @@ import simd
         #expect(rig.cameraMode == .tracking("25544"))
 
         rig.stopTracking(animated: false, uptime: 20)
-        rig.enterSky(Self.observer, animated: false, uptime: 21, aspectRatio: Self.aspectRatio)
+        rig.enterSky(Self.observer, animated: false, uptime: 21)
         #expect(rig.isSkySettled)
     }
 
@@ -76,7 +76,7 @@ import simd
         rig.track("25544", animated: false, uptime: 1) { _ in .noModel }
         let tracked = try #require(Self.frame(&rig, at: 1, target: SIMD3(7_000_000, 0, 0)))
 
-        rig.flyHome(animated: true, uptime: 2, aspectRatio: Self.aspectRatio)
+        rig.flyHome(animated: true, uptime: 2)
         let home = OrbitCamera.home(aspectRatio: Self.aspectRatio)
         #expect(rig.cameraMode == .orbit && rig.orbitCamera == home)
         let start = try #require(Self.frame(&rig, at: 2))
@@ -121,7 +121,7 @@ import simd
 
     @Test func landsOnTheGlobeFromASkyCameraThatIsNotFinite() {
         var rig = Self.rig()
-        rig.enterSky(SkyCamera(latitude: .nan, longitude: 0), animated: false, uptime: 1, aspectRatio: Self.aspectRatio)
+        rig.enterSky(SkyCamera(latitude: .nan, longitude: 0), animated: false, uptime: 1)
         #expect(Self.frame(&rig, at: 1) == nil)
         #expect(rig.cameraMode == .orbit && rig.skyCamera == nil)
         #expect(Self.frame(&rig, at: 2) != nil)
@@ -131,7 +131,7 @@ import simd
     // narrowest: taken every frame, and brought back within range when it goes.
     @Test func takesTheLensFieldOfViewAndClampsItWhenTheLensGoes() {
         var rig = Self.rig()
-        rig.enterSky(Self.observer, animated: false, uptime: 1, aspectRatio: Self.aspectRatio)
+        rig.enterSky(Self.observer, animated: false, uptime: 1)
         let lens = CameraLens(tanHalfLongSide: tan(2 * Self.degree), aspectRatio: 16 / 9, longSideVertical: true)
         rig.passthrough = lens
         Self.frame(&rig, at: 2)
@@ -145,7 +145,7 @@ import simd
     // The pinch zooms the device's camera instead, whose lens the sky view follows.
     @Test func ignoresAZoomWhileTheLensIsOn() {
         var rig = Self.rig()
-        rig.enterSky(Self.observer, animated: false, uptime: 1, aspectRatio: Self.aspectRatio)
+        rig.enterSky(Self.observer, animated: false, uptime: 1)
         let lens = CameraLens(tanHalfLongSide: tan(35 * Self.degree), aspectRatio: 16 / 9, longSideVertical: true)
         rig.passthrough = lens
         Self.frame(&rig, at: 2)
@@ -164,7 +164,7 @@ import simd
         rig.zoom(by: 4)
         Self.frame(&rig, at: 1)
         let from = try #require(rig.orbitCamera)
-        rig.flyHome(animated: true, uptime: 2, aspectRatio: Self.aspectRatio)
+        rig.flyHome(animated: true, uptime: 2)
         #expect(rig.orbitCamera == from)
 
         let hour = 3_600_000.0

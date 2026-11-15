@@ -37,9 +37,6 @@ SGP4Satellite *_Nullable sgp4_create(SGP4Elements elements, int *_Nonnull error)
 
 void sgp4_destroy(SGP4Satellite *_Nullable satellite);
 
-/// A copy to propagate apart from the original.
-SGP4Satellite *_Nonnull sgp4_copy(const SGP4Satellite *_Nonnull satellite);
-
 /// The mean motion SGP4 recovered from the Kozai one, in radians per minute.
 double sgp4_mean_motion(const SGP4Satellite *_Nonnull satellite);
 

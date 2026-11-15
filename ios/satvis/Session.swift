@@ -25,13 +25,15 @@ final class Session {
     /// What the session sets on the globe, kept for a renderer that arrives late;
     /// what it asks goes to `renderer`.
     @ObservationIgnored private let globe = GlobeBinding()
-    @ObservationIgnored let satellites: SatelliteLayer
+    @ObservationIgnored private let satellites: SatelliteLayer
     @ObservationIgnored private let starMapLoader: StarMap
     /// The featured bookmarks' pictures by their path on the site, kept once fetched.
     private(set) var featuredPictures: [String: Data] = [:]
     /// Observed: it arrives once its shaders compile, possibly after a link has
     /// opened on the sky view, whose instruments wait for it.
     private(set) var renderer: GlobeRenderer?
+    /// Whether the renderer draws what is active (`SatelliteLayer.draws`).
+    var drawsActive: Bool { satellites.draws(catalog.activeEntries) }
 
     /// What is selected, followed and stood on, changed through the methods
     /// below, which take the globe and the catalog along.
@@ -62,35 +64,27 @@ final class Session {
     let aim: SkyAim
     /// A word for the user that goes by itself: how switching the compass on went.
     private(set) var notice: String?
-    /// The globe's base map, kept between launches.
-    var baseLayer: BaseLayer = UserDefaults.standard.string(forKey: "baseLayer").flatMap(BaseLayer.init(rawValue:)) ?? .naturalEarth {
-        didSet {
-            UserDefaults.standard.set(baseLayer.rawValue, forKey: "baseLayer")
-            globe.setImagery(baseLayer, site: site)
-        }
+    /// The globe's base map, kept in links as `layers`.
+    var baseLayer: BaseLayer = launchMap.layers.compactMap(BaseLayer.init(rawValue:)).last ?? .naturalEarth {
+        didSet { globe.setImagery(baseLayer, site: site) }
     }
     /// The instrument imagery drawn over the base map (ADR 0020), kept in links as `imagery`.
     let instrumentImagery = InstrumentImagery()
-    /// Whether the globe follows Re:Earth's terrain: off by default, as on the web.
-    var terrain = UserDefaults.standard.bool(forKey: "terrain") {
-        didSet {
-            UserDefaults.standard.set(terrain, forKey: "terrain")
-            globe.terrain = terrain
-        }
+    /// Whether the globe follows Re:Earth's terrain, kept in links as `terrain`:
+    /// off by default, as on the web.
+    var terrain = launchMap.terrain {
+        didSet { globe.terrain = terrain }
     }
-    /// The star map, kept between launches and in links as `stars`: the web app's
-    /// default, Tycho1K, until one is chosen, which the app draws as DeepStar1K.
+    /// The star map, kept in links as `stars`: the web app's default, Tycho1K,
+    /// until one is chosen, which the app draws as DeepStar1K.
     /// A map that cannot be had falls back to DeepStar1K, as the web app's falls back
     /// to its default, so the link and the Map panel name what is drawn.
-    var starMap: StarMapName = UserDefaults.standard.string(forKey: "starMap").flatMap(StarMapName.init(rawValue:)) ?? .tycho1K {
-        didSet {
-            UserDefaults.standard.set(starMap.rawValue, forKey: "starMap")
-            starMapLoader.show(starMap)
-        }
+    var starMap = launchMap.starMap {
+        didSet { starMapLoader.show(starMap) }
     }
-    @ObservationIgnored private let tiles = TileFetcher.shared()
+    @ObservationIgnored private let tiles = TileFetcher.shared
     @ObservationIgnored private let keptTiles = KeptTiles.applicationSupport()
-    let analytics = Analytics()
+    let analytics: Analytics
     let bookmarks: BookmarkModel = {
         #if DEBUG
             if let storage = TestCatalog.bookmarkStorage() {
@@ -167,9 +161,18 @@ final class Session {
     /// `SATVIS_LINK` in the launch environment opens on that link, a whole url or
     /// a path with its query (`/ot?tags=OT`): for screenshots and tests.
     private static let launchLink = ProcessInfo.processInfo.environment["SATVIS_LINK"].map(Link.init)
+    /// The view a last run left, the user's own, as a reload is on the web: not
+    /// an opened link.
+    private static var keptView: Link? { UserDefaults.standard.string(forKey: viewKey).map(Link.init) }
+    /// The map, terrain and stars of the link the app opens on, for the globe to
+    /// start on before `run` applies it: that waits for the group index, and the
+    /// renderer can arrive first. Read without its preset's defaults, which come
+    /// with the index.
+    private static let launchMap = SceneState.read((launchLink ?? keptView ?? Link()).query, presetDefaults: [:]).scene
 
     init(loader: GroupLoader, site: URL, alerts: PassAlerts) {
         self.site = site
+        analytics = Analytics(site: site)
         repository = loader.repository
         self.alerts = alerts
         catalog = CatalogModel(loader: loader)
@@ -246,6 +249,14 @@ final class Session {
         globe.attach(renderer)
     }
 
+    /// Returns once a renderer is attached, at once if one is. `Observations`
+    /// reports it once `attach` has returned, so the binding has set it up by then.
+    private func untilRendererAttached() async {
+        for await attached in Observations({ self.renderer != nil }) where attached {
+            return
+        }
+    }
+
     /// Loads what there is to show and keeps it in step until cancelled.
     func run() async {
         starMapLoader.show(starMap)
@@ -273,25 +284,19 @@ final class Session {
                 notice = nil
             }
             started = true
-            // The view a last run left is the user's own, as a reload is on the web:
-            // not an opened link.
-            if let (link, records) = pendingLink ?? Self.launchLink.map({ ($0, true) }) ?? UserDefaults.standard.string(forKey: Self.viewKey).map({ (Link($0), false) }) {
-                pendingLink = nil
-                await apply(link, settings: true)
-                if records {
-                    Task { await recordOpened() }
-                }
-            } else {
-                // The first launch: the default preset, and the map as the
-                // settings before links kept it.
-                await apply(Link(), settings: false)
+            // The first launch opens on the default preset.
+            let (link, records) = pendingLink ?? Self.launchLink.map { ($0, true) } ?? (Self.keptView ?? Link(), false)
+            pendingLink = nil
+            await apply(link)
+            if records {
+                Task { await recordOpened() }
             }
             Task { await catalog.revalidate(refetching: false) }
             if Benchmark.runsAtLaunch {
                 setShowsBenchmark(true)
                 Task {
                     // The renderer is attached once the view has a size.
-                    await globe.untilAttached()
+                    await untilRendererAttached()
                     benchmark.startAtLaunch(on: self)
                 }
             }
@@ -344,7 +349,7 @@ final class Session {
 
     /// The sweep's ground station as the only visiting one, or none.
     func setSweepStation(_ station: GroundStation?) {
-        editStations { $0.setVisiting(station.map { [$0] } ?? []) }
+        passes.setVisiting(station.map { [$0] } ?? [])
     }
 
     // MARK: Links
@@ -367,7 +372,7 @@ final class Session {
             return
         }
         Task {
-            await apply(link, settings: true)
+            await apply(link)
             if records {
                 await recordOpened()
             } else if let bookmark {
@@ -406,9 +411,8 @@ final class Session {
         return scene.link(preset: catalog.presetName, presetDefaults: catalog.presetDefaults, overBudget: catalog.overBudget, sharing: sharing)
     }
 
-    /// Shows what a link says, over its preset's defaults. `settings` false leaves
-    /// the map, the overpass mode and the clock as they are.
-    private func apply(_ link: Link, settings: Bool) async {
+    /// Shows what a link says, over its preset's defaults.
+    private func apply(_ link: Link) async {
         linkGeneration += 1
         let generation = linkGeneration
         // A preset the kept index does not know, as the index shipped in the app
@@ -443,7 +447,7 @@ final class Session {
                 }
             }
             Task {
-                await globe.untilAttached()
+                await untilRendererAttached()
                 benchmark.start(on: self, only: only, prints: true, sends: sends, restoring: restoring)
             }
         }
@@ -452,30 +456,28 @@ final class Session {
             showsBenchmark = true
         }
         perform(focus.clear())
-        if settings {
-            if let base = scene.layers.compactMap(BaseLayer.init(rawValue:)).last {
-                baseLayer = base
-            }
-            instrumentImagery.set(scene.imagery)
-            terrain = scene.terrain
-            starMap = scene.starMap
-            pixelRatio = scene.pixelRatio
-            passes.setMode(scene.overpassMode)
-            // A clock pinned for a screenshot stays where it was put.
-            if ViewerClock.launchTime == nil {
-                if let time = scene.time {
-                    clock.scrub(to: (time.timeIntervalSince1970 * 1000).rounded(.down))
-                } else if clock.clock.isOffPresent(at: ViewerClock.real()) {
-                    // However it left the present, as a link without `time` is live.
-                    clock.goLive()
-                }
+        if let base = scene.layers.compactMap(BaseLayer.init(rawValue:)).last {
+            baseLayer = base
+        }
+        instrumentImagery.set(scene.imagery)
+        terrain = scene.terrain
+        starMap = scene.starMap
+        pixelRatio = scene.pixelRatio
+        passes.setMode(scene.overpassMode)
+        // A clock pinned for a screenshot stays where it was put.
+        if ViewerClock.launchTime == nil {
+            if let time = scene.time {
+                clock.scrub(to: (time.timeIntervalSince1970 * 1000).rounded(.down))
+            } else if clock.clock.isOffPresent(at: ViewerClock.real()) {
+                // However it left the present, as a link without `time` is live.
+                clock.goLive()
             }
         }
         unseen = scene.unseen
         cameraFrame = scene.cameraFrame
         // A link cuts, as its camera does.
         setProjection(scene.projection, animated: false)
-        editStations { $0.setVisiting(scene.stations.map { GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) }) }
+        passes.setVisiting(scene.stations.map { GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) })
         await catalog.open(preset: preset, activation: scene.activation, components: scene.components, named: named)
         guard generation == linkGeneration else {
             return
@@ -569,7 +571,7 @@ final class Session {
                 featuredPictures[path] = await repository.keptImage(path)
             }
             for path in new {
-                if let fetched = try? await repository.image(path).value, fetched != featuredPictures[path] {
+                if let fetched = try? await repository.image(path), fetched != featuredPictures[path] {
                     featuredPictures[path] = fetched
                 }
             }
@@ -599,7 +601,7 @@ final class Session {
         let start = ContinuousClock.now
         try? await Task.sleep(for: .seconds(3))
         while ContinuousClock.now - start < .seconds(20) {
-            let drawn = renderer.map { satellites.draws(catalog.activeEntries) && (observer == nil || $0.isSkySettled) } ?? false
+            let drawn = renderer.map { drawsActive && (observer == nil || $0.isSkySettled) } ?? false
             if drawn {
                 break
             }
@@ -679,7 +681,7 @@ final class Session {
     /// why, where no position comes back. Without one the sky view does not open:
     /// a sky at a place nobody chose looks like a working view and is not.
     private func stationHere() async -> UUID? {
-        guard let location = await currentLocation(), let id = editStations({ $0.setGeolocation(latitude: location.latitude, longitude: location.longitude) }) else {
+        guard let location = await currentLocation(), let id = passes.setGeolocation(latitude: location.latitude, longitude: location.longitude) else {
             show("The sky view needs your location. Allow it in Settings, or look up from one of your locations.")
             return nil
         }
@@ -765,12 +767,12 @@ final class Session {
 
     /// The globe menu's Remove ground station.
     func removeStation(_ id: UUID) {
-        editStations { $0.remove(id) }
+        passes.remove(id)
     }
 
     /// Adds a station, and says which it became.
     private func addStation(_ place: GeoCoordinate) -> UUID? {
-        editStations { $0.add(latitude: place.latitude, longitude: place.longitude) }
+        passes.add(latitude: place.latitude, longitude: place.longitude)
     }
 
     /// What the renderer has under `point`, for a tap.
@@ -779,21 +781,13 @@ final class Session {
     }
 
     /// Follows a satellite or a station, and opens its panel (`Focus.follow`).
-    func follow(_ target: Selection, animated: Bool = false) {
+    func follow(_ target: Selection, animated: Bool) {
         perform(focus.follow(target, animated: animated))
     }
 
     /// Lets go of what is followed.
-    func stopTracking(animated: Bool = false) {
+    func stopTracking(animated: Bool) {
         perform(focus.stopTracking(animated: animated))
-    }
-
-    /// Edits the stations, and lets go at once of what referred to one the edit
-    /// dropped, rather than when `watchStations` next turns.
-    private func editStations<Result>(_ edit: (PassModel) -> Result) -> Result {
-        let result = edit(passes)
-        perform(focus.stationsChanged(to: Set(passes.stations.map(\.id))))
-        return result
     }
 
     /// Does what a change of focus asks of the renderer, and keeps the followed
@@ -833,8 +827,7 @@ final class Session {
 
     /// Stands the stations on the globe, lets go of one that is gone (and leaves
     /// the sky view standing on it), drops its alerts, and predicts the
-    /// notifications again, whenever the list changes. The edits the session does
-    /// not make, the Locations sheet's and a station panel's, are let go of here.
+    /// notifications again, whenever the list changes.
     private func watchStations() async {
         for await stations in Observations({ self.passes.stations }) {
             globe.stations = shownMarkers

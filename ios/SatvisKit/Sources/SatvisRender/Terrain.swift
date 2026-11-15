@@ -1,5 +1,9 @@
 import Foundation
+import SatvisCore
+import os
 import simd
+
+private let log = Logger(subsystem: "org.frcy.app.satvis", category: "imagery")
 
 /// A terrain tile in Cesium's quantized-mesh-1.0 format, decoded: vertices placed
 /// across the tile and up from its minimum height, triangles, the vertices along
@@ -312,5 +316,164 @@ final class TerrainSource: Sendable {
         let u = (longitude - bounds.west) / (bounds.east - bounds.west)
         let v = (latitude - bounds.south) / (bounds.north - bounds.south)
         return mesh.sample(u: min(max(u, 0), 1), v: min(max(v, 0), 1), grid: grid) ?? (0, nil)
+    }
+}
+
+/// The terrain tiles as they load, each kept with the frame it was last wanted.
+@MainActor
+final class TerrainTiles {
+    /// Terrain tiles kept decoded, about 30 MB, unless more are in use.
+    private static let maximumTiles = 96
+
+    private enum State {
+        /// Retrying one that failed, which stands in for it meanwhile as it did.
+        case loading(Task<TerrainSource?, Never>, retry: Bool)
+        case ready(TerrainSource)
+        case failed(at: Date)
+    }
+
+    private struct Entry {
+        var state: State
+        /// The frame it was last wanted.
+        var wanted: Int
+    }
+
+    /// Fetches a tile's bytes: the app's tile fetcher, nil when it has none.
+    var loader: (@Sendable (TileRequest) async -> Data?)?
+    /// Counts the tiles that came in.
+    private(set) var revision = 0
+    /// Called when a tile came in or failed, and when a failed one may be asked
+    /// for again.
+    var onChange: @MainActor () -> Void = {}
+    /// Seconds before a failed tile is asked for again.
+    private let retryInterval: TimeInterval
+    private var tiles: [TileKey: Entry] = [:]
+
+    init(retryInterval: TimeInterval) {
+        self.retryInterval = retryInterval
+    }
+
+    /// The terrain to lay a surface tile over, `offset` levels coarser
+    /// (`Terrain.key`): its terrain tile, or while that is failing the nearest
+    /// ancestor that loaded, or the ellipsoid where none has. Nil while the first
+    /// try is under way.
+    func source(under surfaceKey: TileKey, offset: Int, frame: Int) -> (key: TileKey?, source: TerrainSource?)? {
+        let key = Terrain.key(forSurface: surfaceKey, offset: offset)
+        tiles[key]?.wanted = frame
+        switch tiles[key]?.state {
+        case .ready(let source):
+            return (key, source)
+        case nil:
+            request(key, retry: false, frame: frame)
+            return nil
+        case .loading(_, retry: false):
+            return nil
+        case .failed(let at):
+            if Date().timeIntervalSince(at) > retryInterval {
+                request(key, retry: true, frame: frame)
+            }
+        case .loading(_, retry: true):
+            break
+        }
+        var ancestor = key.parent
+        while let candidate = ancestor {
+            if case .ready(let source) = tiles[candidate]?.state {
+                tiles[candidate]?.wanted = frame
+                return (candidate, source)
+            }
+            ancestor = candidate.parent
+        }
+        return (nil, nil)
+    }
+
+    /// The ground's height at a place, metres above the ellipsoid, from the finest
+    /// tile loaded there; nil before any has.
+    func height(_ place: GeoCoordinate) -> Double? {
+        let latitude = place.latitude
+        // Rows and columns become integers below, which traps on a coordinate far
+        // out of range: nothing past the poles, and longitudes wrapped.
+        guard latitude.isFinite, place.longitude.isFinite, abs(latitude) <= 90 else {
+            return nil
+        }
+        let longitude = wrappedLongitude(place.longitude)
+        for level in stride(from: Terrain.maximumLevel, through: 0, by: -1) {
+            let row = Int(Projection.geographic.row(latitude: latitude, level: level))
+            let column = Int(Projection.geographic.column(longitude: longitude, level: level))
+            let key = TileKey(level: level, x: min(column, Projection.geographic.columns(level) - 1), y: min(row, Projection.geographic.rows(level) - 1))
+            if case .ready(let source) = tiles[key]?.state {
+                return source.sample(latitude: latitude, longitude: longitude).height
+            }
+        }
+        return nil
+    }
+
+    private func request(_ key: TileKey, retry: Bool, frame: Int) {
+        guard let loader, let url = Terrain.url(key) else {
+            tiles[key] = Entry(state: .failed(at: Date()), wanted: frame)
+            return
+        }
+        let work = Task.detached(priority: .utility) { () -> TerrainSource? in
+            guard let data = await loader(TileRequest(url: url, contentType: Terrain.contentType, headers: Terrain.headers)), let mesh = try? QuantizedMesh(data) else {
+                return nil
+            }
+            return TerrainSource(mesh: mesh, key: key)
+        }
+        tiles[key] = Entry(state: .loading(work, retry: retry), wanted: frame)
+        Task {
+            let source = await work.value
+            // Dropped meanwhile, or asked for again.
+            guard case .loading(let current, _) = tiles[key]?.state, current == work else {
+                return
+            }
+            if let source {
+                tiles[key]?.state = .ready(source)
+                revision += 1
+                onChange()
+            } else {
+                log.error("Terrain \(key, privacy: .public) unavailable")
+                tiles[key]?.state = .failed(at: Date())
+                onChange()
+                // Asked for again by the first frame drawn once the retry interval
+                // is up: with the clock stopped and the camera still, that frame
+                // waits for this.
+                try? await Task.sleep(for: .seconds(retryInterval))
+                if case .failed = tiles[key]?.state {
+                    onChange()
+                }
+            }
+        }
+    }
+
+    /// Drops the tiles wanted longest ago past the budget, and cancels the
+    /// requests for those nothing has wanted for a second, so that a zoom does not
+    /// leave a queue of tiles flown past to be sent.
+    func evict(frame: Int) {
+        var ready: [(key: TileKey, wanted: Int)] = []
+        for (key, entry) in tiles {
+            switch entry.state {
+            case .loading(let work, _) where entry.wanted < frame - 60:
+                work.cancel()
+                tiles[key] = nil
+            case .ready:
+                ready.append((key, entry.wanted))
+            default:
+                break
+            }
+        }
+        if ready.count > Self.maximumTiles {
+            // Never one this frame uses: the sky view lays 118, and dropping those
+            // in use decoded them again, 44 a second on an iPad mini.
+            let unused = ready.filter { $0.wanted < frame }
+            for tile in unused.sorted(by: { $0.wanted < $1.wanted }).prefix(ready.count - Self.maximumTiles) {
+                tiles[tile.key] = nil
+            }
+        }
+    }
+
+    /// Drops the loaded tiles `frame` did not want.
+    func trim(frame: Int) {
+        tiles = tiles.filter { _, entry in
+            if case .ready = entry.state { entry.wanted >= frame } else { true }
+        }
     }
 }

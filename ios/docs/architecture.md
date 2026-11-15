@@ -14,12 +14,12 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   (`KeptTiles`). A whole frame's tile, one to the minute or a day two days on, is
   cached though GIBS says `no-store` of every tile: it no longer changes.
 - Terrain (`Terrain.swift`) is Re:Earth's quantized mesh, decoded and kept per
-  terrain tile; a surface tile's grid is laid over the terrain tile log₂(screen
-  scale) levels coarser, since the surface is refined in device pixels where
-  CesiumJS counts CSS pixels: the level the web app would ask for, so the app
-  asks Re:Earth no more than the web app does. ADR 0009 has why. iOS's memory
-  warning drops what the last frame does not use (`GlobeRenderer.trimMemory`),
-  about 175 MB after the sky view.
+  terrain tile (`TerrainTiles`); a surface tile's grid is laid over the terrain
+  tile log₂(screen scale) levels coarser, since the surface is refined in device
+  pixels where CesiumJS counts CSS pixels: the level the web app would ask for,
+  so the app asks Re:Earth no more than the web app does. ADR 0009 has why. iOS's
+  memory warning drops what the last frame does not use
+  (`GlobeRenderer.trimMemory`), about 175 MB after the sky view.
 - The credits are About's Acknowledgements (`AcknowledgementsView`), the map's
   from `Credit.map`. Only OpenStreetMap wants its name in sight of the map, and
   of the maps only the terrain uses its data: `OpenStreetMapCredit` shows it on
@@ -60,9 +60,9 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   Cesium's Apache 2.0 notice and says what changed, and `LICENSE.CesiumJS.md`
   stays beside them, verbatim.
 - `GlobeRenderer` is the MTKView's delegate and all the app calls; each frame it
-  takes the pose from `CameraRig`, asks `FramePacer` whether to draw, begins it
-  in `FrameLoop`, places the models with `ModelPlacer`, and encodes it with
-  `ScenePass`, which draws the 2D map through `MapPass`, from `ScenePipelines`.
+  takes the pose from `CameraRig`, asks `FramePacer` whether to draw, times,
+  begins and commits it in `FrameLoop`, places the models with `ModelPlacer`,
+  and encodes it with `ScenePass`, the 2D map too, from `ScenePipelines`.
 - The renderer works in the Earth-fixed frame in metres, relative to the eye,
   with reversed-Z depth and no far plane. Satellites are placed by high/low
   float pairs, in vertex functions compiled with safe math, which fast math
@@ -103,8 +103,9 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   which says what the camera has to do), and the work that keeps them in step.
   It sets the globe up through `GlobeBinding`, in SatvisRender, which keeps what
   it was given and replays it to a renderer that arrives late, once its shaders
-  compile. It watches the models with `Observations` rather than taking
-  callbacks, so anything can watch them too. The views read it and call it and
+  compile; the renderer's own setters are internal to the package, so only
+  questions go to it directly. It watches the models with `Observations`
+  rather than taking callbacks, so anything can watch them too. The views read it and call it and
   hold nothing else but what is on screen, so that what opens the app with a
   state of its own (a link, a restored scene) sets it in one place.
 - A link is the view, as on the web (ADR 0001): `LinkCodec` reads one onto its
@@ -182,8 +183,8 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   from where the whole disc shows, and back. The map repeats east and west and
   zooms out to its whole width across the view, no further, so a point is drawn
   once, at the copy nearest the centre (`MapCamera.maximumSpan`). Each pass has
-  a 2D vertex function in `Shaders/Map.msl`, so 3D's are untouched, and the
-  map's own draws are `MapPass`'s: positions are metres of the map from the
+  a 2D vertex function in `Shaders/Map.msl`, so 3D's are untouched, and
+  `ScenePass` draws the map with them: positions are metres of the map from the
   view's centre, a satellite placed by Bowring's geodetic latitude as Cesium's
   2D places it (`geodeticPosition` on the CPU, `mapPosition` in the shaders,
   which taps and placed stations go back through, `DrawnFrame`). Tiles are the
@@ -357,9 +358,10 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
 - The Mac app is this target built for macOS (ADR 0017): the views are shared,
   laid out as an iPad's, since the Mac's window is given the regular size
   classes. `Platform.swift` answers what UIKit and AppKit answer apart (reduced
-  motion, the clipboard, images, the device for the benchmark), and
-  `satvis/macOS/` holds what only the Mac has, such as the stand-ins for the
-  compass and camera (`SkyDevices.swift`), whose controls are not shown.
+  motion, the clipboard, the share sheet, images, the device for the benchmark),
+  and `satvis/macOS/` holds what only the Mac has, such as the stand-ins for the
+  compass and camera (`SkyDevices.swift`), whose controls are not shown
+  (`Platform.aimsByDevice`).
 - The globe's `MTKView` sizes its own drawable on the Mac (`ScaledMTKView`): AppKit
   sizes it by the window's backing scale, which changes when the window moves to
   another display, and the Graphics panel's pixel ratio has to win over it. It
@@ -382,8 +384,8 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   projection, the sky view, the base map, the way home and Hide UI (⇧⌘H) under
   View; Find, Track and Info under Satellite; the bookmarks; the view's link
   (⇧⌘C: ⌘C copies a field's text) and the site's links under Help. What only the
-  window holds, its panels, Bookmarks among them, and Hide UI, reaches it as a focused scene
-  value (`WindowCommands`).
+  window holds, its panels, Bookmarks among them, and Hide UI (`WindowChrome`),
+  reaches it as a focused scene binding.
 - The info card draws its title and buttons in a bar of its own
   (`cardHeader` in `InfoPanel.swift`), as the tool panels' title row with their
   bezel-less buttons (`titleRowButton`): a Mac's navigation stack has no bar, and

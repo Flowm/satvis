@@ -134,6 +134,31 @@ public struct StationList {
         return saved.contains { $0.id == station.id } ? station.id : nil
     }
 
+    /// Replaces the saved station with `station`'s id by `station`.
+    public mutating func update(_ station: GroundStation) {
+        setSaved(saved.map { $0.id == station.id ? station : $0 })
+    }
+
+    /// Moves a saved station into the place of `target`, which moves aside.
+    public mutating func move(_ id: UUID, onto target: UUID) {
+        guard let from = saved.firstIndex(where: { $0.id == id }),
+            let to = saved.firstIndex(where: { $0.id == target }), from != to
+        else {
+            return
+        }
+        var stations = saved
+        stations.insert(stations.remove(at: from), at: to)
+        setSaved(stations)
+    }
+
+    /// Moves a saved station a place up (-1) or down (1), and not past either end.
+    public mutating func move(_ id: UUID, by offset: Int) {
+        guard let from = saved.firstIndex(where: { $0.id == id }), saved.indices.contains(from + offset) else {
+            return
+        }
+        move(id, onto: saved[from + offset].id)
+    }
+
     /// Drops a station, saved or a link's.
     public mutating func remove(_ id: UUID) {
         visiting.removeAll { $0.id == id }

@@ -90,17 +90,12 @@ extension EnvironmentValues {
 }
 
 extension View {
-    /// Floating over the globe, in `shape`, in the panels' ink.
-    func panel(in shape: some InsettableShape) -> some View {
-        modifier(PanelBackground(shape: shape))
-    }
-
-    /// Floating over the globe, its corners `cornerRadius` points round: every
-    /// panel's 16 unless told otherwise, the buttons' 12 and the 4 points the menu
-    /// column sets its rows in, so the column folded to its toggle is a button's
-    /// shape, not a capsule.
+    /// Floating over the globe, in the panels' ink, its corners `cornerRadius` points
+    /// round: every panel's 16 unless told otherwise, the buttons' 12 and the 4 points
+    /// the menu column sets its rows in, so the column folded to its toggle is a
+    /// button's shape, not a capsule.
     func panel(cornerRadius: CGFloat = PanelMetrics.radius) -> some View {
-        panel(in: .rect(cornerRadius: cornerRadius))
+        modifier(PanelBackground(cornerRadius: cornerRadius))
     }
 
     /// A button in a panel's title row: its icon alone, grey, on a fingertip's
@@ -151,10 +146,12 @@ extension View {
     }
 }
 
-/// The surface of `panel(in:)`, as dense as the environment says.
-private struct PanelBackground<S: InsettableShape>: ViewModifier {
-    let shape: S
+/// The surface of `panel(cornerRadius:)`, as dense as the environment says.
+private struct PanelBackground: ViewModifier {
+    let cornerRadius: CGFloat
     @Environment(\.panelDensity) private var density
+
+    private var shape: RoundedRectangle { .rect(cornerRadius: cornerRadius) }
 
     func body(content: Content) -> some View {
         content

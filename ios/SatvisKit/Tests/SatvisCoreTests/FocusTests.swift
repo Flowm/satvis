@@ -116,7 +116,7 @@ import Testing
     }
 
     @Test func aRenamedSatelliteStaysFollowedAndOpenByItsCatalogNumber() throws {
-        let record = try GPRecord.decodePayload(Parity.fixture("parity-input"))[0]
+        let record = try Parity.records()[0]
         var catalog = Catalog()
         catalog.add([record], tags: ["Weather"], group: "weather")
         let id = Catalog.id(of: record)
@@ -144,7 +144,7 @@ import Testing
     // 578a54ca: a link's `track` follows alone, as on the web, and a satellite
     // followed on to its successor, or kept, stays unselected.
     @Test func followingWithoutSelectingLeavesTheSelectionAlone() throws {
-        let record = try GPRecord.decodePayload(Parity.fixture("parity-input"))[0]
+        let record = try Parity.records()[0]
         var catalog = Catalog()
         catalog.add([record], tags: ["Weather"], group: "weather")
         let followed = Selection.satellite(Catalog.id(of: record))
@@ -165,7 +165,7 @@ import Testing
     }
 
     @Test func aRenamedSatelliteOpenButNotFollowedStaysOpen() throws {
-        let record = try GPRecord.decodePayload(Parity.fixture("parity-input"))[0]
+        let record = try Parity.records()[0]
         var catalog = Catalog()
         catalog.add([record], tags: ["Weather"], group: "weather")
         var focus = Focus()

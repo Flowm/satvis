@@ -108,69 +108,46 @@ public struct LinkStation: Sendable, Hashable {
 
 /// What a link sets, in the wire vocabulary of ADR 0001: the parameters the
 /// native app honours. Everything else a link carries passes through untouched.
-public struct LinkState: Sendable, Hashable {
-    public var elements: [String]
-    public var sats: [String]
-    public var xsats: [String]
-    public var tags: [String]
-    public var gs: [LinkStation]
-    public var track: String
-    public var overpass: String
-    public var layers: [String]
+struct LinkState: Sendable, Hashable {
+    var elements: [String]
+    var sats: [String]
+    var xsats: [String]
+    var tags: [String]
+    var gs: [LinkStation]
+    var track: String
+    var overpass: OverpassMode
+    var layers: [String]
     /// The instrument imagery drawn on the globe, each `provider:layer` (ADR 0020).
-    public var imagery: [String]
-    public var terrain: String
+    var imagery: [String]
+    var terrain: String
     /// In the web app's whole vocabulary, Tycho1K included, which the app draws as
     /// DeepStar1K (`StarMapName.drawn`): a link keeps what it asked for.
-    public var stars: StarMapName
+    var stars: StarMapName
     /// `3D`, or `Sky` for the sky view (ADR 0003).
-    public var scene: String
+    var scene: String
     /// In the sky view, how the satellites that cannot be seen are drawn (ADR 0010).
-    public var unseen: UnseenMode
-    public var camera: CameraFrame
+    var unseen: UnseenMode
+    var camera: CameraFrame
     /// Drawable pixels per point: `1`, `1.5`, or `native` for the screen's own.
-    public var pixelRatio: String
+    var pixelRatio: String
     /// The minute the clock is pinned at (`2026-10-04T20:46Z`), nil while live.
-    public var time: String?
+    var time: String?
 
     /// The web app's defaults before any preset (src/stores).
-    public static let global = LinkState(
-        elements: ["Point", "Label"], sats: [], xsats: [], tags: [], gs: [], track: "", overpass: "elevation", layers: ["NaturalEarth"], imagery: [], terrain: "None",
+    static let global = LinkState(
+        elements: ["Point", "Label"], sats: [], xsats: [], tags: [], gs: [], track: "", overpass: .elevation, layers: ["NaturalEarth"], imagery: [], terrain: "None",
         stars: .tycho1K, scene: "3D", unseen: .dim, camera: .fixed, pixelRatio: "native", time: nil)
-
-    public init(
-        elements: [String], sats: [String], xsats: [String], tags: [String], gs: [LinkStation], track: String, overpass: String, layers: [String],
-        imagery: [String], terrain: String, stars: StarMapName, scene: String, unseen: UnseenMode, camera: CameraFrame, pixelRatio: String, time: String?
-    ) {
-        self.elements = elements
-        self.sats = sats
-        self.xsats = xsats
-        self.tags = tags
-        self.gs = gs
-        self.track = track
-        self.overpass = overpass
-        self.layers = layers
-        self.imagery = imagery
-        self.terrain = terrain
-        self.stars = stars
-        self.scene = scene
-        self.unseen = unseen
-        self.camera = camera
-        self.pixelRatio = pixelRatio
-        self.time = time
-    }
 }
 
 /// The URL codec (src/modules/util/urlCodec.ts, ADR 0001), over the parameters
 /// the native app honours and the vocabularies it can draw.
-public enum LinkCodec {
+enum LinkCodec {
     /// What the app can show of each closed vocabulary. A link naming anything
     /// else loses that member, as a link from another build does on the web.
-    public static let components = SatelliteComponents.named.map(\.0)
-    public static let layers = ["NaturalEarth", "VersaTiles", "BlackMarble"]
-    public static let terrains = ["None", "ReEarth"]
-    public static let overpassModes = ["elevation", "swath"]
-    public static let scenes = ["3D", "2D", "Sky"]
+    static let components = SatelliteComponents.named.map(\.0)
+    static let layers = BaseLayer.allCases.map(\.rawValue)
+    static let terrains = ["None", "ReEarth"]
+    static let scenes = ["3D", "2D", "Sky"]
 
     /// One parameter: how it reads into the state and writes out of it.
     struct Field: Sendable {
@@ -205,7 +182,7 @@ public enum LinkCodec {
         Field("tags", \.tags, .list),
         Field("gs", \.gs, .stations),
         Field("track", \.track, .plain),
-        Field("overpass", \.overpass, .oneOf(overpassModes)),
+        Field("overpass", \.overpass, .enumeration),
         Field("layers", \.layers, .layerList(layers)),
         Field("imagery", \.imagery, .list),
         Field("terrain", \.terrain, .oneOf(terrains)),
@@ -217,10 +194,10 @@ public enum LinkCodec {
         Field("time", \.time, .timestamp),
     ]
 
-    public static var parameters: [String] { schema.map(\.name) }
+    static var parameters: [String] { schema.map(\.name) }
 
     /// A preset's defaults, which are written as a link, read onto the global ones.
-    public static func defaults(preset: [String: String]) -> LinkState {
+    static func defaults(preset: [String: String]) -> LinkState {
         decode(LinkQuery(preset.map { LinkQuery.Item(key: $0.key, values: [$0.value]) }), defaults: .global).state
     }
 
@@ -250,7 +227,7 @@ public enum LinkCodec {
 extension LinkCodec {
     /// A whole query as urlSync.ts takes it: the parameters the codec owns read
     /// onto `defaults`, the rest kept as they came.
-    public static func read(_ query: LinkQuery, defaults: LinkState) -> (state: LinkState, foreign: LinkQuery, invalid: [String]) {
+    static func read(_ query: LinkQuery, defaults: LinkState) -> (state: LinkState, foreign: LinkQuery, invalid: [String]) {
         let owned = Set(parameters)
         let (state, invalid) = decode(query, defaults: defaults)
         return (state, LinkQuery(query.items.filter { !owned.contains($0.key) }), invalid)
@@ -258,7 +235,7 @@ extension LinkCodec {
 
     /// The query for a state: the foreign parameters as they came, then what
     /// differs from the defaults.
-    public static func write(_ state: LinkState, foreign: LinkQuery = LinkQuery(), defaults: LinkState) -> LinkQuery {
+    static func write(_ state: LinkState, foreign: LinkQuery = LinkQuery(), defaults: LinkState) -> LinkQuery {
         LinkQuery(foreign.items + encode(state, defaults: defaults).map { LinkQuery.Item(key: $0.0, values: [$0.1]) })
     }
 }
@@ -284,7 +261,7 @@ extension FieldKind where Value == String {
         let read: @Sendable (String) -> String? = { raw in
             if raw == "native" { return raw }
             guard raw.wholeMatch(of: /[0-9]+(\.[0-9]+)?/) != nil, let value = Double(raw), range.contains(value) else { return nil }
-            return PixelRatioLadder.written(value)
+            return jsNumberString(value)
         }
         return Self(parse: read, format: read)
     }
@@ -434,9 +411,10 @@ func jsNumber(_ text: String) -> Double? {
     return Double(trimmed.replacing("Infinity", with: "inf"))
 }
 
-/// JavaScript's `Number.prototype.toString()`: the shortest digits that read back
-/// as the same double, positional from 1e-6 up to 1e21, exponential outside.
-func jsNumberString(_ value: Double) -> String {
+/// As JavaScript's `String(number)` writes it: the shortest digits that read
+/// back as the same double, positional from 1e-6 up to 1e21, exponential
+/// outside; 2, not 2.0, and 0 for -0.
+public func jsNumberString(_ value: Double) -> String {
     if value == 0 {
         return "0"
     }
@@ -556,7 +534,7 @@ public struct Link: Sendable, Hashable {
 
 extension LinkState {
     /// The imagery providers `layers` names, in order, less their opacities.
-    public var layerProviders: [String] {
+    var layerProviders: [String] {
         layers.compactMap { parseLayer($0)?.provider }
     }
 }

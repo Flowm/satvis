@@ -85,6 +85,12 @@ final class PreparedModel: @unchecked Sendable {
         }.value
     }
 
+    /// Where the parts' `ModelInstance` is bound, mirroring `[[buffer(7)]]` in
+    /// Shaders/Models.msl: past every buffer the scene's other draws read, the
+    /// frame's uniforms at 1 among them, so the draws after the models find them
+    /// as they were.
+    static let instanceIndex = 7
+
     /// One of the model pass's two passes: the opaque and cut-out parts, writing
     /// depth, or the blended ones over them, testing it, as CesiumJS draws glTF's
     /// translucent parts. A model drawn see-through is blended whole. `base`
@@ -102,8 +108,8 @@ final class PreparedModel: @unchecked Sendable {
                 instance.alphaCutoff = cutoff
             }
             encoder.setCullMode(part.material.doubleSided ? .none : .back)
-            encoder.setVertexBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
-            encoder.setFragmentBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: 1)
+            encoder.setVertexBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: Self.instanceIndex)
+            encoder.setFragmentBytes(&instance, length: MemoryLayout<ModelInstance>.stride, index: Self.instanceIndex)
             encoder.setFragmentTexture(part.texture, index: 0)
             encoder.drawIndexedPrimitives(
                 type: .triangle, indexCount: part.indexCount, indexType: .uint32, indexBuffer: indices,

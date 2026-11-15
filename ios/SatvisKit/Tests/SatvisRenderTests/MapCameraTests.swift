@@ -137,9 +137,9 @@ import simd
     /// On the home view with a frame drawn, in 2D.
     private static func rig() -> CameraRig {
         var rig = CameraRig()
-        rig.openHome(aspectRatio: portrait)
+        rig.resize(aspectRatio: portrait)
         frame(&rig, at: 0)
-        rig.setProjection(.twoD, animated: false, aspectRatio: portrait)
+        rig.setProjection(.twoD, animated: false)
         rig.showProjection()
         frame(&rig, at: 0)
         return rig
@@ -147,14 +147,14 @@ import simd
 
     @discardableResult
     private static func frame(_ rig: inout CameraRig, at uptime: Double, target: SIMD3<Double>? = nil) -> CameraPose? {
-        rig.pose(uptime: uptime, time: time, aspectRatio: portrait, model: { _ in .noModel }, target: { _, _ in target }, groundHeight: { _ in 0 })
+        rig.pose(uptime: uptime, time: time, model: { _ in .noModel }, target: { _, _ in target }, groundHeight: { _ in 0 })
     }
 
     @Test func drawsFromTheMapOnceShownAndBack() throws {
         var rig = CameraRig()
-        rig.openHome(aspectRatio: Self.portrait)
+        rig.resize(aspectRatio: Self.portrait)
         Self.frame(&rig, at: 0)
-        rig.setProjection(.twoD, animated: true, aspectRatio: Self.portrait)
+        rig.setProjection(.twoD, animated: true)
         // The old projection until the renderer has kept a frame of it.
         #expect(rig.shownProjection == .twoD && rig.drawnProjection == .threeD && rig.fadesProjection)
         #expect(Self.frame(&rig, at: 0)?.mapCamera == nil)
@@ -165,7 +165,7 @@ import simd
         #expect(pose.position == MapCamera.home(aspectRatio: Self.portrait).globe(aspectRatio: Self.portrait).pose().position)
 
         rig.zoom(by: 10)
-        rig.setProjection(.threeD, animated: false, aspectRatio: Self.portrait)
+        rig.setProjection(.threeD, animated: false)
         rig.showProjection()
         let globe = try #require(Self.frame(&rig, at: 0))
         #expect(globe.mapCamera == nil)
@@ -184,7 +184,7 @@ import simd
 
         // From where the last frame was drawn.
         Self.frame(&rig, at: 9)
-        rig.flyHome(animated: true, uptime: 10, aspectRatio: Self.portrait)
+        rig.flyHome(animated: true, uptime: 10)
         let halfway = try #require(Self.frame(&rig, at: 10.75)?.mapCamera)
         #expect(halfway.span > moved.span && halfway.span < MapCamera.home(aspectRatio: Self.portrait).span)
         #expect(Self.frame(&rig, at: 11.6)?.mapCamera == MapCamera.home(aspectRatio: Self.portrait))
@@ -214,7 +214,7 @@ import simd
     // either way.
     @Test func keepsTheTrackedScaleAcrossASwitch() throws {
         var rig = CameraRig()
-        rig.openHome(aspectRatio: Self.portrait)
+        rig.resize(aspectRatio: Self.portrait)
         let iss = Self.position(latitude: 40, longitude: -100, height: 420_000)
         rig.track("25544", animated: false, uptime: 0, model: { _ in .noModel })
         let globe = try #require(Self.frame(&rig, at: 0, target: iss))
@@ -222,13 +222,13 @@ import simd
         let closer = try #require(Self.frame(&rig, at: 0, target: iss))
         let range = simd.distance(closer.position, iss)
         #expect(range < simd.distance(globe.position, iss))
-        rig.setProjection(.twoD, animated: false, aspectRatio: Self.portrait)
+        rig.setProjection(.twoD, animated: false)
         rig.showProjection()
         let map = try #require(Self.frame(&rig, at: 0, target: iss)?.mapCamera)
         #expect(abs(map.span - 2 * range * tan(OrbitCamera.fieldOfView / 2)) < 1)
         rig.zoom(by: 2)
         Self.frame(&rig, at: 0, target: iss)
-        rig.setProjection(.threeD, animated: false, aspectRatio: Self.portrait)
+        rig.setProjection(.threeD, animated: false)
         rig.showProjection()
         let back = try #require(Self.frame(&rig, at: 0, target: iss))
         #expect(abs(simd.distance(back.position, iss) - range / 2) < 1)
@@ -241,7 +241,7 @@ import simd
         rig.zoom(by: 1e-9)
         let turned = try #require(Self.frame(&rig, at: 0)?.mapCamera)
         #expect(abs(turned.span - MapCamera.maximumSpan(aspectRatio: Self.portrait, heading: .pi / 2)) < 1e-6)
-        rig.flyHome(animated: true, uptime: 1, aspectRatio: Self.portrait)
+        rig.flyHome(animated: true, uptime: 1)
         for step in 0...30 {
             let map = try #require(Self.frame(&rig, at: 1 + Double(step) * 0.05)?.mapCamera)
             #expect(map.span <= MapCamera.maximumSpan(aspectRatio: Self.portrait, heading: map.heading) * (1 + 1e-12))
@@ -253,22 +253,22 @@ import simd
         var rig = Self.rig()
         rig.zoom(by: 4)
         let map = try #require(rig.mapCamera)
-        rig.enterSky(SkyCamera(latitude: 46.5935, longitude: 7.9091), animated: false, uptime: 1, aspectRatio: Self.portrait)
+        rig.enterSky(SkyCamera(latitude: 46.5935, longitude: 7.9091), animated: false, uptime: 1)
         #expect(rig.shownProjection == .threeD)
         // The way back lands on the globe over the map.
         #expect(rig.orbitCamera == map.globe(aspectRatio: Self.portrait))
         rig.showProjection()
         #expect(Self.frame(&rig, at: 1)?.mapCamera == nil)
-        rig.leaveSky(animated: false, uptime: 2, aspectRatio: Self.portrait)
+        rig.leaveSky(animated: false, uptime: 2)
         #expect(rig.shownProjection == .twoD)
         rig.showProjection()
         #expect(Self.frame(&rig, at: 2)?.mapCamera == map)
         // Choosing 3D in the sky view leaves it for the globe.
-        rig.enterSky(SkyCamera(latitude: 46.5935, longitude: 7.9091), animated: false, uptime: 3, aspectRatio: Self.portrait)
+        rig.enterSky(SkyCamera(latitude: 46.5935, longitude: 7.9091), animated: false, uptime: 3)
         rig.showProjection()
-        rig.setProjection(.threeD, animated: false, aspectRatio: Self.portrait)
+        rig.setProjection(.threeD, animated: false)
         #expect(rig.shownProjection == .threeD)
-        rig.leaveSky(animated: false, uptime: 4, aspectRatio: Self.portrait)
+        rig.leaveSky(animated: false, uptime: 4)
         rig.showProjection()
         #expect(Self.frame(&rig, at: 4)?.mapCamera == nil)
     }

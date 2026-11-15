@@ -98,6 +98,60 @@ import Testing
         #expect(list.add(latitude: 91, longitude: 0) == nil)
     }
 
+    @Test func updatesASavedStationNormalized() {
+        let storage = storage()
+        var list = StationList(storage: storage)
+        list.setSaved([munich, berlin])
+        var renamed = berlin
+        renamed.name = "Berlin Mitte"
+        renamed.longitude = 373.405
+        list.update(renamed)
+        #expect(list.saved.map(\.name) == ["Munich", "Berlin Mitte"])
+        #expect(list.saved.last?.longitude == 13.405)
+        #expect(storage.stations() == list.saved)
+
+        list.update(GroundStation(latitude: 1, longitude: 2, name: "Elsewhere"))
+        #expect(list.saved.map(\.id) == [munich.id, berlin.id])
+
+        // Edited into another's place and name, it is that one.
+        var onto = berlin
+        onto.latitude = munich.latitude
+        onto.longitude = munich.longitude
+        onto.name = munich.name
+        list.update(onto)
+        #expect(list.saved.map(\.id) == [munich.id])
+    }
+
+    // A drop takes the target's place, from above or below; the arrows stop at the ends.
+    @Test func movesASavedStation() {
+        let paris = GroundStation(latitude: 48.8566, longitude: 2.3522, name: "Paris")
+        let storage = storage()
+        var list = StationList(storage: storage)
+        list.setSaved([munich, berlin, paris])
+        list.move(munich.id, onto: paris.id)
+        #expect(list.saved.map(\.id) == [berlin.id, paris.id, munich.id])
+        list.move(munich.id, onto: berlin.id)
+        #expect(list.saved.map(\.id) == [munich.id, berlin.id, paris.id])
+        list.move(berlin.id, onto: berlin.id)
+        list.move(munich.id, by: -1)
+        list.move(paris.id, by: 1)
+        #expect(list.saved.map(\.id) == [munich.id, berlin.id, paris.id])
+        list.move(munich.id, by: 1)
+        #expect(list.saved.map(\.id) == [berlin.id, munich.id, paris.id])
+        list.move(paris.id, by: -1)
+        #expect(list.saved.map(\.id) == [berlin.id, paris.id, munich.id])
+        #expect(storage.stations().map(\.id) == list.saved.map(\.id))
+    }
+
+    @Test func movesOnlySavedStations() {
+        var list = StationList(storage: storage())
+        list.setSaved([munich])
+        list.setVisiting([berlin])
+        list.move(berlin.id, onto: munich.id)
+        list.move(munich.id, by: 1)
+        #expect(list.shown.map(\.id) == [munich.id, berlin.id])
+    }
+
     // Each look from where the user stands moves the one Geolocation station,
     // to the front, and drops any others of the name an edit left.
     @Test func keepsOneGeolocationFirst() {
