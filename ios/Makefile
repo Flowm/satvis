@@ -11,6 +11,8 @@
 ## BASE_URL  The site screenshots opens its views on (default https://satvis.space)
 ## DRY_RUN   The uploads say what they would change, and change nothing
 ## VERSION   The App Store version the downloads fetch (default the one being prepared)
+## BASE      The commit compare holds the working tree to (default its merge base with main)
+## WAIT      Seconds compare lets each view load before shooting it (default 45)
 ## ASC_*     asc's own settings for the uploads and downloads, e.g. ASC_PROFILE, ASC_READ_ONLY=1
 
 DEVICE ?= iPhone 18 Pro
@@ -32,7 +34,7 @@ SOURCES = satvis satvisUITests SatvisKit
 
 .DEFAULT_GOAL := help
 
-.PHONY: build test test-kit run build-mac run-mac fold unfold logs format lint screenshots screenshots-upload screenshots-download metadata-download metadata-upload clean help
+.PHONY: build test test-kit run compare build-mac run-mac fold unfold logs format lint screenshots screenshots-upload screenshots-download metadata-download metadata-upload clean help
 
 build: ## Build the app for the simulator | DEVICE RUNTIME UDID
 	$(XCODEBUILD) build
@@ -48,6 +50,9 @@ run: build ## Build and launch the app on the simulator | DEVICE RUNTIME UDID AP
 	xcrun simctl boot $(UDID) 2>/dev/null || true
 	xcrun simctl install $(UDID) $(APP)
 	xcrun simctl launch --terminate-running-process $(UDID) org.frcy.app.satvis
+
+compare: build ## Compare the globe's pixels with BASE's | BASE WAIT DEVICE RUNTIME UDID
+	scripts/compare.sh $(UDID) $(BASE)
 
 build-mac: ## Build the Mac app
 	$(XCODEBUILD_MAC) build
