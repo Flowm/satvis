@@ -105,7 +105,7 @@ import Testing
             #expect(SatelliteDetails.status(record) == expected.facts.status, "\(record.name)")
             #expect(record.orbitClass.rawValue == expected.facts.orbitClass, "\(record.name)")
 
-            #expect(abs(SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate) - expected.elements.epochMs) < 1, "\(record.name)")
+            #expect(abs(epochMilliseconds(julianDate: propagator.epochJulianDate) - expected.elements.epochMs) < 1, "\(record.name)")
             switch SatelliteDetails.elements(record, epochJulianDate: propagator.epochJulianDate) {
             case .tle(let epoch, let lines):
                 #expect(expected.elements.kind == "tle")

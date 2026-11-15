@@ -261,4 +261,9 @@ func days2mdhms(year: Int, days: Double) -> (month: Int, day: Int, hour: Double,
     return (month, dayOfYear - elapsed, hour, minute, (temp - minute) * 60.0)
 }
 
+/// The epoch in UTC milliseconds since 1970, as entityInfo.ts's `epochMs`.
+public func epochMilliseconds(julianDate: Double) -> Double {
+    (julianDate - 2440587.5) * msPerDay
+}
+
 let msPerDay = 86_400_000.0

@@ -63,7 +63,7 @@ struct InfoPanel: View {
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         if let propagator,
                             let notice = SatelliteDetails.staleElementsNotice(
-                                epochMilliseconds: SatelliteDetails.epochMilliseconds(julianDate: propagator.epochJulianDate), time: session.clock.now())
+                                epochMilliseconds: epochMilliseconds(julianDate: propagator.epochJulianDate), time: session.clock.now())
                         {
                             Label(notice, systemImage: "exclamationmark.triangle")
                                 .font(.footnote)
