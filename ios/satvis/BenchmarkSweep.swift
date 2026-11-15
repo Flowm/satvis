@@ -159,7 +159,7 @@ final class SweepBenchmark {
     /// A step past `buildTimeout` is measured as it stands.
     private func untilDrawn(_ session: Session) async -> Bool {
         let start = ContinuousClock.now
-        while !session.satellites.draws(session.catalog.activeEntries), ContinuousClock.now - start < Self.buildTimeout {
+        while !session.drawsActive, ContinuousClock.now - start < Self.buildTimeout {
             try? await Task.sleep(for: .milliseconds(5))
             if Task.isCancelled {
                 return false

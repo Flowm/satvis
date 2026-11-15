@@ -25,13 +25,15 @@ final class Session {
     /// What the session sets on the globe, kept for a renderer that arrives late;
     /// what it asks goes to `renderer`.
     @ObservationIgnored private let globe = GlobeBinding()
-    @ObservationIgnored let satellites: SatelliteLayer
+    @ObservationIgnored private let satellites: SatelliteLayer
     @ObservationIgnored private let starMapLoader: StarMap
     /// The featured bookmarks' pictures by their path on the site, kept once fetched.
     private(set) var featuredPictures: [String: Data] = [:]
     /// Observed: it arrives once its shaders compile, possibly after a link has
     /// opened on the sky view, whose instruments wait for it.
     private(set) var renderer: GlobeRenderer?
+    /// Whether the renderer draws what is active (`SatelliteLayer.draws`).
+    var drawsActive: Bool { satellites.draws(catalog.activeEntries) }
 
     /// What is selected, followed and stood on, changed through the methods
     /// below, which take the globe and the catalog along.
@@ -599,7 +601,7 @@ final class Session {
         let start = ContinuousClock.now
         try? await Task.sleep(for: .seconds(3))
         while ContinuousClock.now - start < .seconds(20) {
-            let drawn = renderer.map { satellites.draws(catalog.activeEntries) && (observer == nil || $0.isSkySettled) } ?? false
+            let drawn = renderer.map { drawsActive && (observer == nil || $0.isSkySettled) } ?? false
             if drawn {
                 break
             }
@@ -779,12 +781,12 @@ final class Session {
     }
 
     /// Follows a satellite or a station, and opens its panel (`Focus.follow`).
-    func follow(_ target: Selection, animated: Bool = false) {
+    func follow(_ target: Selection, animated: Bool) {
         perform(focus.follow(target, animated: animated))
     }
 
     /// Lets go of what is followed.
-    func stopTracking(animated: Bool = false) {
+    func stopTracking(animated: Bool) {
         perform(focus.stopTracking(animated: animated))
     }
 

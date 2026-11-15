@@ -244,7 +244,7 @@ final class Benchmark {
                 return nil
             }
             let drawn = renderer.satelliteCount
-            let complete = session.satellites.draws(session.catalog.activeEntries)
+            let complete = session.drawsActive
             // From when it is complete and its count holds, which a set completed
             // without a change of count, a link shown again, starts as well.
             if !complete || drawn != last {
