@@ -821,3 +821,19 @@ collection listing 15:00 to 19:00 UTC. At 19:30 the 19:00 Slot drew Europe and A
 night with the cities lit; at 15:30 the 15:00 Slot drew the terminator over Africa. The
 COG's header and indexes came in two reads (16 KB, then 175 KB for the eight levels).
 The Map panel's list, the credits and a frame change while the app runs were not looked at.
+
+## Native app: the shared ray to the ellipsoid and line stride
+
+**Procedure.** In the simulator, with `SATVIS_TIME` pinned, shoot each view below with
+the commit before and after and compare them pixel by pixel; also turn the globe slowly
+in each and watch the limb. Labels: `?tags=Weather&elements=Point,Label`, zoomed so
+satellites cross the limb: each label vanishes with its point as it goes behind the
+Earth, none flickers at the limb. Orbits behind the Earth:
+`?tags=Weather&elements=Point,Orbit,Orbit+track`, the lines reaching the limb end there
+as before. Sensor cones and footprints: `?tags=Weather&elements=Point,Ground+track,Sensor+cone`,
+the cones' fans and their gold rims on the ground, near the limb too, with no edge
+jumping as the globe turns. The map's lines: the same Weather orbits with `&scene=2D`,
+zoomed out and in, the lines as smooth at each scale as before.
+
+**Result.** Not yet run. The expressions are term for term those they replace, so the
+frames should match to the pixel.

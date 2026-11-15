@@ -49,7 +49,7 @@ enum ShaderLibrary {
         return try await device.makeLibrary(source: try source(files), options: options)
     }
 
-    private static func source(_ files: [String]) throws -> String {
+    static func source(_ files: [String]) throws -> String {
         try files.map { name in
             guard let url = Bundle.module.url(forResource: name, withExtension: "msl", subdirectory: "Shaders") else {
                 throw RendererError.missingShader(name)

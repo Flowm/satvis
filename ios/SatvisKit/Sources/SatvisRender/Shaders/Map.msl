@@ -135,20 +135,11 @@ vertex LabelOut mapLabelVertex(uint vid [[vertex_id]], uint iid [[instance_id]],
     return out;
 }
 
-/// `lineStride` on the map, where an orbit's arc is the Earth's radius across at
-/// the map's scale, whatever the satellite's height.
+/// `strideForArc` on the map, where an orbit's arc is the Earth's radius across
+/// at the map's scale, whatever the satellite's height.
 inline int mapLineStride(constant FrameUniforms &frame) {
     float yScale = length(float3(frame.viewProjection[0][1], frame.viewProjection[1][1], frame.viewProjection[2][1]));
-    float pixels = mapRadius * yScale * 0.5 * frame.viewportSize.y;
-    int stride = maximumLineStride;
-    while (stride > 1) {
-        float halfArc = M_PI_F * float(stride) / float(lineNodes - 1);
-        if (pixels * 0.5 * halfArc * halfArc <= maximumSagPixels) {
-            break;
-        }
-        stride /= 2;
-    }
-    return stride;
+    return strideForArc(mapRadius * yScale * 0.5 * frame.viewportSize.y);
 }
 
 /// The two triangles of a segment's quad, as its ends (bit 1) and sides (bit 0).

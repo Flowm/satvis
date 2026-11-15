@@ -133,6 +133,19 @@ import simd
         #expect(MemoryLayout<ModelInstance>.stride == 240)
     }
 
+    // The draws' vertex counts follow these; a mismatch draws garbage, silently.
+    @MainActor
+    @Test func matchesTheShaderCounts() throws {
+        func constant(_ name: String, in file: String) throws -> Int? {
+            let match = try ShaderLibrary.source([file]).firstMatch(of: try Regex("constant int \(name) = ([0-9]+);"))
+            return match.flatMap { Int($0.output[1].substring ?? "") }
+        }
+        #expect(try constant("lineNodes", in: "Lines") == ScenePass.lineNodes)
+        #expect(try constant("coneSides", in: "Footprints") == ScenePass.coneSides)
+        #expect(try constant("skyRingColumns", in: "Sky") == ScenePipelines.skyRingColumns)
+        #expect(try constant("skyRingRows", in: "Sky") == ScenePipelines.skyRingRows)
+    }
+
     // The way back from a tap on the globe to the place it touched.
     @Test func turnsAPointOnTheSurfaceBackIntoItsPlace() {
         for (latitude, longitude) in [(48.1351, 11.582), (-33.9249, 18.4241), (78.2232, -15.6267), (0.0, 180.0)] {

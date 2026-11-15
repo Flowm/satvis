@@ -40,17 +40,8 @@ struct LabelOut {
 /// Whether the Earth stands between the eye and a point `toPoint` away: the line
 /// meets the ellipsoid, scaled to a unit sphere, on the way there.
 inline bool isBehindEarth(float3 eye, float3 toPoint) {
-    float3 origin = eye / ellipsoidRadii;
-    float3 direction = toPoint / ellipsoidRadii;
-    float a = dot(direction, direction);
-    float b = 2.0 * dot(origin, direction);
-    float c = dot(origin, origin) - 1.0;
-    float det = b * b - 4.0 * a * c;
-    if (det < 0.0) {
-        return false;
-    }
-    float t = (-b - sqrt(det)) / (2.0 * a);
-    return t > 0.0 && t < 1.0;
+    RaySegment hit = raySphereIntersection(eye / ellipsoidRadii, toPoint / ellipsoidRadii, 1.0);
+    return hit.start > 0.0 && hit.start < 1.0;
 }
 
 vertex LabelOut labelVertex(uint vid [[vertex_id]], uint iid [[instance_id]], const device packed_float3 *samples [[buffer(0)]],

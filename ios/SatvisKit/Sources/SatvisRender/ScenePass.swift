@@ -22,7 +22,7 @@ struct FramePlan {
 struct ScenePass {
     /// Samples a line runs through, the satellite's own place aside; mirrors
     /// `lineNodes` in Shaders/Lines.msl.
-    private static let lineNodes = 121
+    static let lineNodes = 121
     /// A line's triangle strip, two vertices a point: `lineNodes` samples in
     /// Shaders/Lines.msl, and where the satellite is now between two of them.
     private static let lineVertices = 2 * (lineNodes + 1)
@@ -39,7 +39,7 @@ struct ScenePass {
     /// which the eye can be inside. 10 % outside the shell.
     private static let skyRingDistance = 1.1 * 1.025 * 6_378_137.0
     /// Mirrors `coneSides` in Shaders/Footprints.msl.
-    private static let coneSides = 48
+    static let coneSides = 48
     /// What `setVertexBytes` takes, 4 KB, in the larger of the two instances.
     private static let maximumInlineInstances = 4096 / MemoryLayout<LinkInstance>.stride
 
