@@ -22,10 +22,24 @@ runs up to 2026-11-15 is `manual-verification.md` in git history
 - Taps sent into the simulator are sometimes dropped: shoot after each one.
 - Timing only on an idle Mac: check `sysctl vm.loadavg` first. Under load the
   launch screen alone held 5 s.
-- Cost: a Release build on the iPad mini (`iPad14,1`), `SATVIS_BENCHMARK=print`
-  through `xcrun devicectl device process launch --console`; pacing with the
-  panel closed from an Animation Hitches trace (`xctrace record --all-processes`).
+- Cost: the iPad mini (`iPdm6`, `iPad14,1`), held with
+  `~/.cache/satvis-ipdm6/ipad-lock.sh acquire <you> "<why>"` and released
+  after. Build and install a signed Release build:
+  `xcodebuild -project satvis.xcodeproj -scheme satvis -configuration Release
+  -derivedDataPath build/DeviceData -destination id=<udid>
+  -allowProvisioningUpdates build`, then `xcrun devicectl device install app`.
   Alternate old and new builds. The simulator's figures are relative only.
+- The benchmark: `xcrun devicectl device process launch --console
+  --terminate-existing --device <udid> --environment-variables
+  '{"SATVIS_BENCHMARK":"print"}' org.frcy.app.satvis` in the background. The
+  report is multi-line JSON; the app stays open after it, so stop it once the
+  closing `}` is out (a whole run took under 2 min).
+- Pacing, with the panel closed: open the view with `SATVIS_LINK`, wait 25 s,
+  run `xcrun devicectl device info processes --device <udid>` (without it
+  `xctrace` times out "waiting for device to boot"), then
+  `xcrun xctrace record --template 'Animation Hitches' --device <udid>
+  --all-processes --time-limit 15s`; the rows of its `displayed-surfaces-interval`
+  table over 15 s are the frame rate.
 
 ## The globe
 
@@ -108,7 +122,8 @@ runs up to 2026-11-15 is `manual-verification.md` in git history
 
 - **The benchmark** before and after any change to drawing or per-frame work.
 - **Pacing** with the panel closed: the ISS tracked, Weather idle, the default
-  view idle, all active orbits.
+  view idle (`/`, about 3.3 fps), all active orbits
+  (`/?tags=Active&elements=Point,Orbit`).
 - **120 fps** on a ProMotion iPhone: `devicectl device process launch --console
   -- org.frcy.app.satvis -frameRate '<integer>120</integer>'` with the benchmark.
 - **Passes** for a station picked on `tags=Active&elements=Point`: the first
