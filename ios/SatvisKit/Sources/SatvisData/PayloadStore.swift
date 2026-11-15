@@ -1,8 +1,8 @@
 import Foundation
 
 /// What the worker serves, kept on disk in its own layout: `groups.json`,
-/// `gp/<group>.json` and `site/<path>`, each beside a sidecar with its ETag and
-/// when it was confirmed. The same layout read-only is a repository's snapshot.
+/// `gp/<group>.json` and `site/<path>`, each beside a sidecar with its ETag. The
+/// same layout read-only is a repository's snapshot.
 public struct PayloadStore: Sendable {
     public enum Key: Sendable, Hashable {
         case index
@@ -22,13 +22,10 @@ public struct PayloadStore: Sendable {
     public struct Entry: Sendable, Equatable {
         public var data: Data
         public var etag: String?
-        /// When the worker last confirmed this copy. Nil for the snapshot.
-        public var confirmed: Date?
     }
 
     private struct Sidecar: Codable {
         var etag: String?
-        var confirmed: Date?
     }
 
     public let directory: URL
@@ -57,19 +54,14 @@ public struct PayloadStore: Sendable {
             return nil
         }
         let sidecar = (try? Data(contentsOf: sidecarURL(key))).flatMap { try? JSONDecoder().decode(Sidecar.self, from: $0) }
-        return Entry(data: data, etag: sidecar?.etag, confirmed: sidecar?.confirmed)
+        return Entry(data: data, etag: sidecar?.etag)
     }
 
-    public func write(_ key: Key, data: Data, etag: String?, confirmed: Date) throws {
+    public func write(_ key: Key, data: Data, etag: String?) throws {
         let file = url(key)
         try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         try data.write(to: file, options: .atomic)
-        try confirm(key, etag: etag, at: confirmed)
-    }
-
-    /// Records that the worker answered 304 for the copy already held.
-    public func confirm(_ key: Key, etag: String?, at date: Date) throws {
-        try JSONEncoder().encode(Sidecar(etag: etag, confirmed: date)).write(to: sidecarURL(key), options: .atomic)
+        try JSONEncoder().encode(Sidecar(etag: etag)).write(to: sidecarURL(key), options: .atomic)
     }
 
     private func url(_ key: Key) -> URL {

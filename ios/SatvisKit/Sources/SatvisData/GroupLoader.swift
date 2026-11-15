@@ -43,7 +43,7 @@ public actor GroupLoader {
     /// cancelled.
     public func firstIndex(waiting: @Sendable () async -> Void) async -> GroupIndex? {
         if let kept = await repository.keptIndex() {
-            return kept.value
+            return kept
         }
         var index = await refreshIndex()
         while index == nil, !Task.isCancelled {
@@ -58,7 +58,7 @@ public actor GroupLoader {
     /// be asked. Nil when there is neither.
     public func refreshIndex() async -> GroupIndex? {
         do {
-            return try await repository.index().value
+            return try await repository.index()
         } catch {
             log.error("Group index unavailable: \(error, privacy: .public)")
             return nil
@@ -127,7 +127,7 @@ public actor GroupLoader {
         }
         let task = Task {
             if let kept = await repository.keptRecords(of: group) {
-                await hand(kept.value, of: group, to: deliver)
+                await hand(kept, of: group, to: deliver)
                 Task { await self.fetch(group, deliver: deliver) }
             } else {
                 await fetch(group, deliver: deliver)
@@ -149,7 +149,7 @@ public actor GroupLoader {
     /// none.
     private nonisolated func records(of group: String) async -> [GPRecord]? {
         do {
-            return try await repository.records(of: group).value
+            return try await repository.records(of: group)
         } catch {
             log.error("Group \(group, privacy: .public) unavailable: \(error, privacy: .public)")
             return nil

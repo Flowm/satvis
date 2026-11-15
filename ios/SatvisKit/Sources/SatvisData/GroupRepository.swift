@@ -7,55 +7,37 @@ import SatvisCore
 /// none, so a first launch offline has nothing until the worker answers. Every request revalidates the kept copy
 /// with its ETag, so a current copy costs a 304 and no body.
 public actor GroupRepository {
-    public enum Source: Sendable, Equatable {
-        /// Fetched or confirmed by the worker just now.
-        case worker
-        /// The kept copy; the worker could not be asked.
-        case cache
-        /// The snapshot; nothing has been fetched yet.
-        case snapshot
-    }
-
-    public struct Loaded<Value: Sendable>: Sendable {
-        public var value: Value
-        public var source: Source
-        /// When the worker last confirmed it. Nil for the snapshot.
-        public var confirmed: Date?
-    }
-
     private let client: WorkerClient
     private let store: PayloadStore
     private let snapshot: PayloadStore?
-    private let now: @Sendable () -> Date
     /// Each group's records with the ETag they were decoded under, so a payload
     /// confirmed unchanged is decoded once: Starlink's took 0.3 s of an iPad mini's
     /// CPU. Kept for the session, as the catalog keeps every group it loads: 312
     /// bytes a record, 5 MB for every active satellite, the strings and bags shared.
     private var decodedGroups: [String: (etag: String, records: [GPRecord])] = [:]
 
-    public init(client: WorkerClient, store: PayloadStore, snapshot: PayloadStore?, now: @escaping @Sendable () -> Date = Date.init) {
+    public init(client: WorkerClient, store: PayloadStore, snapshot: PayloadStore?) {
         self.client = client
         self.store = store
         self.snapshot = snapshot
-        self.now = now
     }
 
-    public func index() async throws -> Loaded<GroupIndex> {
+    public func index() async throws -> GroupIndex {
         try await load(.index, fetch: { try await self.client.index(ifNoneMatch: $0) }, decode: { data, _ in try JSONDecoder().decode(GroupIndex.self, from: data) })
     }
 
-    public func records(of group: String) async throws -> Loaded<[GPRecord]> {
+    public func records(of group: String) async throws -> [GPRecord] {
         try await load(.group(group), fetch: { try await self.client.group(group, ifNoneMatch: $0) }, decode: decoder(of: group))
     }
 
     /// The group index as last kept, or the snapshot's, without asking the worker: what
     /// to show while it is asked.
-    public func keptIndex() -> Loaded<GroupIndex>? {
+    public func keptIndex() -> GroupIndex? {
         kept(.index) { data, _ in try JSONDecoder().decode(GroupIndex.self, from: data) }
     }
 
     /// A group as last kept, or the snapshot's, without asking the worker.
-    public func keptRecords(of group: String) -> Loaded<[GPRecord]>? {
+    public func keptRecords(of group: String) -> [GPRecord]? {
         kept(.group(group), decode: decoder(of: group))
     }
 
@@ -78,7 +60,7 @@ public actor GroupRepository {
     /// asking the worker. Nil while any face is missing.
     public func keptStarMap(_ map: StarMapName) -> [Data]? {
         let paths = Self.starMapFaces(map)
-        let faces = paths.compactMap { kept(.file($0)) { data, _ in data }?.value }
+        let faces = paths.compactMap { kept(.file($0)) { data, _ in data } }
         return faces.count == paths.count ? faces : nil
     }
 
@@ -88,7 +70,7 @@ public actor GroupRepository {
     }
 
     /// An image the site serves. Never shipped, so absent until fetched once.
-    public func image(_ path: String) async throws -> Loaded<Data> {
+    public func image(_ path: String) async throws -> Data {
         try await load(.file(path), fetch: { try await self.client.image(path, ifNoneMatch: $0) }, decode: { data, _ in data })
     }
 
@@ -98,10 +80,10 @@ public actor GroupRepository {
     public func starMap(_ map: StarMapName) async -> [Data]? {
         var faces: [Data] = []
         for path in Self.starMapFaces(map) {
-            guard let loaded = try? await image(path) else {
+            guard let face = try? await image(path) else {
                 return nil
             }
-            faces.append(loaded.value)
+            faces.append(face)
         }
         return faces
     }
@@ -113,12 +95,12 @@ public actor GroupRepository {
     }
 
     /// `decode` takes the payload and its ETag.
-    private func kept<Value: Sendable>(_ key: PayloadStore.Key, decode: (Data, String?) throws -> Value) -> Loaded<Value>? {
+    private func kept<Value: Sendable>(_ key: PayloadStore.Key, decode: (Data, String?) throws -> Value) -> Value? {
         if let kept = store.read(key), let value = try? decode(kept.data, kept.etag) {
-            return Loaded(value: value, source: .cache, confirmed: kept.confirmed)
+            return value
         }
         if let snapshotted = snapshot?.read(key), let value = try? decode(snapshotted.data, nil) {
-            return Loaded(value: value, source: .snapshot, confirmed: nil)
+            return value
         }
         return nil
     }
@@ -127,28 +109,23 @@ public actor GroupRepository {
         _ key: PayloadStore.Key,
         fetch: (String?) async throws -> WorkerClient.Answer,
         decode: (Data, String?) throws -> Value
-    ) async throws -> Loaded<Value> {
+    ) async throws -> Value {
         let kept = store.read(key)
         do {
             switch try await fetch(kept?.etag) {
             case .fresh(let data, let etag):
                 // Decoded before it is kept, so a malformed answer never replaces a good copy.
                 let value = try decode(data, etag)
-                let confirmed = now()
-                try? store.write(key, data: data, etag: etag, confirmed: confirmed)
-                return Loaded(value: value, source: .worker, confirmed: confirmed)
+                try? store.write(key, data: data, etag: etag)
+                return value
             case .unchanged:
                 guard let kept else {
                     throw WorkerError.status(304, key.path)
                 }
                 // Another load of the same key may have written newer data while
-                // this one waited; its ETag must not be overwritten with ours.
-                if let current = store.read(key), current.etag != kept.etag {
-                    return Loaded(value: try decode(current.data, current.etag), source: .worker, confirmed: current.confirmed)
-                }
-                let confirmed = now()
-                try? store.confirm(key, etag: kept.etag, at: confirmed)
-                return Loaded(value: try decode(kept.data, kept.etag), source: .worker, confirmed: confirmed)
+                // this one waited.
+                let current = store.read(key) ?? kept
+                return try decode(current.data, current.etag)
             }
         } catch {
             if let fallback = self.kept(key, decode: decode) {

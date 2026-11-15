@@ -569,7 +569,7 @@ final class Session {
                 featuredPictures[path] = await repository.keptImage(path)
             }
             for path in new {
-                if let fetched = try? await repository.image(path).value, fetched != featuredPictures[path] {
+                if let fetched = try? await repository.image(path), fetched != featuredPictures[path] {
                     featuredPictures[path] = fetched
                 }
             }

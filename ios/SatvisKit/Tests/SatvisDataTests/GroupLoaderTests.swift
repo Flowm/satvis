@@ -49,7 +49,7 @@ private final class Delivered: Sendable {
 
     @Test func startsFromTheKeptIndexWithoutAskingTheWorker() async throws {
         let store = temporaryStore()
-        try store.write(.index, data: Data(index.utf8), etag: "a", confirmed: .distantPast)
+        try store.write(.index, data: Data(index.utf8), etag: "a")
         let worker = StubWorker([])
         let loader = GroupLoader(repository: GroupRepository(client: worker.client, store: store, snapshot: nil))
 
@@ -90,7 +90,7 @@ private final class Delivered: Sendable {
 
     @Test func handsOverTheKeptCopyThenReplacesAStaleOneWithTheWorkers() async throws {
         let store = temporaryStore()
-        try store.write(.group("weather"), data: Data(weather("OLD").utf8), etag: "a", confirmed: .distantPast)
+        try store.write(.group("weather"), data: Data(weather("OLD").utf8), etag: "a")
         let gate = Gate()
         let worker = StubWorker([.json(weather("NEW"), etag: "b")], gate: gate)
         let loader = GroupLoader(repository: GroupRepository(client: worker.client, store: store, snapshot: nil))
@@ -150,7 +150,7 @@ private final class Delivered: Sendable {
     // ones rather than none.
     @Test func readsTheKeptCopyWhenTheWorkerFails() async throws {
         let store = temporaryStore()
-        try store.write(.group("weather"), data: Data(weather("METEOR").utf8), etag: "a", confirmed: .distantPast)
+        try store.write(.group("weather"), data: Data(weather("METEOR").utf8), etag: "a")
         let worker = StubWorker([.status(503), .offline])
         let loader = GroupLoader(repository: GroupRepository(client: worker.client, store: store, snapshot: nil))
 
