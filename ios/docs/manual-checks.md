@@ -9,12 +9,19 @@ runs up to 2026-11-15 is `manual-verification.md` in git history
 
 - The simulator by default (iPhone 18 Pro, an iPad beside it for layout),
   `SATVIS_TIME` pinned for repeatable light, `SATVIS_LINK` for the view,
-  `SATVIS_TEST_CATALOG=1` for the UI tests' fixed catalog.
+  `SATVIS_TEST_CATALOG=1` for the UI tests' fixed catalog. `simctl launch`
+  passes them with a `SIMCTL_CHILD_` prefix, to `make run` too:
+  `SIMCTL_CHILD_SATVIS_TIME=… SIMCTL_CHILD_SATVIS_LINK='/?…' xcrun simctl launch
+  --terminate-running-process booted org.frcy.app.satvis`.
 - Drawing that should not change: shoot each view with the base commit and the
-  branch 45 s after launch at the same `SATVIS_TIME`, and compare pixel by pixel;
-  everything below the status bar should match.
+  branch 45 s after launch at the same `SATVIS_TIME`, and compare pixel by pixel
+  below the status bar, the top 180 px on an iPhone 18 Pro, where the clock
+  differs: `magick compare -metric AE` on both crops gives 0.
 - Motion (flights, menus, the launch): `simctl io <udid> recordVideo`, read a
-  frame every 0.1 s.
+  frame every 0.1 s (`ffmpeg -i <movie> -vf fps=10 f%03d.png`, Homebrew's).
+- Taps sent into the simulator are sometimes dropped: shoot after each one.
+- Timing only on an idle Mac: check `sysctl vm.loadavg` first. Under load the
+  launch screen alone held 5 s.
 - Cost: a Release build on the iPad mini (`iPad14,1`), `SATVIS_BENCHMARK=print`
   through `xcrun devicectl device process launch --console`; pacing with the
   panel closed from an Animation Hitches trace (`xctrace record --all-processes`).
@@ -25,11 +32,14 @@ runs up to 2026-11-15 is `manual-verification.md` in git history
 - **Unchanged drawing.** `?scene=2D&elements=Point,Label,Orbit,Orbit+track`;
   `?tags=Weather&elements=Point,Label` zoomed so labels cross the limb (each
   vanishes with its point, none flickers); `?tags=Weather&elements=Point,Ground+track,Sensor+cone`;
-  the ISS model tracked close up; the sky view at Lauterbrunnen with terrain.
-- **Terrain.** VersaTiles and Terrain on, a station on the Zugspitze
-  (47.4211, 10.9853), followed and pinched in to the limit: relief lit from the
-  sun, no cracks at tile edges, no black band along the bottom, no collapse to a
-  coarse tile. Count requests in the CFNetwork log: no 429 from Re:Earth. On
+  the ISS close up, `?tags=&sats=ISS+(ZARYA)&track=ISS+(ZARYA)&elements=Point,Label,Orbit,3D+model&layers=VersaTiles`;
+  the sky, `?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen&terrain=ReEarth&layers=VersaTiles`.
+- **Terrain.** `?gs=47.4211,10.9853,Zugspitze&layers=VersaTiles&terrain=ReEarth`
+  at `SATVIS_TIME=2026-10-04T09:30:00Z`; tap the pin, then the camera button in
+  its panel to follow it, and pinch in above the panel to the limit (closing the
+  panel ends the follow): relief lit from the sun, no cracks at tile edges, no
+  black band along the bottom, no collapse to a coarse tile. In
+  `log show --predicate 'process == "satvis"'`, no 429 from Re:Earth. On
   Natural Earth the Lauterbrunnen cliffs still stand.
 - **The limb.** The default view at 12:00 and 17:30 UTC: the limb and the
   atmosphere's ring smooth, no facets.
@@ -59,9 +69,11 @@ runs up to 2026-11-15 is `manual-verification.md` in git history
 - **Flights.** Track flies into tracking and the globe button straight home; the
   Lauterbrunnen demo flies into the sky view with no frame jumping and the map
   turning, not rolling.
-- **The sky view.** The about page's sky link at 2026-10-04T19:22:00Z: the
-  crosshair on METEOSAT-11 reads 33.0° elevation, 177.9° S. Its card has four
-  lines on a phone, seven on an iPad. Munich at 2026-10-05T17:45:00Z dims what is
+- **The sky view.** The about page's sky link,
+  `?scene=Sky&gs=46.5935,7.9091,Lauterbrunnen&terrain=ReEarth&layers=VersaTiles&stars=DeepStar2K&tags=Active`,
+  at 2026-10-04T19:22:00Z: with no drag, the crosshair takes METEOSAT-11
+  (MSG-4), its card reading "178° S · 33° up". The card has four lines on a
+  phone, seven on an iPad. Munich at 2026-10-05T17:45:00Z dims what is
   in the Earth's shadow.
 - **Menu column and panels**, on a phone and an iPad: the burger and the cross
   swap in one frame; each panel opens beside the column, Satellites too on an
@@ -78,8 +90,10 @@ runs up to 2026-11-15 is `manual-verification.md` in git history
   "© OpenStreetMap" stands left of the clock deck for five seconds.
 - **Look up.** The simulator's location at Innsbruck: Look up stands there, and
   Locations lists Geolocation first.
-- **Launch.** A never-used simulator, recorded: launch screen, the smoke and the
-  shuttle, the globe clear by 1.5 s; with Reduce Motion, nothing moves.
+- **Launch.** A never-used simulator, launched twice and the second recorded
+  (the first, on 2026-11-15, drew nothing behind the shuttle for 5 s): the
+  launch screen, the smoke and the shuttle, the globe coming up under the smoke;
+  with Reduce Motion, nothing moves.
 - **iPhone Duo.** `make fold` and `make unfold` under the running app: closed,
   the column folds; open, it opens as on an iPad. The UI tests on both.
 - **The Mac.** `make run-mac`: drag, scroll, pinch and twist; clicks, double and
