@@ -182,9 +182,6 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// are paced as anywhere else in the app.
     public var drawsEveryFrame = false
 
-    /// Whether the last frame was paced: drawn only once something could have moved.
-    private(set) var isPaced = false
-
     /// The last frame of the other projection, fading out over the frames since
     /// the change.
     private var fade: ProjectionFade
@@ -192,19 +189,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// counting up alone.
     private var contentRevision: Int { surface.revision + models.revision + overlay.revision }
     /// The frames' averages over the last half second, while measured.
-    public var frameStats: FrameStats? {
-        guard measuresFrames, var stats = meter.stats else {
-            return nil
-        }
-        stats.paced = isPaced
-        stats.idle = isIdle(framesPerSecond: stats.framesPerSecond)
-        return stats
-    }
-
-    /// Paced at under half the display's rate: dragging the globe, paced still, draws every frame.
-    private func isIdle(framesPerSecond: Double?) -> Bool {
-        isPaced && (framesPerSecond ?? 0) < Double(Self.displayMaximumFramesPerSecond) / 2
-    }
+    public var frameStats: FrameStats? { measuresFrames ? meter.stats : nil }
 
     /// The frames drawn over the last `recentWindow`, oldest first, while measured.
     public var recentFrames: [MeteredFrame] { measuresFrames ? meter.recentFrames : [] }
@@ -220,9 +205,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     public func stopRecordingFrames() -> FrameRecording {
         defer { measureFrames(false, for: "recording") }
-        var recording = meter.stopRecording(at: ProcessInfo.processInfo.systemUptime)
-        recording.idle = isIdle(framesPerSecond: recording.framesPerSecond)
-        return recording
+        return meter.stopRecording(at: ProcessInfo.processInfo.systemUptime)
     }
 
     /// Lets go of what is kept only for later: the surface's tiles and terrain
@@ -589,15 +572,16 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         let pose = rig.pose(
             uptime: shown, time: now, model: { self.trackedModel($0) },
             target: { self.position(of: $0, at: $1) }, groundHeight: { self.surface.groundHeight($0) })
-        guard let pose, mustDraw(pose: pose, time: now, size: size) else {
+        let paced = isPaced
+        guard let pose, mustDraw(pose: pose, time: now, size: size, paced: paced) else {
             if measuring {
-                meter.skipped(cpuSeconds: ProcessInfo.processInfo.systemUptime - started)
+                meter.skipped(cpuSeconds: ProcessInfo.processInfo.systemUptime - started, paced: paced)
             }
             return
         }
         guard let target = loop.begin(view, measuring: measuring) else {
             if measuring {
-                meter.skipped(cpuSeconds: ProcessInfo.processInfo.systemUptime - started)
+                meter.skipped(cpuSeconds: ProcessInfo.processInfo.systemUptime - started, paced: paced)
             }
             pacer.needsDraw = true
             return
@@ -635,17 +619,21 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             let ended = ProcessInfo.processInfo.systemUptime
             meter.frame(
                 cpuSeconds: ended - started - target.waitedForBuffer - target.waitedForDrawable, bufferWaitSeconds: target.waitedForBuffer,
-                drawableWaitSeconds: target.waitedForDrawable, at: ended, satellites: points.count, paced: isPaced,
-                displayInterval: 1 / Double(Self.displayMaximumFramesPerSecond), id: id)
+                drawableWaitSeconds: target.waitedForDrawable, at: ended, satellites: points.count, paced: paced,
+                displayRate: Double(Self.displayMaximumFramesPerSecond), id: id)
         }
     }
 
-    /// Whether the frame has to be drawn (`FramePacer`): every frame is in the sky
-    /// view, while tracking, and for a benchmark step measured unpaced.
-    private func mustDraw(pose: CameraPose, time: Double, size: SIMD2<Double>) -> Bool {
-        let paced = !drawsEveryFrame && !snapshots.isWaiting && cameraMode == .orbit && !fade.isFading && rig.drawnProjection == rig.shownProjection
-        isPaced = paced
-        return pacer.mustDraw(
+    /// Whether frames are paced, drawn only once something could have moved
+    /// (`FramePacer`): not in the sky view, while tracking, or for a benchmark step
+    /// measured unpaced.
+    private var isPaced: Bool {
+        !drawsEveryFrame && !snapshots.isWaiting && cameraMode == .orbit && !fade.isFading && rig.drawnProjection == rig.shownProjection
+    }
+
+    /// Whether the frame has to be drawn (`FramePacer`).
+    private func mustDraw(pose: CameraPose, time: Double, size: SIMD2<Double>, paced: Bool) -> Bool {
+        pacer.mustDraw(
             pose: pose, time: time, paced: paced, settled: surface.isSettled, content: contentRevision,
             pixelRate: { FramePacer.pixelRate(points, components: components, links: links, pose: pose, time: time, size: size) },
             linkSpan: { FramePacer.linkSpan(links, shown: components.contains(.groundStationLink), around: time) })

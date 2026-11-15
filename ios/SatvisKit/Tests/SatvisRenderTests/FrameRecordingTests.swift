@@ -101,6 +101,39 @@ import Testing
         #expect(frames.allSatisfy { $0.gpu.map { abs($0 - 8) < 1e-9 } == true })
     }
 
+    // Paced at 20 fps on a 60 Hz display, the recording and the panel's figures read
+    // idle; drawn every frame at the same rate, neither does.
+    @Test(arguments: [true, false]) func readsIdleWhenPacedUnderHalfTheDisplaysRate(paced: Bool) throws {
+        let meter = FrameMeter()
+        meter.startRecording(at: 0)
+        for frame in 0..<20 {
+            meter.frame(cpuSeconds: 0.002, bufferWaitSeconds: 0, drawableWaitSeconds: 0, at: Double(frame) / 20, satellites: 5, paced: paced, displayRate: 60, id: frame)
+            meter.skipped(cpuSeconds: 0.0005, paced: paced)
+        }
+        let stats = try #require(meter.stats)
+        #expect(stats.paced == paced && stats.idle == paced)
+        #expect(meter.stopRecording(at: 1).idle == paced)
+    }
+
+    // Paced and paused, a recording draws no frame and still reads idle.
+    @Test func readsIdleWithOnlySkippedFrames() {
+        let meter = FrameMeter()
+        meter.startRecording(at: 0)
+        meter.skipped(cpuSeconds: 0.0005, paced: true)
+        #expect(meter.stopRecording(at: 1).idle)
+    }
+
+    // At 50 fps on a 60 Hz display, paced or not, the GPU keeps its clock.
+    @Test func readsBusyWhenPacedOverHalfTheDisplaysRate() {
+        let meter = FrameMeter()
+        meter.startRecording(at: 0)
+        for frame in 0..<50 {
+            meter.frame(cpuSeconds: 0.002, bufferWaitSeconds: 0, drawableWaitSeconds: 0, at: Double(frame) / 50, satellites: 5, paced: true, displayRate: 60, id: frame)
+        }
+        #expect(meter.stats?.idle == false)
+        #expect(!meter.stopRecording(at: 1).idle)
+    }
+
     // A frame without a GPU time shifted every later one onto the frame before.
     @Test func matchesEachGPUTimeToItsFrame() {
         let meter = FrameMeter()
