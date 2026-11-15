@@ -4,30 +4,31 @@ import SwiftUI
 
 /// A numeric table under its caption, scrolling sideways where the panel is
 /// narrower than its columns: the web app's BenchmarkTable.
-struct BenchmarkTable: View {
-    struct Column: Identifiable {
-        var key: String
-        var label: String
-        var numeric = true
-        var id: String { key }
+struct BenchmarkTable<Item>: View {
+    enum Tone {
+        case good, warn, bad
     }
 
-    struct Row: Identifiable {
-        enum Tone {
-            case good, warn, bad
-        }
+    struct Column {
+        var label: String
+        var numeric: Bool
+        /// A cell's colour.
+        var tone: (Item) -> Tone?
+        var value: (Item) -> String
 
-        var id: Int
-        var cells: [String: String]
-        /// A cell's colour, by its column's key.
-        var tones: [String: Tone] = [:]
-        /// Noise, kept to show it: struck through rather than dropped.
-        var struck = false
+        init(_ label: String, numeric: Bool = true, tone: @escaping (Item) -> Tone? = { _ in nil }, value: @escaping (Item) -> String) {
+            self.label = label
+            self.numeric = numeric
+            self.tone = tone
+            self.value = value
+        }
     }
 
     let caption: String
+    let items: [Item]
     let columns: [Column]
-    let rows: [Row]
+    /// Noise, kept to show it: struck through rather than dropped.
+    var struck: (Item) -> Bool = { _ in false }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -38,19 +39,21 @@ struct BenchmarkTable: View {
             ScrollView(.horizontal) {
                 Grid(alignment: .trailing, horizontalSpacing: 10, verticalSpacing: 2) {
                     GridRow {
-                        ForEach(columns) { column in
-                            Text(column.label)
-                                .gridColumnAlignment(column.numeric ? .trailing : .leading)
+                        ForEach(columns.indices, id: \.self) { index in
+                            Text(columns[index].label)
+                                .gridColumnAlignment(columns[index].numeric ? .trailing : .leading)
                         }
                     }
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
-                    ForEach(rows) { row in
+                    ForEach(items.indices, id: \.self) { row in
+                        let item = items[row]
+                        let isStruck = struck(item)
                         GridRow {
-                            ForEach(columns) { column in
-                                Text(row.cells[column.key] ?? "")
-                                    .foregroundStyle(Self.colour(row.tones[column.key], struck: row.struck))
-                                    .strikethrough(row.struck)
+                            ForEach(columns.indices, id: \.self) { index in
+                                Text(columns[index].value(item))
+                                    .foregroundStyle(Self.colour(columns[index].tone(item), struck: isStruck))
+                                    .strikethrough(isStruck)
                             }
                         }
                         .font(.caption.monospacedDigit())
@@ -62,7 +65,7 @@ struct BenchmarkTable: View {
         }
     }
 
-    private static func colour(_ tone: Row.Tone?, struck: Bool) -> Color {
+    private static func colour(_ tone: Tone?, struck: Bool) -> Color {
         if struck {
             return .secondary
         }

@@ -101,135 +101,102 @@ struct BenchmarkSweepTab: View {
             .font(.caption2)
             .foregroundStyle(Color.panelAmber)
         }
-        BenchmarkTable(caption: "Steps", columns: stepColumns(rows), rows: stepRows(rows))
+        BenchmarkTable(caption: "Steps", items: rows, columns: stepColumns(rows)) {
+            Int(BenchmarkFormat.double($0["frames"]) ?? 0) < SweepReport.minimumTrustworthyFrames
+        }
         if run.results.count > 1 {
             let fits = SweepReport.scalingFits(run)
             if !fits.isEmpty {
                 BenchmarkTable(
-                    caption: "Scaling: CPU ms per 1,000 satellites; the floor is the GPU or the refresh",
+                    caption: "Scaling: CPU ms per 1,000 satellites; the floor is the GPU or the refresh", items: fits,
                     columns: [
-                        .init(key: "series", label: "series", numeric: false), .init(key: "slope", label: "ms/1k"), .init(key: "base", label: "base"),
-                        .init(key: "r2", label: "r²"), .init(key: "floor", label: "floor"), .init(key: "at60", label: "sats@60"),
-                    ],
-                    rows: fits.enumerated().map { index, fit in
-                        .init(
-                            id: index,
-                            cells: [
-                                "series": fit.series, "slope": BenchmarkFormat.number(fit.cpuMsPer1000, 2), "base": BenchmarkFormat.number(fit.baseCpuMs, 2),
-                                "r2": BenchmarkFormat.number(fit.r2, 3), "floor": BenchmarkFormat.number(fit.floorMs, 2),
-                                "at60": fit.satsAt60fps.map { $0.formatted() } ?? "–",
-                            ], tones: fit.r2 < 0.9 ? ["r2": .warn] : [:])
-                    })
+                        .init("series", numeric: false) { $0.series }, .init("ms/1k") { BenchmarkFormat.number($0.cpuMsPer1000, 2) },
+                        .init("base") { BenchmarkFormat.number($0.baseCpuMs, 2) },
+                        .init("r²", tone: { $0.r2 < 0.9 ? .warn : nil }) { BenchmarkFormat.number($0.r2, 3) },
+                        .init("floor") { BenchmarkFormat.number($0.floorMs, 2) }, .init("sats@60") { $0.satsAt60fps.map { $0.formatted() } ?? "–" },
+                    ])
             }
             let memory = SweepReport.memoryFits(run)
             if !memory.isEmpty {
+                // The footprint's fit: this app has no heap figure to fit.
                 BenchmarkTable(
-                    caption: "Memory per 1,000 satellites: the absolute footprint's growth",
+                    caption: "Memory per 1,000 satellites: the absolute footprint's growth", items: memory,
                     columns: [
-                        .init(key: "series", label: "series", numeric: false), .init(key: "mb", label: "MB/1k"), .init(key: "kb", label: "KB/sat"),
-                        .init(key: "r2", label: "r²"),
-                    ],
-                    rows: memory.enumerated().map { index, fit in
-                        .init(
-                            id: index,
-                            cells: [
-                                // The footprint's fit: this app has no heap figure to fit.
-                                "series": fit.series, "mb": BenchmarkFormat.number(fit.absoluteKbPerSatellite.map { $0 * 1000 / 1024 }, 1),
-                                "kb": BenchmarkFormat.number(fit.absoluteKbPerSatellite, 1), "r2": BenchmarkFormat.number(fit.absoluteR2, 3),
-                            ], tones: fit.absoluteR2 == nil ? [:] : ["r2": fit.absoluteTrustworthy ? .good : .bad])
-                    })
+                        .init("series", numeric: false) { $0.series },
+                        .init("MB/1k") { BenchmarkFormat.number($0.absoluteKbPerSatellite.map { $0 * 1000 / 1024 }, 1) },
+                        .init("KB/sat") { BenchmarkFormat.number($0.absoluteKbPerSatellite, 1) },
+                        .init("r²", tone: { $0.absoluteR2 == nil ? nil : $0.absoluteTrustworthy ? .good : .bad }) {
+                            BenchmarkFormat.number($0.absoluteR2, 3)
+                        },
+                    ])
             }
         }
         // An empty table would read as "propagation is free".
         let propagation = SweepReport.propagationCosts(run)
         if !propagation.isEmpty {
             BenchmarkTable(
-                caption: "Propagation: against the same scene at ×1",
+                caption: "Propagation: against the same scene at ×1", items: propagation,
                 columns: [
-                    .init(key: "sats", label: "sats"), .init(key: "clock", label: "clock"), .init(key: "main", label: "CPU ms"), .init(key: "delta", label: "Δ CPU"),
-                    .init(key: "perSat", label: "µs/sat"), .init(key: "total", label: "Δ total %"), .init(key: "components", label: "components", numeric: false),
-                ],
-                rows: propagation.enumerated().map { index, cost in
-                    .init(
-                        id: index,
-                        cells: [
-                            "sats": cost.sats.formatted(), "clock": "×\(jsNumberString(cost.clock))", "main": BenchmarkFormat.number(cost.cpuMs, 2),
-                            "delta": BenchmarkFormat.number(cost.deltaCpuMs, 2), "perSat": BenchmarkFormat.number(cost.usPerSatellite, 1),
-                            "total": BenchmarkFormat.number(cost.deltaCpuTotalPct, 1), "components": cost.components,
-                        ])
-                })
+                    .init("sats") { $0.sats.formatted() }, .init("clock") { "×\(jsNumberString($0.clock))" },
+                    .init("CPU ms") { BenchmarkFormat.number($0.cpuMs, 2) }, .init("Δ CPU") { BenchmarkFormat.number($0.deltaCpuMs, 2) },
+                    .init("µs/sat") { BenchmarkFormat.number($0.usPerSatellite, 1) }, .init("Δ total %") { BenchmarkFormat.number($0.deltaCpuTotalPct, 1) },
+                    .init("components", numeric: false) { $0.components },
+                ])
         }
         let marginal = SweepReport.marginalCosts(run)
         if !marginal.isEmpty {
             BenchmarkTable(
-                caption: "Marginal: what each component adds to CPU ms",
+                caption: "Marginal: what each component adds to CPU ms", items: marginal,
                 columns: [
-                    .init(key: "sats", label: "sats"), .init(key: "clock", label: "clock"), .init(key: "added", label: "added", numeric: false),
-                    .init(key: "delta", label: "Δ CPU"), .init(key: "perSat", label: "µs/sat"), .init(key: "over", label: "over", numeric: false),
-                ],
-                rows: marginal.enumerated().map { index, cost in
-                    .init(
-                        id: index,
-                        cells: [
-                            "sats": cost.sats.formatted(), "clock": "×\(jsNumberString(cost.clock))", "added": cost.added,
-                            "delta": BenchmarkFormat.number(cost.deltaCpuMs, 2), "perSat": BenchmarkFormat.number(cost.usPerSatellite, 1), "over": cost.over,
-                        ])
-                })
+                    .init("sats") { $0.sats.formatted() }, .init("clock") { "×\(jsNumberString($0.clock))" }, .init("added", numeric: false) { $0.added },
+                    .init("Δ CPU") { BenchmarkFormat.number($0.deltaCpuMs, 2) }, .init("µs/sat") { BenchmarkFormat.number($0.usPerSatellite, 1) },
+                    .init("over", numeric: false) { $0.over },
+                ])
         }
         let drift = SweepReport.repeatChecks(run)
         if !drift.isEmpty {
             BenchmarkTable(
-                caption: "Drift: the first step again at the end",
+                caption: "Drift: the first step again at the end", items: drift,
                 columns: [
-                    .init(key: "sats", label: "sats"), .init(key: "first", label: "CPU 1st"), .init(key: "again", label: "again"), .init(key: "drift", label: "drift"),
-                    .init(key: "buildFirst", label: "build 1st"), .init(key: "buildAgain", label: "again"), .init(key: "buildDrift", label: "drift"),
-                ],
-                rows: drift.enumerated().map { index, check in
-                    .init(
-                        id: index,
-                        cells: [
-                            "sats": check.sats.formatted(), "first": BenchmarkFormat.number(check.firstCpuMs, 2), "again": BenchmarkFormat.number(check.repeatCpuMs, 2),
-                            "drift": BenchmarkFormat.signedPercent(check.cpuDriftPct), "buildFirst": BenchmarkFormat.number(check.firstBuildMs, 0),
-                            "buildAgain": BenchmarkFormat.number(check.repeatBuildMs, 0), "buildDrift": BenchmarkFormat.signedPercent(check.buildDriftPct),
-                        ], tones: ["drift": check.drifted ? .bad : .good])
-                })
+                    .init("sats") { $0.sats.formatted() }, .init("CPU 1st") { BenchmarkFormat.number($0.firstCpuMs, 2) },
+                    .init("again") { BenchmarkFormat.number($0.repeatCpuMs, 2) },
+                    .init("drift", tone: { $0.drifted ? .bad : .good }) { BenchmarkFormat.signedPercent($0.cpuDriftPct) },
+                    .init("build 1st") { BenchmarkFormat.number($0.firstBuildMs, 0) }, .init("again") { BenchmarkFormat.number($0.repeatBuildMs, 0) },
+                    .init("drift") { BenchmarkFormat.signedPercent($0.buildDriftPct) },
+                ])
         }
     }
 
     /// The performance panel's figures, in its order.
-    private func stepColumns(_ rows: [ReportRecord]) -> [BenchmarkTable.Column] {
+    private func stepColumns(_ rows: [ReportRecord]) -> [BenchmarkTable<ReportRecord>.Column] {
         let clockSwept = rows.contains { $0["clock"] != .number(1) }
         let gpuShown = rows.contains { if case .number = $0["gpuMs"] { true } else { false } }
-        return [.init(key: "sats", label: "sats"), .init(key: "visible", label: "drawn")]
-            + (clockSwept ? [.init(key: "clock", label: "clock")] : [])
-            + [.init(key: "fps", label: "fps"), .init(key: "cpu", label: "CPU")]
-            + (gpuShown ? [.init(key: "gpu", label: "GPU")] : [])
-            + [.init(key: "load", label: "load %"), .init(key: "mb", label: "MB"), .init(key: "cpuP95", label: "p95 CPU")]
-            + (gpuShown ? [.init(key: "gpuP95", label: "p95 GPU")] : [])
+        return [.init("sats") { BenchmarkFormat.number($0["sats"], 0) }, .init("drawn") { BenchmarkFormat.number($0["visible"], 0) }]
+            + (clockSwept ? [.init("clock") { "×\(BenchmarkFormat.string($0["clock"]))" }] : [])
             + [
-                .init(key: "over", label: "over %"), .init(key: "total", label: "total CPU %"), .init(key: "build", label: "build"),
-                .init(key: "components", label: "components", numeric: false),
+                .init("fps", tone: Self.fpsTone) { BenchmarkFormat.number(BenchmarkFormat.double($0["fps"]) ?? 0, 1) },
+                .init("CPU") { BenchmarkFormat.number($0["cpuMs"], 2) },
+            ]
+            + (gpuShown ? [.init("GPU") { BenchmarkFormat.number($0["gpuMs"], 2) }] : [])
+            + [
+                .init("load %") { BenchmarkFormat.load(BenchmarkFormat.double($0["loadPct"]), cpuBusy: BenchmarkFormat.double($0["cpuBusyPct"])) },
+                .init("MB") { BenchmarkFormat.number($0["footprintMb"], 0) }, .init("p95 CPU") { BenchmarkFormat.number($0["cpuP95Ms"], 2) },
+            ]
+            + (gpuShown ? [.init("p95 GPU") { BenchmarkFormat.number($0["gpuP95Ms"], 2) }] : [])
+            + [
+                .init("over %") { BenchmarkFormat.number($0["overBudgetPct"], 0) }, .init("total CPU %") { BenchmarkFormat.number($0["cpuTotalPct"], 0) },
+                .init("build") { BenchmarkFormat.number($0["buildMs"], 0) },
+                .init("components", numeric: false) { row in
+                    let drawn = BenchmarkFormat.string(row["drawn"])
+                    return BenchmarkFormat.string(row["components"]) + (row["repeat"] == .bool(true) ? " (repeat)" : "")
+                        + (drawn.isEmpty ? "" : " → drew \(drawn)")
+                },
             ]
     }
 
-    private func stepRows(_ rows: [ReportRecord]) -> [BenchmarkTable.Row] {
-        rows.enumerated().map { index, row in
-            let fps = if case .number(let value) = row["fps"] { value } else { 0.0 }
-            let frames = if case .number(let value) = row["frames"] { Int(value) } else { 0 }
-            let drawn = BenchmarkFormat.string(row["drawn"])
-            let repeated = row["repeat"] == .bool(true)
-            let load = BenchmarkFormat.load(BenchmarkFormat.double(row["loadPct"]), cpuBusy: BenchmarkFormat.double(row["cpuBusyPct"]))
-            return .init(
-                id: index,
-                cells: [
-                    "sats": BenchmarkFormat.number(row["sats"], 0), "visible": BenchmarkFormat.number(row["visible"], 0), "clock": "×\(BenchmarkFormat.string(row["clock"]))",
-                    "fps": BenchmarkFormat.number(fps, 1), "cpu": BenchmarkFormat.number(row["cpuMs"], 2), "gpu": BenchmarkFormat.number(row["gpuMs"], 2), "load": load,
-                    "mb": BenchmarkFormat.number(row["footprintMb"], 0), "cpuP95": BenchmarkFormat.number(row["cpuP95Ms"], 2),
-                    "gpuP95": BenchmarkFormat.number(row["gpuP95Ms"], 2), "over": BenchmarkFormat.number(row["overBudgetPct"], 0),
-                    "total": BenchmarkFormat.number(row["cpuTotalPct"], 0), "build": BenchmarkFormat.number(row["buildMs"], 0),
-                    "components": BenchmarkFormat.string(row["components"]) + (repeated ? " (repeat)" : "") + (drawn.isEmpty ? "" : " → drew \(drawn)"),
-                ], tones: fps < Self.fpsBad ? ["fps": .bad] : fps < Self.fpsWarn ? ["fps": .warn] : [:], struck: frames < SweepReport.minimumTrustworthyFrames)
-        }
+    private static func fpsTone(_ row: ReportRecord) -> BenchmarkTable<ReportRecord>.Tone? {
+        let fps = BenchmarkFormat.double(row["fps"]) ?? 0
+        return fps < fpsBad ? .bad : fps < fpsWarn ? .warn : nil
     }
 
     // MARK: Exports
