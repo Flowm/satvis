@@ -11,7 +11,8 @@ struct ModelVertex {
     float2 uv;
 };
 
-// Mirrors ModelInstance in SatelliteModels.swift.
+// Mirrors ModelInstance in SatelliteModels.swift. Bound at 7, clear of the
+// frame's uniforms at 1 (PreparedModel.instanceIndex).
 struct ModelInstance {
     float4x4 modelViewProjection;
     float3x3 rotation;
@@ -36,7 +37,7 @@ struct ModelOut {
     float2 uv;
 };
 
-vertex ModelOut modelVertex(uint vid [[vertex_id]], const device ModelVertex *vertices [[buffer(0)]], constant ModelInstance &instance [[buffer(1)]]) {
+vertex ModelOut modelVertex(uint vid [[vertex_id]], const device ModelVertex *vertices [[buffer(0)]], constant ModelInstance &instance [[buffer(7)]]) {
     ModelVertex v = vertices[vid];
     ModelOut out;
     out.position = instance.modelViewProjection * float4(v.position, 1.0);
@@ -74,7 +75,7 @@ inline float4 shadeModel(ModelOut in, bool front, constant ModelInstance &instan
 }
 
 /// A model's part as glTF has it, its alpha blended where its pipeline blends.
-fragment float4 modelFragment(ModelOut in [[stage_in]], bool front [[front_facing]], constant ModelInstance &instance [[buffer(1)]],
+fragment float4 modelFragment(ModelOut in [[stage_in]], bool front [[front_facing]], constant ModelInstance &instance [[buffer(7)]],
                               texture2d<float> baseTexture [[texture(0)]], sampler linear [[sampler(0)]]) {
     return shadeModel(in, front, instance, baseTexture, linear);
 }
@@ -82,7 +83,7 @@ fragment float4 modelFragment(ModelOut in [[stage_in]], bool front [[front_facin
 /// An opaque part, whose alpha is its coverage: what is under the view, the
 /// camera's picture or the info panel, would show through a part whose alpha it
 /// took from the texture.
-fragment float4 modelOpaqueFragment(ModelOut in [[stage_in]], bool front [[front_facing]], constant ModelInstance &instance [[buffer(1)]],
+fragment float4 modelOpaqueFragment(ModelOut in [[stage_in]], bool front [[front_facing]], constant ModelInstance &instance [[buffer(7)]],
                                     texture2d<float> baseTexture [[texture(0)]], sampler linear [[sampler(0)]]) {
     return float4(shadeModel(in, front, instance, baseTexture, linear).rgb, 1.0);
 }

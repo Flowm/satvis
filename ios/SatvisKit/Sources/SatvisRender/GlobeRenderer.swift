@@ -661,8 +661,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             surfaceTiles = selection.draw.filter { $0.texture != nil }
         }
         let pointFrames = points.prepared?.samples != nil && points.prepared?.instances != nil ? pointFrames(at: now, models: placements) : nil
-        return FramePlan(
-            uniforms: frame, pose: pose, drawn: drawnFrame, placements: placements, surfaceTiles: surfaceTiles, pointFrames: pointFrames)
+        return FramePlan(uniforms: frame, drawn: drawnFrame, placements: placements, surfaceTiles: surfaceTiles, pointFrames: pointFrames)
     }
 
     /// Keeps the frame just drawn, the last of the old projection, to fade from,

@@ -27,8 +27,11 @@ struct ScenePipelines {
     /// A model's opaque parts, and its blended ones after every opaque one.
     let modelPipelines: ModelPipelines
     let coneRimPipeline: MTLRenderPipelineState
-    /// The flat map's own draws.
-    let mapPass: MapPass
+    /// The flat map's tiles, and the satellites on it (Shaders/Map.msl).
+    let mapTilePipeline: MTLRenderPipelineState
+    let mapPointPipeline: MTLRenderPipelineState
+    let mapLinePipeline: MTLRenderPipelineState
+    let mapLabelPipeline: MTLRenderPipelineState
     /// The kept frame of the other projection over the screen (`ProjectionFade`).
     let fadePipeline: MTLRenderPipelineState
     let tonemapPipeline: MTLRenderPipelineState
@@ -95,10 +98,10 @@ struct ScenePipelines {
         linkPipeline = try pipeline("linkVertex", "linkFragment", blend: true)
         overlayPipeline = try pipeline("overlayVertex", "overlayFragment", format: .r8Unorm, depth: false, blend: true, premultiplied: true)
         conePipeline = try pipeline("coneVertex", "coneFragment", blend: true)
-        mapPass = MapPass(
-            tiles: try pipeline("mapGlobeVertex", "mapGlobeFragment", fastVertex: true), points: try pipeline("mapPointVertex", "pointFragment", blend: true),
-            lines: try pipeline("mapLineVertex", "lineFragment", blend: true),
-            labels: try pipeline("mapLabelVertex", "labelFragment", blend: true, premultiplied: true))
+        mapTilePipeline = try pipeline("mapGlobeVertex", "mapGlobeFragment", fastVertex: true)
+        mapPointPipeline = try pipeline("mapPointVertex", "pointFragment", blend: true)
+        mapLinePipeline = try pipeline("mapLineVertex", "lineFragment", blend: true)
+        mapLabelPipeline = try pipeline("mapLabelVertex", "labelFragment", blend: true, premultiplied: true)
         fadePipeline = try pipeline("fullscreenVertex", "fadeFragment", format: viewFormat, depth: false, blend: true, fastVertex: true)
         coneRimPipeline = try pipeline("coneRimVertex", "coneRimFragment", blend: true)
         tonemapPipeline = try pipeline("fullscreenVertex", "tonemapFragment", format: viewFormat, depth: false)

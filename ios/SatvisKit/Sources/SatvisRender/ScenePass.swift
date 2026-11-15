@@ -5,7 +5,6 @@ import simd
 /// What a frame draws, worked out before its scene pass is encoded.
 struct FramePlan {
     var uniforms: FrameUniforms
-    var pose: CameraPose
     var drawn: DrawnFrame
     var placements: [ModelPlacement]
     /// The globe's tiles that have a texture.
@@ -16,16 +15,20 @@ struct FramePlan {
 }
 
 /// The scene pass of one frame, into the HDR image: the globe, the sky, the
-/// models, the stations and the satellites, or on the map `MapPass`'s draws and
-/// the globe's own over it. Made each frame from what the renderer holds.
+/// models, the stations and the satellites, or on the map the same by the 2D
+/// vertex functions of Shaders/Map.msl. Made each frame from what the renderer
+/// holds.
 @MainActor
 struct ScenePass {
     /// Samples a line runs through, the satellite's own place aside; mirrors
     /// `lineNodes` in Shaders/Lines.msl.
-    static let lineNodes = 121
+    private static let lineNodes = 121
     /// A line's triangle strip, two vertices a point: `lineNodes` samples in
     /// Shaders/Lines.msl, and where the satellite is now between two of them.
     private static let lineVertices = 2 * (lineNodes + 1)
+    /// A line on the map: two quads of six vertices a segment, `lineNodes`
+    /// segments at most (`mapLineVertex`).
+    private static let mapLineVertices = 12 * lineNodes
     /// Past this many satellites, where one orbit is no longer told from the next,
     /// a line small on the screen steps over samples (`lineStride` in
     /// Shaders/Lines.msl): with every active one's orbit on, an iPad mini drew
@@ -80,22 +83,22 @@ struct ScenePass {
         encoder.setVertexBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
         encoder.setFragmentBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
 
-        if let map = plan.pose.mapCamera {
+        if let map = plan.drawn.mapCamera {
             drawMap(encoder, plan, map: map)
             encoder.endEncoding()
             return
         }
-        drawGlobe(encoder, tiles: plan.surfaceTiles, eye: plan.pose.position)
+        drawGlobe(encoder, tiles: plan.surfaceTiles, eye: plan.drawn.eye)
         drawModels(encoder, plan.placements, frame: plan.uniforms, viewProjection: plan.drawn.viewProjection, blended: false)
         // Behind the globe and the models, drawn after them so that only the
         // sky they leave is shaded: half the screen and more, close up.
-        drawSky(encoder, eye: plan.pose.position)
+        drawSky(encoder, eye: plan.drawn.eye)
         // Over the sky: they write no depth, so the stars and the atmosphere,
         // drawn where depth is still clear, would paint over them.
         drawModels(encoder, plan.placements, frame: plan.uniforms, viewProjection: plan.drawn.viewProjection, blended: true)
         // Under the satellites and their names: a pin marks the ground.
-        drawStations(encoder, eye: plan.pose.position, now: plan.drawn.time)
-        drawSatellites(encoder, pointFrames: plan.pointFrames)
+        drawStations(encoder, eye: plan.drawn.eye, now: plan.drawn.time)
+        drawSatellites(encoder, pointFrames: plan.pointFrames, onMap: false)
         drawTileTonemap(encoder)
         encoder.endEncoding()
     }
@@ -117,21 +120,39 @@ struct ScenePass {
     /// app's 2D draws none. The map writes no depth; the models and what is drawn
     /// at a satellite's height test it, each against the others.
     private func drawMap(_ encoder: MTLRenderCommandEncoder, _ plan: FramePlan, map: MapCamera) {
-        pipelines.mapPass.drawTiles(
-            encoder, plan.surfaceTiles, map: map, aspectRatio: plan.drawn.size.x / plan.drawn.size.y, surface: surface, overlay: overlay,
-            sampler: pipelines.tileSampler, depth: pipelines.noDepth)
+        drawMapTiles(encoder, plan.surfaceTiles, map: map, aspectRatio: plan.drawn.size.x / plan.drawn.size.y)
         drawModels(encoder, plan.placements, frame: plan.uniforms, viewProjection: plan.drawn.viewProjection, blended: false)
         drawModels(encoder, plan.placements, frame: plan.uniforms, viewProjection: plan.drawn.viewProjection, blended: true)
-        drawStations(encoder, eye: plan.pose.position, now: plan.drawn.time, map: map)
-        if let samples = points.prepared?.samples, let instances = points.prepared?.instances, let states = plan.pointFrames {
-            encoder.setVertexBuffer(samples, offset: 0, index: 0)
-            encoder.setVertexBuffer(instances, offset: 0, index: 2)
-            encoder.setVertexBuffer(states, offset: 0, index: 3)
-            pipelines.mapPass.drawSatellites(
-                encoder, count: points.count, components: components, labels: points.prepared?.labels,
-                stepsLines: points.count > Self.lineLevelOfDetailSatellites, depthTest: pipelines.depthTest, noDepth: pipelines.noDepth)
-        }
+        drawStations(encoder, eye: plan.drawn.eye, now: plan.drawn.time, map: map)
+        drawSatellites(encoder, pointFrames: plan.pointFrames, onMap: true)
         drawTileTonemap(encoder)
+    }
+
+    /// The map's tiles, each placed by its corner from the view's centre, worked
+    /// out in double precision, once for each copy of the map the view shows it
+    /// in, with the ground tracks of `overlay`. Writing no depth.
+    private func drawMapTiles(_ encoder: MTLRenderCommandEncoder, _ tiles: [Surface.Tile], map: MapCamera, aspectRatio: Double) {
+        guard !tiles.isEmpty else {
+            return
+        }
+        encoder.setRenderPipelineState(pipelines.mapTilePipeline)
+        encoder.setDepthStencilState(pipelines.noDepth)
+        encoder.setCullMode(.none)
+        encoder.setFragmentTexture(overlay.texture, index: 1)
+        encoder.setFragmentSamplerState(pipelines.tileSampler, index: 0)
+        var overlayShown = Int32(overlay.hasCoverage ? 1 : 0)
+        encoder.setFragmentBytes(&overlayShown, length: MemoryLayout<Int32>.size, index: 2)
+        for tile in tiles {
+            let (corner, size) = map.rectangle(of: tile.bounds)
+            for copy in Surface.mapCopies(west: corner.x, width: size.x, map: map, aspectRatio: aspectRatio) {
+                var placed = MapTile(
+                    corner: SIMD2<Float>(corner + SIMD2(Double(copy) * MapCamera.mapWidth, 0)), size: SIMD2<Float>(size), centre: SIMD3<Float>(tile.centre))
+                encoder.setVertexBytes(&placed, length: MemoryLayout<MapTile>.stride, index: 2)
+                encoder.setVertexBuffer(tile.vertices, offset: 0, index: 0)
+                encoder.setFragmentTexture(tile.texture, index: 0)
+                encoder.drawIndexedPrimitives(type: .triangle, indexCount: surface.indexCount, indexType: .uint32, indexBuffer: surface.indexBuffer, indexBufferOffset: 0)
+            }
+        }
     }
 
     /// The globe's tiles, each placed by its centre from the eye, writing depth.
@@ -189,8 +210,9 @@ struct ScenePass {
     }
 
     /// The satellites' orbits, points, sensor cones and labels, as the components
-    /// ask.
-    private func drawSatellites(_ encoder: MTLRenderCommandEncoder, pointFrames: MTLBuffer?) {
+    /// ask. On the map (`onMap`) a line's segments are quads of their own, the
+    /// names are over everything, and there are no cones.
+    private func drawSatellites(_ encoder: MTLRenderCommandEncoder, pointFrames: MTLBuffer?, onMap: Bool) {
         guard let samples = points.prepared?.samples, let instances = points.prepared?.instances, let states = pointFrames else {
             return
         }
@@ -201,18 +223,22 @@ struct ScenePass {
         encoder.setVertexBuffer(states, offset: 0, index: 3)
         for (component, kind) in [(SatelliteComponents.orbit, 0), (.orbitTrack, 1)] where components.contains(component) {
             var kind = Int32(kind)
-            encoder.setRenderPipelineState(pipelines.linePipeline)
+            encoder.setRenderPipelineState(onMap ? pipelines.mapLinePipeline : pipelines.linePipeline)
             encoder.setVertexBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
             encoder.setFragmentBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
             var stepsLines = Int32(points.count > Self.lineLevelOfDetailSatellites ? 1 : 0)
             encoder.setVertexBytes(&stepsLines, length: MemoryLayout<Int32>.size, index: 6)
-            encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: Self.lineVertices, instanceCount: points.count)
+            if onMap {
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: Self.mapLineVertices, instanceCount: points.count)
+            } else {
+                encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: Self.lineVertices, instanceCount: points.count)
+            }
         }
         if components.contains(.point) {
-            encoder.setRenderPipelineState(pipelines.pointPipeline)
+            encoder.setRenderPipelineState(onMap ? pipelines.mapPointPipeline : pipelines.pointPipeline)
             encoder.drawPrimitives(type: .point, vertexStart: 0, vertexCount: points.count)
         }
-        if components.contains(.sensorCone), let cones = points.prepared?.cones {
+        if !onMap, components.contains(.sensorCone), let cones = points.prepared?.cones {
             // Each side of the translucent cone shows, as Cesium draws it.
             encoder.setVertexBuffer(cones.buffer, offset: 0, index: 4)
             encoder.setRenderPipelineState(pipelines.conePipeline)
@@ -223,11 +249,16 @@ struct ScenePass {
             encoder.setDepthStencilState(pipelines.depthTest)
         }
         if components.contains(.label), let labels = points.prepared?.labels {
-            // Over the globe, unless the eye is on the ground (Shaders/Labels.msl).
-            var occludedByEarth = Int32(cameraMode == .sky ? 0 : 1)
-            encoder.setDepthStencilState(cameraMode == .sky ? pipelines.depthTest : pipelines.noDepth)
-            encoder.setVertexBytes(&occludedByEarth, length: MemoryLayout<Int32>.size, index: 5)
-            encoder.setRenderPipelineState(pipelines.labelPipeline)
+            if onMap {
+                encoder.setDepthStencilState(pipelines.noDepth)
+                encoder.setRenderPipelineState(pipelines.mapLabelPipeline)
+            } else {
+                // Over the globe, unless the eye is on the ground (Shaders/Labels.msl).
+                var occludedByEarth = Int32(cameraMode == .sky ? 0 : 1)
+                encoder.setDepthStencilState(cameraMode == .sky ? pipelines.depthTest : pipelines.noDepth)
+                encoder.setVertexBytes(&occludedByEarth, length: MemoryLayout<Int32>.size, index: 5)
+                encoder.setRenderPipelineState(pipelines.labelPipeline)
+            }
             labels.draw(encoder)
         }
     }
@@ -263,10 +294,6 @@ struct ScenePass {
                 roughness: 0, alphaCutoff: 0, opacity: placement.opacity)
             placement.model.encodeParts(blended: blended, wholeBlended: placement.opacity < 1, base: base, encoder: encoder)
         }
-        // The frame's uniforms, which the passes after this one read there.
-        var frame = frame
-        encoder.setVertexBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
-        encoder.setFragmentBytes(&frame, length: MemoryLayout<FrameUniforms>.stride, index: 1)
     }
 
     /// The links of the passes under way, then the pins of the stations facing
@@ -311,4 +338,14 @@ struct ScenePass {
             encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: pins.count)
         }
     }
+}
+
+/// Mirrors `MapTile` in Shaders/Map.msl: a tile on the map from the view's centre.
+struct MapTile {
+    /// Its north-west corner, in metres east and north.
+    var corner: SIMD2<Float>
+    /// Its width and height, in metres.
+    var size: SIMD2<Float>
+    /// Its centre in the fixed frame, which the ground tracks are looked up by.
+    var centre: SIMD3<Float>
 }

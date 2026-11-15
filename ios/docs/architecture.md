@@ -61,8 +61,8 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   stays beside them, verbatim.
 - `GlobeRenderer` is the MTKView's delegate and all the app calls; each frame it
   takes the pose from `CameraRig`, asks `FramePacer` whether to draw, times,
-  begins and commits it in `FrameLoop`, places the models with `ModelPlacer`, and encodes it with
-  `ScenePass`, which draws the 2D map through `MapPass`, from `ScenePipelines`.
+  begins and commits it in `FrameLoop`, places the models with `ModelPlacer`,
+  and encodes it with `ScenePass`, the 2D map too, from `ScenePipelines`.
 - The renderer works in the Earth-fixed frame in metres, relative to the eye,
   with reversed-Z depth and no far plane. Satellites are placed by high/low
   float pairs, in vertex functions compiled with safe math, which fast math
@@ -183,8 +183,8 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   from where the whole disc shows, and back. The map repeats east and west and
   zooms out to its whole width across the view, no further, so a point is drawn
   once, at the copy nearest the centre (`MapCamera.maximumSpan`). Each pass has
-  a 2D vertex function in `Shaders/Map.msl`, so 3D's are untouched, and the
-  map's own draws are `MapPass`'s: positions are metres of the map from the
+  a 2D vertex function in `Shaders/Map.msl`, so 3D's are untouched, and
+  `ScenePass` draws the map with them: positions are metres of the map from the
   view's centre, a satellite placed by Bowring's geodetic latitude as Cesium's
   2D places it (`geodeticPosition` on the CPU, `mapPosition` in the shaders,
   which taps and placed stations go back through, `DrawnFrame`). Tiles are the

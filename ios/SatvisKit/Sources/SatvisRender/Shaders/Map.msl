@@ -45,7 +45,7 @@ inline float3 mapPosition(float3 p, constant FrameUniforms &frame) {
     return float3(mapEast(p, frame) * mapRadius, (latitude - frame.mapCentre.y) * mapRadius, height);
 }
 
-// Mirrors MapTile in MapPass.swift: a tile's north-west corner from the
+// Mirrors MapTile in ScenePass.swift: a tile's north-west corner from the
 // view's centre and its size, in metres of the map, worked out in double
 // precision on the CPU, and its centre in the fixed frame, for directions.
 struct MapTile {
