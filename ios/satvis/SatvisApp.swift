@@ -18,7 +18,6 @@ struct SatvisApp: App {
 
     init() {
         let site = Self.site
-        Analytics.setup(site: site)
         let loader = GroupLoader(repository: Self.repository(site: site))
         _session = State(initialValue: Session(loader: loader, site: site, alerts: PassAlerts(loader: loader)))
     }

@@ -93,7 +93,7 @@ struct AboutView: View {
                     }
                     // Nothing is counted where usage may not be at all: not a
                     // debug build, and not another site than satvis.space.
-                    .disabled(!Analytics.isAvailable)
+                    .disabled(!session.analytics.isAvailable)
                     NavigationLink {
                         AcknowledgementsView(map: session.mapCredits)
                     } label: {

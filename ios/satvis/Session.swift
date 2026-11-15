@@ -90,7 +90,7 @@ final class Session {
     }
     @ObservationIgnored private let tiles = TileFetcher.shared
     @ObservationIgnored private let keptTiles = KeptTiles.applicationSupport()
-    let analytics = Analytics()
+    let analytics: Analytics
     let bookmarks: BookmarkModel = {
         #if DEBUG
             if let storage = TestCatalog.bookmarkStorage() {
@@ -170,6 +170,7 @@ final class Session {
 
     init(loader: GroupLoader, site: URL, alerts: PassAlerts) {
         self.site = site
+        analytics = Analytics(site: site)
         repository = loader.repository
         self.alerts = alerts
         catalog = CatalogModel(loader: loader)

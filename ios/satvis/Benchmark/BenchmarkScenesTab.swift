@@ -223,7 +223,7 @@ struct BenchmarkScenesTab: View {
             return "Sent, with the device and build they depend on."
         }
         if !session.analytics.isSharing {
-            return Analytics.isAvailable ? "Turn on Share usage data under About to send results." : "This build does not send usage data."
+            return session.analytics.isAvailable ? "Turn on Share usage data under About to send results." : "This build does not send usage data."
         }
         if benchmark.phase == .cancelled, !benchmark.results.isEmpty {
             return "A cancelled run is kept to read, not sent."
