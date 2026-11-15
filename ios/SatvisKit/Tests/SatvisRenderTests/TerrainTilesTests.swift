@@ -7,8 +7,7 @@ import Testing
 @Suite struct TerrainTilesTests {
     /// Answers every request with the fixture's tile, except those of `failing`.
     private static func store(failing: [TileKey] = [], retryInterval: TimeInterval = 60) throws -> (TerrainTiles, Requests) {
-        let url = try #require(Bundle.module.url(forResource: "10-1086-781", withExtension: "terrain", subdirectory: "Fixtures"))
-        let data = try Data(contentsOf: url)
+        let data = try Fixtures.data("10-1086-781", ext: "terrain")
         let failing = Set(failing.compactMap { Terrain.url($0) })
         let requests = Requests()
         let tiles = TerrainTiles(retryInterval: retryInterval)
@@ -121,25 +120,5 @@ private actor Requests {
         if cancelled {
             self.cancelled += 1
         }
-    }
-}
-
-/// Holds the loads back until opened.
-private actor Gate {
-    private var isOpen = false
-    private var waiting: [CheckedContinuation<Void, Never>] = []
-
-    func wait() async {
-        if !isOpen {
-            await withCheckedContinuation { waiting.append($0) }
-        }
-    }
-
-    func open() {
-        isOpen = true
-        for continuation in waiting {
-            continuation.resume()
-        }
-        waiting = []
     }
 }

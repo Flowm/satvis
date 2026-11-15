@@ -12,7 +12,7 @@ import simd
     // steps keep even a GEO from being smooth (measured 3 m).
     @Test(arguments: [("ISS (ZARYA)", 10.0), ("METOP-C", 10.0), ("GPS BIIR-5  (PRN 22)", 10.0), ("GOES 19", 5.0), ("POLAR", 400.0)])
     func interpolatesWithinMetresOfSGP4(name: String, tolerance: Double) throws {
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         let record = try #require(records.first { $0.name == name })
         let propagator = try SGP4Propagator(record.meanElements)
         let now = (propagator.epochJulianDate - 2440587.5) * 86_400_000 + 3_600_000
@@ -30,7 +30,7 @@ import simd
     }
 
     @Test func centresTheStencilOnTheInstant() throws {
-        let record = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first)
+        let record = try #require(try Parity.records().first)
         let propagator = try SGP4Propagator(record.meanElements)
         let now = (propagator.epochJulianDate - 2440587.5) * 86_400_000
         let trajectory = try #require(SampledTrajectory(propagator, around: now))
@@ -55,7 +55,7 @@ import simd
 
 @Suite struct TrajectoryStoreTests {
     @Test func samplesOnceAndRefillsOnlyWhatGoesStale() async throws {
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         let store = TrajectoryStore()
         await store.replace(with: records + records)
         let iss = try SGP4Propagator(records[0].meanElements)
@@ -72,7 +72,7 @@ import simd
     // METOP-C, sampled three minutes after the ISS, would go stale seven minutes
     // after it: it is resampled with the ISS rather than on its own.
     @Test func resamplesTheWindowsAboutToGoStaleWithOneThatHas() async throws {
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         let (iss, metop) = (records[0], records[1])
         let store = TrajectoryStore()
         let minute = 60_000.0
@@ -90,7 +90,7 @@ import simd
 
 @Suite struct TrajectoryStoreReplaceTests {
     @Test func keepsTheWindowsOfSatellitesThatStay() async throws {
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         let store = TrajectoryStore()
         await store.replace(with: Array(records[0..<2]))
         let now = (try SGP4Propagator(records[0].meanElements).epochJulianDate - 2440587.5) * 86_400_000
@@ -106,7 +106,7 @@ import simd
     // Two catalog entries sharing a catalog number under two names are both drawn,
     // as the catalog keeps both.
     @Test func drawsEachCatalogEntrySharingANumber() async throws {
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         var renamed = records[0]
         renamed.name = "ISS (RENAMED)"
         let store = TrajectoryStore()

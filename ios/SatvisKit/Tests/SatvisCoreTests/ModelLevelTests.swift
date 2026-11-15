@@ -11,18 +11,14 @@ import Testing
             let maxPoints: Double
         }
 
-        struct Section: Decodable {
-            let hysteresis: Double
-            let lodSets: [[Lod]]
-            /// [lodSets index, diameter, current level, level].
-            let cases: [[Double]]
-        }
-
-        let modelLevels: Section
+        let hysteresis: Double
+        let lodSets: [[Lod]]
+        /// [lodSets index, diameter, current level, level].
+        let cases: [[Double]]
     }
 
     @Test func choosesTheWebAppsLevel() throws {
-        let section = try JSONDecoder().decode(Fixture.self, from: Parity.fixture("parity")).modelLevels
+        let section = try Parity.section("modelLevels", as: Fixture.self)
         #expect(section.hysteresis == ModelLevel.hysteresis)
         #expect(section.cases.count > 100)
         for entry in section.cases {

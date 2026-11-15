@@ -54,8 +54,7 @@ import simd
     @MainActor
     @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func drawsAModelThroughItsParts() async throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
-        let url = try #require(Bundle.module.url(forResource: "cube", withExtension: "glb", subdirectory: "Fixtures"))
-        let model = try #require(await PreparedModel.prepare(try ModelAsset(glb: Data(contentsOf: url)), device: device))
+        let model = try #require(await PreparedModel.prepare(try ModelAsset(glb: Fixtures.data("cube", ext: "glb")), device: device))
         let library = try await ShaderLibrary.makeFast(device: device, files: ShaderLibrary.models)
         let pipelines = try ModelPipelines(
             device: device, vertex: library, fragment: library, targets: ModelPipelines.Targets(color: .rgba8Unorm, depth: .depth32Float))

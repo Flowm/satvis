@@ -5,7 +5,7 @@ import Testing
 
 @Suite struct GPRecordDecodingTests {
     @Test func keepsTheMetadataBag() throws {
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         let metop = try #require(records.first { $0.name == "METOP-C" })
         #expect(metop.metadata["country"]?.string == "EUMETSAT")
         guard case .omm(let objectID, let noradCatID) = metop.elements else {

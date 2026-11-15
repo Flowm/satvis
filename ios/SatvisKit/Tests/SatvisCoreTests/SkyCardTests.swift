@@ -20,10 +20,7 @@ import Testing
     }
 
     private static func fixture() throws -> Fixture {
-        struct Root: Decodable {
-            let lockCard: Fixture
-        }
-        return try JSONDecoder().decode(Root.self, from: Parity.fixture("parity")).lockCard
+        try Parity.section("lockCard", as: Fixture.self)
     }
 
     @Test func saysWhereToLookAsTheWebAppDoes() throws {

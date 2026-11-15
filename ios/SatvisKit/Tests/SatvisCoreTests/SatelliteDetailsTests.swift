@@ -78,16 +78,10 @@ import Testing
         let cells: [String?]
     }
 
-    struct Fixture: Decodable {
-        let details: [Details]
-        let imageryPreviews: [PreviewCase]
-        let wavebandStrips: [StripCase]
-    }
-
     @Test func writesTheWebAppsDetails() throws {
-        let fixture = try JSONDecoder().decode(Fixture.self, from: Parity.fixture("parity"))
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
-        for (record, expected) in zip(records, fixture.details) {
+        let details = try Parity.section("details", as: [Details].self)
+        let records = try Parity.records()
+        for (record, expected) in zip(records, details) {
             let propagator = try SGP4Propagator(record.meanElements)
             #expect(SatelliteDetails.orbitFacts(record, propagator: propagator).map { [$0.0, $0.1] } == expected.facts.orbitRows, "\(record.name)")
             #expect(SatelliteDetails.spacecraftFacts(record).map { [$0.0, $0.1] } == expected.facts.spacecraftRows, "\(record.name)")
@@ -121,7 +115,7 @@ import Testing
 
     // entityInfo.test.ts's case: CEOS gives a geostationary imager 500 km, which sweeps nothing.
     @Test(arguments: [OrbitClass.meo, .geo, .heo]) func leavesTheNominalSwathOffALowOrbit(_ orbitClass: OrbitClass) throws {
-        var record = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first { $0.orbitClass == orbitClass })
+        var record = try #require(try Parity.records().first { $0.orbitClass == orbitClass })
         record.metadata["instruments"] = .array([.object(["name": .string("AHI"), "resolutionM": .number(500), "nominalSwathKm": .number(500)])])
         let ahi = try #require(SatelliteDetails.instruments(record).first)
         #expect(ahi.rows.map { [$0.0, $0.1] } == [["Resolution", "500 m"]])
@@ -130,7 +124,7 @@ import Testing
 
     // entityInfo.test.ts's case: a curated row can give any shape.
     @Test func readsMalformedInstrumentsAsTheWebAppDoes() throws {
-        var record = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first { $0.orbitClass == .leo })
+        var record = try #require(try Parity.records().first { $0.orbitClass == .leo })
         record.metadata["instruments"] = .array([
             .object(["fullName": .string("No name")]),
             .string("MODIS"),
@@ -153,7 +147,7 @@ import Testing
 
     // instrumentImagery.test.ts's imageryLayers cases: the Map panel's list (ADR 0021).
     @Test func listsEachLayerInItsGroupBySatellite() throws {
-        let base = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first)
+        let base = try #require(try Parity.records().first)
         func record(_ name: String, _ imagery: [JSONValue]) -> GPRecord {
             var record = base
             record.name = name
@@ -208,7 +202,7 @@ import Testing
 
     // instrumentImagery.test.ts's composite cases: a layer of several satellites is listed once.
     @Test func listsACompositeOnceFirst() throws {
-        let base = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first)
+        let base = try #require(try Parity.records().first)
         func record(_ name: String, _ satnum: String, _ imagery: [[String: JSONValue]]) -> GPRecord {
             var record = base
             record.name = name
@@ -266,7 +260,7 @@ import Testing
 
     // entityInfo.test.ts's cases: a provider this app does not know, an instrument the satellite lacks, a layer that stopped.
     @Test func givesEachInstrumentTheImageryThatShowsIt() throws {
-        var record = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first)
+        var record = try #require(try Parity.records().first)
         func entry(_ instrument: String, _ provider: String, _ layer: String, _ label: String, _ more: [String: JSONValue] = [:]) -> JSONValue {
             .object(["instrument": .string(instrument), "provider": .string(provider), "layer": .string(layer), "label": .string(label)].merging(more) { $1 })
         }
@@ -302,7 +296,7 @@ import Testing
 
     // entityInfo.test.ts's case: a record can give any shape.
     @Test func readsMalformedImageryAsTheWebAppDoes() throws {
-        var record = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first)
+        var record = try #require(try Parity.records().first)
         record.metadata["instruments"] = .array([.object(["name": .string("MODIS")])])
         let whole: [String: JSONValue] = ["instrument": .string("MODIS"), "provider": .string("gibs"), "layer": .string("a"), "label": .string("A")]
         record.metadata["imagery"] = .array([
@@ -325,8 +319,7 @@ import Testing
     }
 
     @Test func asksForTheWebAppsPreviews() throws {
-        let fixture = try JSONDecoder().decode(Fixture.self, from: Parity.fixture("parity"))
-        for item in fixture.imageryPreviews {
+        for item in try Parity.section("imageryPreviews", as: [PreviewCase].self) {
             let preview = try SatelliteDetails.ImageryPreview(
                 provider: #require(.init(rawValue: item.preview.provider)), layer: item.preview.layer, maxLevel: 0, format: #require(.init(rawValue: item.preview.format)),
                 isDaily: item.preview.daily, end: item.preview.end)
@@ -337,16 +330,16 @@ import Testing
     }
 
     @Test func fillsTheWebAppsBandStrips() throws {
-        let fixture = try JSONDecoder().decode(Fixture.self, from: Parity.fixture("parity"))
+        let strips = try Parity.section("wavebandStrips", as: [StripCase].self)
         #expect(WebTables.shared.wavebandColumns.map(\.label) == ["UV", "VIS", "NIR", "SWIR", "MWIR", "TIR", "FIR", "MW", "Radar"])
-        for strip in fixture.wavebandStrips {
+        for strip in strips {
             #expect(WebTables.shared.wavebandCells(strip.bands) == strip.cells, "\(strip.bands)")
         }
     }
 
     // instrumentImagery.test.ts's drawnImagery cases, which say what has a preview.
     @Test func previewsWhatTheWebAppsGlobeDraws() throws {
-        var record = try #require(try GPRecord.decodePayload(Parity.fixture("parity-input")).first)
+        var record = try #require(try Parity.records().first)
         record.metadata["instruments"] = .array([.object(["name": .string("VIIRS")])])
         let trueColour: [String: JSONValue] = [
             "instrument": .string("VIIRS"), "provider": .string("gibs"), "layer": .string("VIIRS_NOAA20_CorrectedReflectance_TrueColor"),

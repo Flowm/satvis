@@ -7,17 +7,6 @@ import Testing
 
 private let index = #"{"updated": "", "groups": [{"name": "weather", "tags": ["Weather"]}]}"#
 
-private func weather(_ name: String) -> String {
-    #"""
-    [{"OBJECT_NAME": "\#(name)", "EPOCH": "2026-10-02T00:00:00", "NORAD_CAT_ID": 1, "MEAN_MOTION": 14.2,
-      "ECCENTRICITY": 0.001, "INCLINATION": 98, "RA_OF_ASC_NODE": 0, "ARG_OF_PERICENTER": 0, "MEAN_ANOMALY": 0}]
-    """#
-}
-
-private func temporaryStore() -> PayloadStore {
-    PayloadStore(directory: FileManager.default.temporaryDirectory.appending(path: "SatvisDataTests-\(UUID().uuidString)"))
-}
-
 /// What a loader handed over, in order: each group's record names.
 private final class Delivered: Sendable {
     let groups = Mutex<[(group: String, names: [String])]>([])

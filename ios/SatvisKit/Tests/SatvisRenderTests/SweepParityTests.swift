@@ -57,8 +57,7 @@ struct SweepParityTests {
     }
 
     private static func fixture() throws -> Fixture {
-        let url = try #require(Bundle.module.url(forResource: "sweep", withExtension: "json", subdirectory: "Fixtures"))
-        return try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url))
+        return try JSONDecoder().decode(Fixture.self, from: Fixtures.data("sweep", ext: "json"))
     }
 
     @Test func sharesTheWebAppsDefaults() throws {

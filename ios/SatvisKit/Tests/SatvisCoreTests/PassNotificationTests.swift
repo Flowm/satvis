@@ -55,7 +55,7 @@ import Testing
 
     private func catalog() throws -> Catalog {
         var catalog = Catalog()
-        catalog.add(try GPRecord.decodePayload(Parity.fixture("parity-input")), tags: [], group: "parity")
+        catalog.add(try Parity.records(), tags: [], group: "parity")
         return catalog
     }
 

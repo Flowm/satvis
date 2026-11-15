@@ -311,26 +311,6 @@ import simd
 
 }
 
-/// Holds the loads back until opened.
-private actor Gate {
-    private var isOpen = false
-    private var waiting: [CheckedContinuation<Void, Never>] = []
-
-    func wait() async {
-        if !isOpen {
-            await withCheckedContinuation { waiting.append($0) }
-        }
-    }
-
-    func open() {
-        isOpen = true
-        for continuation in waiting {
-            continuation.resume()
-        }
-        waiting = []
-    }
-}
-
 /// Counts the loads asked for.
 private actor Gauge {
     private(set) var count = 0

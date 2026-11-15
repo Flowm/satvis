@@ -56,18 +56,14 @@ extension Trait where Self == FormatsInEnglishUS {
     /// The clock deck's day as the web app writes it, in regions where Apple's
     /// locale data and the browser's part.
     @Test func writesTheDayAsTheWebAppDoes() throws {
-        struct Root: Decodable {
-            struct Case: Decodable {
-                let locale: String
-                let at: Date
-                let text: String
-            }
-
-            let weekdayDates: [Case]
+        struct Case: Decodable {
+            let locale: String
+            let at: Date
+            let text: String
         }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let cases = try decoder.decode(Root.self, from: Parity.fixture("parity")).weekdayDates
+        let cases = try Parity.section("weekdayDates", as: [Case].self, decoder: decoder)
         #expect(cases.count > 5)
         for sample in cases {
             Formats.$locale.withValue(Locale(identifier: sample.locale)) {

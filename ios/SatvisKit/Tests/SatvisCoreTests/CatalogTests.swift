@@ -5,7 +5,7 @@ import Testing
 
 @Suite struct CatalogTests {
     private func catalog() throws -> Catalog {
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         var catalog = Catalog()
         catalog.add(Array(records[0..<2]), tags: ["Weather"], group: "weather")
         catalog.add(Array(records[1..<4]), tags: ["Active"], group: "active")
@@ -44,7 +44,7 @@ import Testing
 @Suite struct CatalogRefreshTests {
     // A group fetched again brings newer element sets; an older one never wins.
     @Test func takesTheNewerElementSet() throws {
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         var catalog = Catalog()
         var changed = catalog.add([records[0]], tags: ["Weather"], group: "weather")
         #expect(changed)
@@ -65,7 +65,7 @@ import Testing
     // A satellite gone under its old name is followed by its catalog number: to the
     // newest element set where two entries share it, whatever order the dictionary lists them in.
     @Test func followsARenamedSatelliteToItsNewestElementSet() throws {
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         var older = records[0]
         older.name = "OBJECT B"
         var newer = records[0]
@@ -83,7 +83,7 @@ import Testing
     // A group's newer copy is the whole group: what it no longer serves, renamed
     // or decayed since the copy kept on disk, leaves it.
     @Test func dropsWhatAGroupNoLongerServes() throws {
-        let records = try GPRecord.decodePayload(Parity.fixture("parity-input"))
+        let records = try Parity.records()
         var catalog = Catalog()
         catalog.add(Array(records[0..<2]), tags: ["Weather"], group: "weather")
         catalog.add(Array(records[1..<4]), tags: ["Active"], group: "active")

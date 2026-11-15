@@ -5,101 +5,11 @@ import Testing
 
 @testable import SatvisData
 
-/// A worker that answers from a script, behind `gate` if given, and remembers what
-/// it was asked.
-final class StubWorker: Sendable {
-    enum Reply: Sendable {
-        case json(String, etag: String?)
-        case image(Data, etag: String?)
-        case notModified
-        case html
-        case status(Int)
-        case offline
-    }
-
-    private let replies: Mutex<[Reply]>
-    private let gate: Gate?
-    let requests = Mutex<[URLRequest]>([])
-
-    init(_ replies: [Reply], gate: Gate? = nil) {
-        self.replies = Mutex(replies)
-        self.gate = gate
-    }
-
-    var client: WorkerClient {
-        WorkerClient(baseURL: URL(string: "https://satvis.test/")!) { request in
-            self.requests.withLock { $0.append(request) }
-            await self.gate?.pass()
-            let reply = self.replies.withLock { $0.isEmpty ? .offline : $0.removeFirst() }
-            func response(_ status: Int, _ headers: [String: String]) -> HTTPURLResponse {
-                HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers)!
-            }
-            switch reply {
-            case .json(let body, let etag):
-                var headers = ["Content-Type": "application/json"]
-                headers["ETag"] = etag
-                return (Data(body.utf8), response(200, headers))
-            case .image(let data, let etag):
-                var headers = ["Content-Type": "image/webp"]
-                headers["ETag"] = etag
-                return (data, response(200, headers))
-            case .notModified:
-                return (Data(), response(304, [:]))
-            case .html:
-                return (Data("<!doctype html>".utf8), response(200, ["Content-Type": "text/html"]))
-            case .status(let code):
-                return (Data(), response(code, [:]))
-            case .offline:
-                throw URLError(.notConnectedToInternet)
-            }
-        }
-    }
-}
-
-/// Holds every request until opened, so a load can be caught while it is in flight.
-final class Gate: Sendable {
-    private let state = Mutex<(open: Bool, waiting: [CheckedContinuation<Void, Never>])>((false, []))
-
-    func pass() async {
-        await withCheckedContinuation { continuation in
-            let open = state.withLock {
-                if !$0.open {
-                    $0.waiting.append(continuation)
-                }
-                return $0.open
-            }
-            if open {
-                continuation.resume()
-            }
-        }
-    }
-
-    func open() {
-        let waiting = state.withLock {
-            $0.open = true
-            defer { $0.waiting = [] }
-            return $0.waiting
-        }
-        for continuation in waiting {
-            continuation.resume()
-        }
-    }
-}
-
-private let weather = #"""
-    [{"OBJECT_NAME": "METEOR", "EPOCH": "2026-10-02T00:00:00", "NORAD_CAT_ID": 1, "MEAN_MOTION": 14.2,
-      "ECCENTRICITY": 0.001, "INCLINATION": 98, "RA_OF_ASC_NODE": 0, "ARG_OF_PERICENTER": 0, "MEAN_ANOMALY": 0}]
-    """#
-
-private func temporaryStore() -> PayloadStore {
-    PayloadStore(directory: FileManager.default.temporaryDirectory.appending(path: "SatvisDataTests-\(UUID().uuidString)"))
-}
-
 @Suite struct GroupRepositoryTests {
     // The kept bytes are swapped for ones that do not decode, under the same ETag:
     // a second decode of what the worker confirms unchanged would fail.
     @Test func decodesAGroupTheWorkerConfirmsUnchangedOnce() async throws {
-        let worker = StubWorker([.json(weather, etag: #""weather-1""#), .notModified])
+        let worker = StubWorker([.json(weather("METEOR"), etag: #""weather-1""#), .notModified])
         let store = temporaryStore()
         let repository = GroupRepository(client: worker.client, store: store, snapshot: nil)
 
@@ -110,7 +20,7 @@ private func temporaryStore() -> PayloadStore {
     }
 
     @Test func keepsWhatTheWorkerSendsAndRevalidatesItWithTheETag() async throws {
-        let worker = StubWorker([.json(weather, etag: #"W/"weather-1""#), .notModified])
+        let worker = StubWorker([.json(weather("METEOR"), etag: #"W/"weather-1""#), .notModified])
         let repository = GroupRepository(client: worker.client, store: temporaryStore(), snapshot: nil)
 
         #expect(try await repository.records(of: "weather").map(\.name) == ["METEOR"])
@@ -123,7 +33,7 @@ private func temporaryStore() -> PayloadStore {
 
     @Test func fallsBackToTheKeptCopyWhenTheWorkerCannotBeAsked() async throws {
         let store = temporaryStore()
-        try store.write(.group("weather"), data: Data(weather.utf8), etag: "a")
+        try store.write(.group("weather"), data: Data(weather("METEOR").utf8), etag: "a")
         let repository = GroupRepository(client: StubWorker([.status(503)]).client, store: store, snapshot: nil)
 
         #expect(try await repository.records(of: "weather").map(\.name) == ["METEOR"])
@@ -132,11 +42,11 @@ private func temporaryStore() -> PayloadStore {
     // A host without the worker answers every path with its index.html.
     @Test func doesNotTakeAnHTMLAnswerForData() async throws {
         let store = temporaryStore()
-        try store.write(.group("weather"), data: Data(weather.utf8), etag: "a")
+        try store.write(.group("weather"), data: Data(weather("METEOR").utf8), etag: "a")
         let repository = GroupRepository(client: StubWorker([.html]).client, store: store, snapshot: nil)
 
         #expect(try await repository.records(of: "weather").map(\.name) == ["METEOR"])
-        #expect(store.read(.group("weather"))?.data == Data(weather.utf8))
+        #expect(store.read(.group("weather"))?.data == Data(weather("METEOR").utf8))
     }
 
     @Test func startsFromTheSnapshotBeforeAnythingIsKept() async throws {
@@ -179,7 +89,7 @@ private func temporaryStore() -> PayloadStore {
     // read yet, is no group: it must not replace the copy that still shows it.
     @Test func keepsTheOldGroupWhenNoRecordOfTheNewOneDecodes() async throws {
         let store = temporaryStore()
-        try store.write(.group("weather"), data: Data(weather.utf8), etag: "a")
+        try store.write(.group("weather"), data: Data(weather("METEOR").utf8), etag: "a")
         let unreadable = #"[{"OBJECT_NAME": "METEOR", "EPOCH": "2026-10-02T00:00:00+00:00", "NORAD_CAT_ID": 1}]"#
         let repository = GroupRepository(client: StubWorker([.json(unreadable, etag: "b")]).client, store: store, snapshot: nil)
 

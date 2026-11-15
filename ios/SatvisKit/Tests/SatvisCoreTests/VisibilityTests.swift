@@ -40,10 +40,7 @@ import simd
     }
 
     private static func fixture() throws -> Fixture {
-        struct Root: Decodable {
-            let visibility: Fixture
-        }
-        return try JSONDecoder().decode(Root.self, from: Parity.fixture("parity")).visibility
+        try Parity.section("visibility", as: Fixture.self)
     }
 
     @Test func findsTheSunWhereTheWebAppDoes() throws {
