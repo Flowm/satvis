@@ -95,6 +95,12 @@ struct PreparedSatellites: @unchecked Sendable {
     /// as far; near a Molniya orbit's perigee, nine times the arc.
     static let circularRadiusRatio = 1.06
 
+    /// Whether an orbit between `lowest` and `highest` metres from the Earth's
+    /// centre is near enough a circle for its line to step over samples.
+    static func mayStep(lowest: Double, highest: Double) -> Bool {
+        highest <= circularRadiusRatio * lowest
+    }
+
     let satellites: [PointSatellite]
     let samples: MTLBuffer?
     let instances: MTLBuffer?
@@ -171,7 +177,7 @@ struct PreparedSatellites: @unchecked Sendable {
             instanceList[index] = PointInstance(
                 color: satellite.color, sampleStart: UInt32(start), sampleCount: UInt32(trajectory.positions.count),
                 stepSeconds: Float(trajectory.stepMilliseconds / 1000),
-                mayStep: radii.highest <= Self.circularRadiusRatio * radii.lowest ? 1 : 0)
+                mayStep: Self.mayStep(lowest: radii.lowest, highest: radii.highest) ? 1 : 0)
         }
         self.samples = samples
         self.instances = instances

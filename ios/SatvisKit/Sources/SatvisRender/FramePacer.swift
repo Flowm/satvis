@@ -77,6 +77,9 @@ struct FramePacer {
         }
         let (satellites, motions, camera) = (points.satellites, points.prepared?.motions ?? [], pose.position)
         let (orbit, track) = (components.contains(.orbit), components.contains(.orbitTrack))
+        // Device pixels a radian at the middle of the view, the fewest anywhere.
+        let focal = size.y / 2 / tan(pose.verticalFieldOfView(aspectRatio: size.x / size.y) / 2)
+        let stepsLines = ScenePass.stepsLines(count: satellites.count)
         var stations: [String: [SIMD3<Double>]] = [:]
         if components.contains(.groundStationLink) {
             for link in links where link.start <= time && time <= link.end {
@@ -95,21 +98,25 @@ struct FramePacer {
             }
             var parts = [(nearest, own)]
             let (start, step) = ((trajectory.startMilliseconds - time) / 1000, trajectory.stepMilliseconds / 1000)
-            // A line steps over samples only seen from twice its radius out.
-            let strides = length(camera) < 2 * motion.inner ? [1] : [1, 2, RenderPacing.lineStride]
+            let current = Int((-start / step).rounded(.down))
+            let strides = RenderPacing.lineStrides(motion, stepsLines: stepsLines, cameraDistance: length(camera), pixelsPerRadian: focal)
+            let widest = strides.max() ?? 1
             for turned in [true, false] where turned ? orbit : track {
-                let nodes = RenderPacing.lineNodes(trajectory.positions, start: start, step: step, turned: turned)
-                guard let line = RenderPacing.lineDistance(nodes, strides: strides, from: camera) else {
-                    continue
-                }
+                // Drawn as Shaders/Lines.msl draws them: an orbit half a period either side
+                // of the satellite, an orbit track a period ahead.
+                let first = turned ? current - (ScenePass.lineNodes - 1) / 2 : current
+                let nodes = RenderPacing.drawnLine(trajectory.positions, first: first, start: start, step: step, turned: turned)
                 // An orbit turns with the Earth, within the camera's radius and the line's
                 // distance; an orbit track grows a period ahead at the satellite's speed.
-                parts.append(turned ? (line, motion.turningSpeed(within: length(camera) + line)) : (line, own))
+                let speed = { turned ? motion.turningSpeed(within: length(camera) + $0) : own }
+                if let near = RenderPacing.lineDistance(nodes, strides: strides, from: camera) {
+                    parts.append((near, speed(near)))
+                }
                 // The segments from the satellite to the nodes either side move with it.
-                let current = Int((-start / step).rounded(.down))
-                let neighbours = (current - strides.last! + 1...current + strides.last!).filter(nodes.indices.contains).map { nodes[$0] }
-                if let segments = neighbours.map({ RenderPacing.segmentDistance($0, position, from: camera) }).min() {
-                    parts.append((segments, neighbours.reduce(own) { max($0, turned ? motion.turningSpeed(within: length($1)) : 0) }))
+                let sides = (current - widest + 1...current + widest).filter { nodes.indices.contains($0 - first) }.map { nodes[$0 - first] }
+                let sideSpeed = sides.reduce(own) { max($0, turned ? motion.turningSpeed(within: length($1)) : 0) }
+                if let near = sides.map({ RenderPacing.segmentDistance($0, position, from: camera) }).min() {
+                    parts.append((near, sideSpeed))
                 }
             }
             return parts

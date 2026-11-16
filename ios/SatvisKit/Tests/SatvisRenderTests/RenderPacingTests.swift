@@ -139,6 +139,19 @@ import simd
         #expect(Self.pixelRate([Self.leo], at: camera, cones: true, nearest: 500_000) == .infinity)
     }
 
+    @Test func aLineStepsAsTheShaderStepsIt() {
+        // The ISS's line from the home view, 400 device pixels across, sags a pixel
+        // over two samples; within twice its radius, and an eccentric orbit, never.
+        #expect(RenderPacing.lineStrides(Self.leo, stepsLines: true, cameraDistance: Self.home.x, pixelsPerRadian: 1289) == [2])
+        // Up to a thousand satellites, every line draws every sample.
+        #expect(RenderPacing.lineStrides(Self.leo, stepsLines: false, cameraDistance: Self.home.x, pixelsPerRadian: 1289) == [1])
+        #expect(RenderPacing.lineStrides(Self.leo, stepsLines: true, cameraDistance: 1e7, pixelsPerRadian: 1289) == [1])
+        #expect(RenderPacing.lineStrides(Self.molniya, stepsLines: true, cameraDistance: 1e9, pixelsPerRadian: 1289) == [1])
+        // Taken at either end of its radii where they choose differently.
+        let wide = OrbitMotion(lowest: 2.6e7, highest: 2.7e7, farthestStep: 1e6, step: 300, hasCone: false)!
+        #expect(RenderPacing.lineStrides(wide, stepsLines: true, cameraDistance: 5.3e7, pixelsPerRadian: 1289) == [1, 2])
+    }
+
     @Test func aLinesNodesAreWhereTheyAreNow() {
         // An orbit track stays in the fixed frame; an orbit's node a quarter turn of
         // the Earth ahead is turned onto the y axis, and the next a step further.
@@ -146,6 +159,20 @@ import simd
         #expect(RenderPacing.lineNodes([SIMD3(7e6, 0, 0)], start: quarter, step: 60, turned: false) == [SIMD3(7e6, 0, 0)])
         let orbit = RenderPacing.lineNodes([SIMD3(1e9, 0, 0), SIMD3(7e6, 0, 0)], start: quarter - 60, step: 60, turned: true)
         #expect(distance(orbit[1], SIMD3(0, 7e6, 0)) < 1e-3)
+    }
+
+    @Test func aLineIsDrawnWhereTheShaderPutsIt() {
+        // Samples a metre apart along x, where the Earth turns nothing.
+        let samples = (0..<200).map { SIMD3(Double($0), 0, 0) }
+        let line = RenderPacing.drawnLine(samples, first: 10, start: 0, step: 0, turned: true)
+        // An orbit's first node moved on by the drift is its last: the loop closes.
+        #expect(line.count == ScenePass.lineNodes && line[0] == line[120] && line[0].x == 130 && line[30].x == 40)
+        // Before the samples begin, each node is the first, and the drift spans them.
+        let early = RenderPacing.drawnLine(samples, first: -30, start: 0, step: 0, turned: true)
+        #expect(early[0].x == 90 && early[15].x == 45 && early[30].x == 0 && early[120].x == 90)
+        // An orbit track takes no drift, and past its samples stays at the last.
+        let track = RenderPacing.drawnLine(samples, first: 150, start: 0, step: 0, turned: false)
+        #expect(track[0].x == 150 && track[49].x == 199 && track[120].x == 199)
     }
 
     @Test func aLineIsTakenWhereItsSegmentsPassNearest() {

@@ -22,7 +22,7 @@ struct FramePlan {
 struct ScenePass {
     /// Samples a line runs through, the satellite's own place aside; mirrors
     /// `lineNodes` in Shaders/Lines.msl.
-    static let lineNodes = 121
+    nonisolated static let lineNodes = 121
     /// A line's triangle strip, two vertices a point: `lineNodes` samples in
     /// Shaders/Lines.msl, and where the satellite is now between two of them.
     private static let lineVertices = 2 * (lineNodes + 1)
@@ -33,7 +33,13 @@ struct ScenePass {
     /// a line small on the screen steps over samples (`lineStride` in
     /// Shaders/Lines.msl): with every active one's orbit on, an iPad mini drew
     /// 36 frames a second with every sample and 43 with these steps.
-    private static let lineLevelOfDetailSatellites = 1000
+    nonisolated private static let lineLevelOfDetailSatellites = 1000
+
+    /// Whether, with `count` satellites drawn, a line small on the screen steps
+    /// over samples.
+    nonisolated static func stepsLines(count: Int) -> Bool {
+        count > lineLevelOfDetailSatellites
+    }
     /// From the Earth's centre, in metres: past this the sky atmosphere is drawn
     /// as the ring round the globe (`skyRingVertex`), nearer as the whole shell,
     /// which the eye can be inside. 10 % outside the shell.
@@ -226,7 +232,7 @@ struct ScenePass {
             encoder.setRenderPipelineState(onMap ? pipelines.mapLinePipeline : pipelines.linePipeline)
             encoder.setVertexBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
             encoder.setFragmentBytes(&kind, length: MemoryLayout<Int32>.size, index: 5)
-            var stepsLines = Int32(points.count > Self.lineLevelOfDetailSatellites ? 1 : 0)
+            var stepsLines = Int32(Self.stepsLines(count: points.count) ? 1 : 0)
             encoder.setVertexBytes(&stepsLines, length: MemoryLayout<Int32>.size, index: 6)
             if onMap {
                 encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: Self.mapLineVertices, instanceCount: points.count)
