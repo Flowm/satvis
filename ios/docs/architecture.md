@@ -270,7 +270,12 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   That rate is a cap: a frame is skipped, and the last one left on screen, while
   nothing has been set or loaded, the camera stands still and no satellite can
   have moved half a device pixel, as the web app paces CesiumJS's render on
-  demand (`RenderPacing`; the default view draws 4 frames a second). Whatever
+  demand (`RenderPacing`; the default view draws 4 frames a second). Paced, a
+  frame is drawn on the first refresh by which something could have moved that
+  far, so the rate falls on a divisor of the screen's: every active orbit on an
+  iPad mini drew 12 to 30 frames a second, or every frame, as the hour moved
+  the nearest eccentric orbit's line (MMS 4's, 2,000 km from the camera, bound
+  at its apogee's 14 km/s) closer or farther. Whatever
   changes what is drawn has to say so (`needsDraw`, or the surface's, the
   models' and the ground tracks' revisions). While the frames fall behind, a
   frame begins only once a drawable is free (`DrawableGate`): MTKView's
