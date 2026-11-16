@@ -249,6 +249,18 @@ export class RenderPacer {
 
   readonly #position = new Cartesian3();
 
+  /** Each satellite's orbit bound in the last bound taken, in `sources.satellites()`'s order. */
+  readonly #satelliteBounds: OrbitBound[] = [];
+
+  /** rad/s, the most each satellite could add from its shell in the last bound taken. */
+  #most = new Float64Array(0);
+
+  /** Indices of the satellites to visit, the most first. */
+  readonly #order: number[] = [];
+
+  /** rad/s, the last bound's, from which the next sorts only those that could matter. */
+  #lastRate = 0;
+
   /** `Transforms.computeIcrfToFixedMatrix`'s result, reused every bound. */
   readonly #icrfToFixed = new Matrix3();
 
@@ -363,64 +375,100 @@ export class RenderPacer {
       return Math.min(shell, placed);
     };
 
-    let rate = 0;
-    // Lines whose shells bound the rate more than their satellites do, to be measured where they
-    // are drawn: the PLACED_LINES that bound it most, the least first.
-    const toPlace: LineToPlace[] = [];
-    for (const satellite of this.#sources.satellites()) {
+    const satellites = this.#sources.satellites();
+    const lineShell = (bound: OrbitBound) =>
+      // A line's far points can pass closer than the satellite. It runs inside its samples by half a
+      // chord and off them by the drift. A camera within an eccentric orbit's shell (Arktika-M's runs
+      // 7,090 to 46,015 km) is measured to the line.
+      angularRate(distanceToShell(cameraRadius, bound.inner - bound.chord / 2 - LINE_DRIFT_METRES, bound.outer + LINE_DRIFT_METRES), bound.speed, horizon);
+    // The ribbon lies on the ground under the orbit, its clipped ends following the subpoint, slower
+    // than the satellite.
+    const groundTrackRate = (bound: OrbitBound) => angularRate(distanceToShell(cameraRadius, GROUND_RADIUS_METRES, bound.outer), bound.speed, horizon);
+    // Carried with the satellite and turned with its nadir, all within CONE_RADIUS_METERS of it.
+    const coneRate = (distance: number, bound: OrbitBound) => angularRate(distance - CONE_RADIUS_METERS, bound.speed + bound.turnRate * CONE_RADIUS_METERS, horizon);
+
+    // The most each satellite could add from its shell alone, which no position in it comes nearer
+    // than: all but a hundred of 16,894 active ones then need no position.
+    const bounds = this.#satelliteBounds;
+    bounds.length = satellites.length;
+    if (this.#most.length < satellites.length) {
+      this.#most = new Float64Array(Math.ceil(satellites.length * 1.25));
+    }
+    const most = this.#most;
+    for (const [index, satellite] of satellites.entries()) {
       // Cesium loads a model only on rendered frames.
       if (models && satellite.model?.pending) {
         return this.#limits.floor;
       }
+      const bound = this.#orbitBound(satellite.props.orbit);
+      const shell = distanceToShell(cameraRadius, bound.inner, bound.outer);
+      bounds[index] = bound;
+      most[index] = Math.max(angularRate(shell, bound.speed, horizon), lines ? lineShell(bound) : 0, groundTracks ? groundTrackRate(bound) : 0, cone ? coneRate(shell, bound) : 0);
+    }
+
+    let rate = 0;
+    // Lines whose shells bound the rate more than their satellites do are measured where they are
+    // drawn, PLACED_LINES of them under the floor, those that bound it most first; the rest keep
+    // their shells.
+    let measured = 0;
+    const visit = (index: number) => {
+      const satellite = satellites[index]!;
+      const bound = bounds[index]!;
       const position = satellite.props.trajectory.entityPosition?.getValue(time, this.#position);
       if (!position) {
-        continue;
+        return;
       }
-      const bound = this.#orbitBound(satellite.props.orbit);
       const distance = Cartesian3.distance(cameraPosition, position);
       const own = angularRate(distance, bound.speed, horizon);
       rate = Math.max(rate, own);
       if (lines) {
-        // A line's far points can pass closer than the satellite. It runs inside its samples by half a
-        // chord and off them by the drift. A camera within an eccentric orbit's shell (Arktika-M's runs
-        // 7,090 to 46,015 km) is measured to the line.
-        const lineInner = bound.inner - bound.chord / 2 - LINE_DRIFT_METRES;
-        const shell = angularRate(distanceToShell(cameraRadius, lineInner, bound.outer + LINE_DRIFT_METRES), bound.speed, horizon);
-        if (shell > own) {
-          const line = { shell, satellite, bound, speed: lineSpeed(Cartesian3.magnitude(position), bound) };
-          if (shell >= enough) {
-            // As a line whose shell holds the camera: held to its shell, a 33rd kept the floor.
-            rate = Math.max(rate, place(line));
-          } else if (toPlace.length === PLACED_LINES && shell <= toPlace[0]!.shell) {
-            rate = Math.max(rate, shell);
+        const shell = lineShell(bound);
+        if (shell > own && shell > rate) {
+          if (shell < enough && measured === PLACED_LINES) {
+            rate = shell;
           } else {
-            const at = toPlace.findIndex((entry) => entry.shell > shell);
-            toPlace.splice(at === -1 ? toPlace.length : at, 0, line);
-            if (toPlace.length > PLACED_LINES) {
-              rate = Math.max(rate, toPlace.shift()!.shell);
-            }
+            // As a line whose shell holds the camera: held to its shell, a 33rd kept the floor.
+            measured += shell < enough ? 1 : 0;
+            rate = Math.max(rate, place({ shell, satellite, bound, speed: lineSpeed(Cartesian3.magnitude(position), bound) }));
           }
         }
       }
       if (groundTracks && satellite.components["Ground track"] !== undefined) {
-        // The ribbon lies on the ground under the orbit, its clipped ends following the subpoint,
-        // slower than the satellite.
-        rate = Math.max(rate, angularRate(distanceToShell(cameraRadius, GROUND_RADIUS_METRES, bound.outer), bound.speed, horizon));
+        rate = Math.max(rate, groundTrackRate(bound));
       }
       if (cone) {
-        // Carried with the satellite and turned with its nadir, all within CONE_RADIUS_METERS of it.
-        rate = Math.max(rate, angularRate(distance - CONE_RADIUS_METERS, bound.speed + bound.turnRate * CONE_RADIUS_METERS, horizon));
+        rate = Math.max(rate, coneRate(distance, bound));
       }
-      if (rate >= enough) {
-        return this.#limits.floor;
+    };
+    // Visits those that could add more than `above` and at most `atMost`, the most first, until none
+    // can raise the rate; true once it passes the floor.
+    const visitBetween = (above: number, atMost: number): boolean => {
+      const order = this.#order;
+      order.length = 0;
+      for (let index = 0; index < satellites.length; index += 1) {
+        if (most[index]! > above && most[index]! <= atMost) {
+          order.push(index);
+        }
       }
-    }
-    for (const line of toPlace.toReversed()) {
-      // None after this one can raise the rate.
-      if (line.shell <= rate) {
-        break;
+      order.sort((a, b) => most[b]! - most[a]!);
+      for (const index of order) {
+        if (most[index]! <= rate) {
+          break;
+        }
+        visit(index);
+        if (rate >= enough) {
+          return true;
+        }
       }
-      rate = Math.max(rate, place(line));
+      return false;
+    };
+    // Half the last bound's rate leaves the hundred or so that matter to sort; where the rate falls
+    // under it, those between are visited too.
+    const seed = this.#lastRate / 2;
+    const floored = visitBetween(seed, Infinity) || (rate < seed && visitBetween(rate, seed));
+    this.#lastRate = floored ? enough : rate;
+    if (floored) {
+      return this.#limits.floor;
     }
     return renderTimeChange(rate, pixelsPerRadian, this.#limits);
   }

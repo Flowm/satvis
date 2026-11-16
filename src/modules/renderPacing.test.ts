@@ -319,6 +319,51 @@ describe("RenderPacer", () => {
     expect(interval([near(177_000)], ["Point", "Orbit"])).toBeGreaterThan(3 * DEFAULT_LIMITS.floor);
   });
 
+  test("reads only the positions that could raise the rate, and every one it needs once the rate falls", () => {
+    let reads = 0;
+    const counted = (options: Parameters<typeof satellite>[0]): PacedSatellite => {
+      const paced = satellite(options);
+      return {
+        ...paced,
+        props: {
+          ...paced.props,
+          trajectory: {
+            ...paced.props.trajectory,
+            entityPosition: {
+              getValue: () => {
+                reads += 1;
+                return options.position;
+              },
+            },
+          },
+        },
+      };
+    };
+    // One 1,009 km under the camera, a thousand low ones on the far side of the Earth.
+    const near = counted({ position: new Cartesian3(25_100_000, 0, 0), perigeeKm: 25_000, apogeeKm: 25_200 });
+    const low = Array.from({ length: 1000 }, (_, index) => counted({ position: new Cartesian3(-7_000_000, index * 1000, 0), perigeeKm: 6_900, apogeeKm: 7_000 }));
+    let satellites = [near, ...low];
+    const scene = stubScene();
+    const pacer = new RenderPacer(scene as unknown as Scene, { satellites: () => satellites, components: () => ["Point"], multiplier: () => 1 });
+    const now = vi.spyOn(performance, "now");
+    const bound = (at: number) => {
+      now.mockReturnValue(at);
+      scene.preUpdate.raiseEvent(scene, time);
+      return scene.maximumRenderTimeChange;
+    };
+    // At the stub's 10 km/s over the next bound and the ceiling, 1.25 s.
+    const pixelsPerRadian = maxPixelsPerRadian(2266, 1218, CesiumMath.toRadians(60));
+    const expected = (distance: number) => renderTimeChange(angularRate(distance, 10_000, 1.25), pixelsPerRadian);
+    bound(0);
+    expect(bound(1_000)).toBeCloseTo(expected(1_009_000), 9);
+    expect(reads).toBe(1);
+    satellites = low;
+    expect(bound(2_000)).toBeCloseTo(expected(33_109_000), 9);
+    expect(reads).toBe(1001);
+    now.mockRestore();
+    pacer.destroy();
+  });
+
   describe("ground tracks", () => {
     const leo = (components: string[]) => satellite({ position: new Cartesian3(-7_000_000, 0, 0), perigeeKm: 6_900, apogeeKm: 7_000, components });
 
