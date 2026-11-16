@@ -17,6 +17,7 @@ import {
   lineSpeed,
   maxPixelsPerRadian,
   renderTimeChange,
+  turningLineSpeed,
 } from "./renderPacing";
 
 /** Metres the line distance takes off for the drift; LINE_DRIFT_METRES. */
@@ -118,16 +119,63 @@ describe("lineSpeed", () => {
   const shell = { inner: 7_036_000, outer: 46_070_000, speed: 14_600 };
 
   test("is the satellite's speed where it is, well under the shell's near apogee", () => {
-    const apogee = lineSpeed(46_000_000, shell, false);
+    const apogee = lineSpeed(46_000_000, shell);
     expect(apogee).toBeGreaterThan(1.1 * EARTH_ROTATION_RAD_S * 46_000_000);
     expect(apogee).toBeLessThan(6_000);
-    expect(lineSpeed(7_100_000, shell, false)).toBeGreaterThan(10_000);
-    expect(lineSpeed(7_100_000, shell, false)).toBeLessThan(shell.speed);
+    expect(lineSpeed(7_100_000, shell)).toBeGreaterThan(10_000);
+    expect(lineSpeed(7_100_000, shell)).toBeLessThan(shell.speed);
+  });
+});
+
+describe("turningLineSpeed", () => {
+  const shell = { outer: 46_070_000, speed: 14_600 };
+
+  test("is the Earth's turn within the radius, at most the outer one's and the drift's, and the shell's", () => {
+    expect(turningLineSpeed(20_000_000, shell)).toBeCloseTo(1.1 * EARTH_ROTATION_RAD_S * 20_000_000);
+    expect(turningLineSpeed(1e9, shell)).toBeCloseTo(1.1 * EARTH_ROTATION_RAD_S * (shell.outer + DRIFT));
+    expect(turningLineSpeed(1e9, { ...shell, speed: 1_000 })).toBe(1_000);
   });
 
-  test("is at least the Earth's turn at the outer radius for an orbit held in inertial space, at most the shell's", () => {
-    expect(lineSpeed(46_000_000, shell, true)).toBeGreaterThanOrEqual(1.1 * EARTH_ROTATION_RAD_S * shell.outer);
-    expect(lineSpeed(7_100_000, { ...shell, speed: 1_000 }, true)).toBe(1_000);
+  test("bounds every point of a line turning with the Earth, seen from the camera, by its nearest", () => {
+    const molniya = { outer: 46_050_000, speed: Infinity };
+    // A Molniya-like ellipse in inertial space, 7,000 to 46,000 km from the centre, tilted 63.4°.
+    const tilt = (63.4 * Math.PI) / 180;
+    const nodes = Array.from({ length: 120 }, (_, index): [number, number, number] => {
+      const anomaly = (2 * Math.PI * index) / 120;
+      const radius = (26_500_000 * (1 - 0.736 ** 2)) / (1 + 0.736 * Math.cos(anomaly));
+      return [radius * Math.cos(anomaly), radius * Math.sin(anomaly) * Math.cos(tilt), radius * Math.sin(anomaly) * Math.sin(tilt)];
+    });
+    // The line as drawn after `seconds`: its nodes turned with the Earth, and the chords between them.
+    const line = (seconds: number) => {
+      const angle = -EARTH_ROTATION_RAD_S * seconds;
+      const turned = nodes.map(([x, y, z]) => new Cartesian3(Math.cos(angle) * x - Math.sin(angle) * y, Math.sin(angle) * x + Math.cos(angle) * y, z));
+      return turned.flatMap((node, index) => [0, 0.25, 0.5, 0.75].map((t) => Cartesian3.lerp(node, turned[(index + 1) % turned.length]!, t, new Cartesian3())));
+    };
+    const [now, later] = [line(0), line(0.5)];
+    const offset = 3_000_000;
+    const cameras = [
+      // 15,000 km inside the apogee, which lies in the equator's plane: there the bound is nearly met.
+      new Cartesian3(-31_000_000, 0, 0),
+      new Cartesian3(25_000_000, 0, 0),
+      new Cartesian3(0, -60_000_000, 0),
+      new Cartesian3(0, 0, 30_000_000),
+      ...now
+        .filter((_, index) => index % 40 === 0)
+        .map((point) => Cartesian3.add(point, Cartesian3.multiplyByScalar(Cartesian3.normalize(point, new Cartesian3()), offset, new Cartesian3()), new Cartesian3())),
+    ];
+    for (const camera of cameras) {
+      // Samples at the instant asked for, so turned by nothing.
+      const distance = lineDistance(samplesOf(nodes, 0, 0), camera, true)!;
+      // Within the margin the bound is infinite, which proves nothing.
+      expect(distance).toBeGreaterThan(0);
+      const bound = turningLineSpeed(Cartesian3.magnitude(camera) + distance, molniya) / distance;
+      for (const [index, point] of now.entries()) {
+        const speed = Cartesian3.distance(point, later[index]!) / 0.5;
+        expect(speed / Cartesian3.distance(point, camera)).toBeLessThanOrEqual(bound);
+      }
+    }
+    // By the perigee, far under the apogee's turn.
+    expect(turningLineSpeed(7_000_000 * 1.05 + 2e6, molniya)).toBeLessThan(0.5 * 1.1 * EARTH_ROTATION_RAD_S * molniya.outer);
   });
 });
 
@@ -223,10 +271,26 @@ describe("RenderPacer", () => {
     expect(interval([high(100)], ["Point", "Orbit track"])).toBeGreaterThan(DEFAULT_LIMITS.floor);
   });
 
-  test("measures at most 32 lines, holding the rest to their shells", () => {
+  test("measures every line whose shell holds the camera", () => {
+    // Held to its shell, the 33rd alone kept the floor.
     const many = Array.from({ length: 33 }, () => arktika(farLine));
-    expect(interval(many, ["Point", "Orbit"])).toBe(DEFAULT_LIMITS.floor);
-    expect(interval(many.slice(1), ["Point", "Orbit"])).toBeGreaterThan(DEFAULT_LIMITS.floor);
+    expect(interval(many, ["Point", "Orbit"])).toBeGreaterThan(DEFAULT_LIMITS.floor);
+  });
+
+  test("measures at most 32 of the lines whose shells bound the rate under the floor, holding the rest to their shells", () => {
+    // The camera 2,650 km under each line's shell, each satellite and line on the far side of the Earth.
+    const high = () => satellite({ position: new Cartesian3(-29_200_000, 0, 0), perigeeKm: 29_159, apogeeKm: 29_259, samples: [[-29_200_000, 0, 0]] });
+    const shell = interval(Array.from({ length: 33 }, high), ["Point", "Orbit"]);
+    expect(shell).toBeGreaterThan(DEFAULT_LIMITS.floor);
+    expect(shell).toBeLessThan(interval(Array.from({ length: 32 }, high), ["Point", "Orbit"]));
+  });
+
+  test("bounds an orbit's line near the camera by the Earth's turn there, not at its apogee", () => {
+    // 2,000 km off the camera; at the apogee's turn, MMS 4's line held the native app to every other frame.
+    const samples = [-1, -0.5, 0, 0.5, 1].map((z): [number, number, number] => [26_109_000, 2_150_000, z * 1_000_000]);
+    const near = (apogeeKm: number) => satellite({ position: new Cartesian3(-40_000_000, 0, 10_000_000), perigeeKm: 7_086, apogeeKm, samples });
+    expect(interval([near(46_020)], ["Point", "Orbit"])).toBeCloseTo(interval([near(177_000)], ["Point", "Orbit"]), 6);
+    expect(interval([near(177_000)], ["Point", "Orbit"])).toBeGreaterThan(3 * DEFAULT_LIMITS.floor);
   });
 
   describe("ground tracks", () => {

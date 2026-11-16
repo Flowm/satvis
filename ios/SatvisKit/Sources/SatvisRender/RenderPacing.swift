@@ -39,17 +39,20 @@ struct OrbitMotion: Equatable {
     }
 
     /// Metres a second at most `radius` from the Earth's centre: vis-viva on the
-    /// samples' semi-major axis and the Earth's rotation, a tenth on top; with
-    /// `turning`, at least an orbit's line's. Never more than `speed`, which far
-    /// from perigee an eccentric orbit is well under.
-    func speed(atRadius radius: Double, turning: Bool) -> Double {
+    /// samples' semi-major axis and the Earth's rotation, a tenth on top. Never
+    /// more than `speed`, which far from perigee an eccentric orbit is well under.
+    func speed(atRadius radius: Double) -> Double {
         let r = max(radius - Self.shellMargin, inner, 1)
         let inertial = (Self.gravitationalParameter * max(2 / r - 2 / (inner + outer), 0)).squareRoot()
-        var bound = 1.1 * (inertial + Self.earthRotationRate * radius)
-        if turning {
-            bound = max(bound, 1.1 * Self.earthRotationRate * outer)
-        }
-        return min(bound, speed)
+        return min(1.1 * (inertial + Self.earthRotationRate * radius), speed)
+    }
+
+    /// Metres a second at most of an orbit's line, held still in inertial space,
+    /// where it runs within `radius` of the Earth's centre: the Earth's turn there,
+    /// a tenth on top. Bounded at its apogee instead, MMS 4's line 2,000 km from an
+    /// iPad mini's camera drew every other frame or every frame, not every fifth.
+    func turningSpeed(within radius: Double) -> Double {
+        min(1.1 * Self.earthRotationRate * min(radius, outer + RenderPacing.lineDrift), speed)
     }
 
     /// The shell widened to what else the satellite draws: an orbit's line, inside
@@ -86,6 +89,9 @@ enum RenderPacing {
     /// Metres an orbit's line may lie off its samples, for the drift ramped in to
     /// close the loop (Shaders/Lines.msl): 31 km for the ISS.
     static let lineDrift = 100_000.0
+    /// The most samples a line steps over between two of its points, as
+    /// Shaders/Lines.msl's `maximumLineStride`; never from under twice its radius.
+    static let lineStride = 4
     /// Metres from the Earth's centre, under the lowest ground a link ends on.
     static let lowestGround = 6_340_000.0
     /// How many of the satellites whose shells bound the rate most are taken where
@@ -97,15 +103,15 @@ enum RenderPacing {
 
     /// The most device pixels a simulation second that anything drawn of the
     /// satellites in `motions` can cross the view from `camera` within `ceiling`
-    /// of the instant `nearest` is asked for: the metres from the camera to the
-    /// nearest of what a satellite draws then, and the most metres a second that
-    /// moves; nil where it draws nothing.
+    /// of the instant `nearest` is asked for: for each part a satellite draws then,
+    /// the metres from the camera to its nearest, and the most metres a second it
+    /// moves; none where it draws nothing.
     /// Infinite where something could reach the camera, or crosses half a pixel by
     /// the next frame anyway. `lines` draws each orbit's line, `linked` holds the
     /// satellites with a ground station link, and `cones` draws a sensor cone under
     /// those that have one.
     static func pixelRate(
-        _ motions: [OrbitMotion?], nearest: (Int) -> (distance: Double, speed: Double)?, lines: Bool, linked: Set<Int>, cones: Bool, camera: SIMD3<Double>,
+        _ motions: [OrbitMotion?], nearest: (Int) -> [(distance: Double, speed: Double)], lines: Bool, linked: Set<Int>, cones: Bool, camera: SIMD3<Double>,
         pixelsPerRadian: Double
     ) -> Double {
         let cameraRadius = length(camera)
@@ -120,7 +126,7 @@ enum RenderPacing {
             return (speed ?? motion.speed) * (1 + reach / motion.inner) / (distance - reach)
         }
         func placedRate(_ index: Int, _ motion: OrbitMotion) -> Double? {
-            nearest(index).map { rate(motion, distance: $0.distance - $0.speed * ceiling, speed: $0.speed) }
+            nearest(index).map { rate(motion, distance: $0.distance - $0.speed * ceiling, speed: $0.speed) }.max()
         }
         // The highest bound of those held to their shells, and those to place, the
         // lowest bound first.
@@ -152,6 +158,12 @@ enum RenderPacing {
             }
         }
         return fastest * pixelsPerRadian
+    }
+
+    /// `sample` turned `angle` radians about the Earth's axis, as an orbit's node
+    /// is turned with the Earth.
+    static func turned(_ sample: SIMD3<Double>, by angle: Double) -> SIMD3<Double> {
+        SIMD3(cos(angle) * sample.x - sin(angle) * sample.y, sin(angle) * sample.x + cos(angle) * sample.y, sample.z)
     }
 
     /// The nearest an orbit's line through `samples` comes to `camera`, now: the
