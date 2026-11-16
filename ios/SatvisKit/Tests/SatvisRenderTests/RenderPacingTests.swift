@@ -139,24 +139,28 @@ import simd
         #expect(Self.pixelRate([Self.leo], at: camera, cones: true, nearest: 500_000) == .infinity)
     }
 
-    @Test func aLineIsTakenWhereItsNodesAreNow() throws {
-        let margin = 1_000.0 / 2 + RenderPacing.lineDrift
-        let node = [SIMD3(7e6, 0, 0)]
-        let camera = SIMD3(0, 2e7, 0)
-        // An orbit track stays in the fixed frame; an orbit's node a quarter turn
-        // of the Earth ahead is turned onto the camera's side.
-        let track = try #require(RenderPacing.lineDistance(node, start: 0, step: 60, turned: false, chord: 1_000, from: camera))
-        #expect(abs(track - ((4e14 + 4.9e13).squareRoot() - margin)) < 1e-6)
+    @Test func aLinesNodesAreWhereTheyAreNow() {
+        // An orbit track stays in the fixed frame; an orbit's node a quarter turn of
+        // the Earth ahead is turned onto the y axis, and the next a step further.
         let quarter = Double.pi / 2 / OrbitMotion.earthRotationRate
-        let orbit = try #require(RenderPacing.lineDistance(node, start: quarter, step: 60, turned: true, chord: 1_000, from: camera))
-        #expect(abs(orbit - (1.3e7 - margin)) < 1e-3)
-        // The second node is turned a step further.
-        let second = try #require(
-            RenderPacing.lineDistance([SIMD3(1e9, 0, 0), SIMD3(7e6, 0, 0)], start: quarter - 60, step: 60, turned: true, chord: 1_000, from: camera))
-        #expect(abs(second - orbit) < 1e-3)
-        // A refused node is passed over; none at all, nothing is drawn.
-        #expect(RenderPacing.lineDistance(node + [SIMD3(repeating: .nan)], start: 0, step: 60, turned: false, chord: 1_000, from: camera) == track)
-        #expect(RenderPacing.lineDistance([SIMD3(repeating: .nan)], start: 0, step: 60, turned: false, chord: 0, from: camera) == nil)
+        #expect(RenderPacing.lineNodes([SIMD3(7e6, 0, 0)], start: quarter, step: 60, turned: false) == [SIMD3(7e6, 0, 0)])
+        let orbit = RenderPacing.lineNodes([SIMD3(1e9, 0, 0), SIMD3(7e6, 0, 0)], start: quarter - 60, step: 60, turned: true)
+        #expect(distance(orbit[1], SIMD3(0, 7e6, 0)) < 1e-3)
+    }
+
+    @Test func aLineIsTakenWhereItsSegmentsPassNearest() {
+        let nodes = [SIMD3(1e7, 0, 0), SIMD3(1e7, 4e5, 0), SIMD3(1e7, 6e5, 0)]
+        // Beside a segment, at its foot; beyond the line, at its end.
+        #expect(abs(RenderPacing.lineDistance(nodes, strides: [1], from: SIMD3(1.2e7, 2e5, 0))! - (2e6 - RenderPacing.lineDrift)) < 1e-6)
+        #expect(abs(RenderPacing.lineDistance(nodes, strides: [1], from: SIMD3(3e7, 9e5, 0))! - ((4e14 + 9e10).squareRoot() - RenderPacing.lineDrift)) < 1e-6)
+        // A segment stepping over a node cuts the corner.
+        let corner = [SIMD3(1e7, 0, 0), SIMD3(2e7, 1e7, 0), SIMD3(3e7, 0, 0)]
+        let camera = SIMD3(2e7, -1e6, 0)
+        #expect(RenderPacing.lineDistance(corner, strides: [1, 2], from: camera)! < RenderPacing.lineDistance(corner, strides: [1], from: camera)!)
+        // A segment to a refused node is not drawn; with none left, nothing is.
+        let refused = [nodes[0], SIMD3(repeating: .nan), nodes[2]]
+        #expect(RenderPacing.lineDistance(refused, strides: [1], from: SIMD3(1.2e7, 2e5, 0)) == nil)
+        #expect(RenderPacing.lineDistance([nodes[0]], strides: [1], from: SIMD3(1.2e7, 2e5, 0)) == nil)
     }
 }
 
@@ -224,7 +228,8 @@ import simd
             now[$0] + simd_normalize(now[$0]) * (motion.chord + RenderPacing.lineDrift + 1_000_000)
         }
         for camera in around + offNodes {
-            let distanceToLine = try #require(RenderPacing.lineDistance(trajectory.positions, start: start, step: step, turned: true, chord: motion.chord, from: camera))
+            let nodes = RenderPacing.lineNodes(trajectory.positions, start: start, step: step, turned: true)
+            let distanceToLine = try #require(RenderPacing.lineDistance(nodes, strides: [1], from: camera))
             // Within the margin the bound is infinite, which proves nothing.
             try #require(distanceToLine > 0, "camera \(camera)")
             let bound = motion.turningSpeed(within: length(camera) + distanceToLine) / distanceToLine
@@ -252,7 +257,7 @@ import simd
         let chord = zip(nodes, nodes.dropFirst()).map { distance($0, $1) }.max()!
         let motion = try #require(OrbitMotion(lowest: radii.min()!, highest: radii.max()!, farthestStep: chord, step: 1, hasCone: false))
         let camera = SIMD3(-31_000_000.0, 0, 0)
-        let line = try #require(RenderPacing.lineDistance(nodes, start: 0, step: 0, turned: true, chord: motion.chord, from: camera))
+        let line = try #require(RenderPacing.lineDistance(nodes, strides: [1], from: camera))
         let fastest = nodes.map { OrbitMotion.earthRotationRate * hypot($0.x, $0.y) / distance($0, camera) }.max()!
         let bound = motion.turningSpeed(within: length(camera) + line) / line
         #expect(fastest <= bound)

@@ -166,28 +166,40 @@ enum RenderPacing {
         SIMD3(cos(angle) * sample.x - sin(angle) * sample.y, sin(angle) * sample.x + cos(angle) * sample.y, sample.z)
     }
 
-    /// The nearest an orbit's line through `samples` comes to `camera`, now: the
-    /// first sample `start` seconds from now, the rest `step` apart. An orbit
-    /// (`turned`) is held still in inertial space, each sample turned with the
-    /// Earth to now as Shaders/Lines.msl turns it; an orbit track is not. Less half
-    /// the longest `chord` between two samples, for the line between them, and
-    /// `lineDrift`. Nil without a sample.
-    static func lineDistance(
-        _ samples: some Sequence<SIMD3<Double>>, start: Double, step: Double, turned: Bool, chord: Double, from camera: SIMD3<Double>
-    ) -> Double? {
-        var nearest = Double.infinity
+    /// An orbit's line's nodes now: the first sample `start` seconds from now, the
+    /// rest `step` apart. An orbit (`turned`) is held still in inertial space, each
+    /// sample turned with the Earth to now as Shaders/Lines.msl turns it; an orbit
+    /// track is not.
+    static func lineNodes(_ samples: some Sequence<SIMD3<Double>>, start: Double, step: Double, turned: Bool) -> [SIMD3<Double>] {
         // The turn to now, sample by sample, as a unit complex number.
         let first = turned ? OrbitMotion.earthRotationRate * start : 0
         let increment = turned ? OrbitMotion.earthRotationRate * step : 0
         var turn = SIMD2(cos(first), sin(first))
         let stepTurn = SIMD2(cos(increment), sin(increment))
-        for sample in samples {
-            let node = SIMD3(turn.x * sample.x - turn.y * sample.y, turn.y * sample.x + turn.x * sample.y, sample.z)
-            // NaN, where SGP4 refused the node, is passed over by `min`.
-            nearest = min(nearest, distance(node, camera))
-            turn = SIMD2(turn.x * stepTurn.x - turn.y * stepTurn.y, turn.y * stepTurn.x + turn.x * stepTurn.y)
+        return samples.map { sample in
+            defer { turn = SIMD2(turn.x * stepTurn.x - turn.y * stepTurn.y, turn.y * stepTurn.x + turn.x * stepTurn.y) }
+            return SIMD3(turn.x * sample.x - turn.y * sample.y, turn.y * sample.x + turn.x * sample.y, sample.z)
         }
-        return nearest.isFinite ? max(0, nearest - chord / 2 - lineDrift) : nil
+    }
+
+    /// The nearest the segments between `nodes` `strides` apart come to `camera`,
+    /// as a line steps over them, less `lineDrift`. A segment to a node SGP4
+    /// refused is not drawn. Nil where none is.
+    static func lineDistance(_ nodes: [SIMD3<Double>], strides: [Int], from camera: SIMD3<Double>) -> Double? {
+        var nearest = Double.infinity
+        for stride in strides {
+            for (a, b) in zip(nodes, nodes.dropFirst(stride)) where (a + b).x.isFinite && (a + b).y.isFinite && (a + b).z.isFinite {
+                nearest = min(nearest, segmentDistance(a, b, from: camera))
+            }
+        }
+        return nearest.isFinite ? max(0, nearest - lineDrift) : nil
+    }
+
+    /// Metres from `camera` to the nearest of the segment from `a` to `b`.
+    static func segmentDistance(_ a: SIMD3<Double>, _ b: SIMD3<Double>, from camera: SIMD3<Double>) -> Double {
+        let along = b - a
+        let t = length_squared(along) > 0 ? min(max(dot(camera - a, along) / length_squared(along), 0), 1) : 0
+        return distance(a + t * along, camera)
     }
 
     /// The latitude the map's stretch east to west is taken at, at most, in

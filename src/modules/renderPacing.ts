@@ -5,10 +5,11 @@
 // second and kept the GPU 52% busy; 0.5 s drew 2 and kept it 6% busy. A LEO satellite
 // crosses about 0.5 device pixels a second there, so the frames in between were the same.
 
-import { Cartesian3, Ellipsoid, type JulianDate, OrthographicOffCenterFrustum, PerspectiveFrustum } from "@cesium/core";
-import { type Scene, SceneMode } from "@cesium/engine";
+import { Cartesian3, Ellipsoid, type JulianDate, Matrix3, OrthographicOffCenterFrustum, PerspectiveFrustum } from "@cesium/core";
+import { type Scene, SceneMode, Transforms } from "@cesium/engine";
 
 import type { SampleVisitor } from "@/modules/util/GridPositionProperty";
+import { BatchedLine } from "@/modules/util/PolylineBatch";
 import { trajectoryWindow } from "@/modules/util/trajectoryWindow";
 
 import { EARTH_ROTATION_RAD_S, MU_KM3_S2 } from "./Orbit";
@@ -167,6 +168,30 @@ interface LineToPlace {
   speed: number;
 }
 
+/**
+ * Metres from `camera` to the nearest of a batched line's segments through `points` (x, y, z
+ * each), as they are drawn: turned by `rotation` where the batch turns them. Undefined without a
+ * segment.
+ */
+export function polylineDistance(points: ArrayLike<number>, camera: Cartesian3, rotation?: Matrix3): number | undefined {
+  let nearest = Infinity;
+  const at = (index: number, result: Cartesian3) => {
+    Cartesian3.fromArray(points as number[], index * 3, result);
+    return rotation ? Matrix3.multiplyByVector(rotation, result, result) : result;
+  };
+  const [a, b, along, foot] = [new Cartesian3(), new Cartesian3(), new Cartesian3(), new Cartesian3()];
+  at(0, b);
+  for (let index = 1; index < points.length / 3; index += 1) {
+    Cartesian3.clone(b, a);
+    at(index, b);
+    Cartesian3.subtract(b, a, along);
+    const squared = Cartesian3.magnitudeSquared(along);
+    const t = squared > 0 ? Math.min(Math.max(Cartesian3.dot(Cartesian3.subtract(camera, a, foot), along) / squared, 0), 1) : 0;
+    nearest = Math.min(nearest, Cartesian3.distance(Cartesian3.add(a, Cartesian3.multiplyByScalar(along, t, foot), foot), camera));
+  }
+  return Number.isFinite(nearest) ? nearest : undefined;
+}
+
 /** How far from the Earth's centre an orbit runs, and how fast anything drawn of it moves. */
 export interface OrbitBound {
   /** m/s in the Earth-fixed frame. */
@@ -223,6 +248,9 @@ export class RenderPacer {
   readonly #bounds = new WeakMap<Orbit, OrbitBound>();
 
   readonly #position = new Cartesian3();
+
+  /** `Transforms.computeIcrfToFixedMatrix`'s result, reused every bound. */
+  readonly #icrfToFixed = new Matrix3();
 
   readonly #cameraAt = new Cartesian3();
 
@@ -305,6 +333,8 @@ export class RenderPacer {
     const models = components.includes("3D model");
     const cameraPosition = camera.positionWC;
     const cameraRadius = Cartesian3.magnitude(cameraPosition);
+    // The batched orbits' turn into the fixed frame; undefined until the IAU data loads.
+    const icrfToFixed = Transforms.computeIcrfToFixedMatrix(time, this.#icrfToFixed);
 
     // Radians a second past which the floor stands, whatever else moves.
     const enough = this.#limits.pixels / (this.#limits.floor * pixelsPerRadian);
@@ -312,8 +342,14 @@ export class RenderPacer {
     const place = ({ shell, satellite, bound, speed }: LineToPlace): number => {
       const { trajectory } = satellite.props;
       const forEach = (visit: SampleVisitor) => trajectory.forEachSample(time, visit);
-      const orbit = orbitLine ? lineDistance(forEach, cameraPosition, true) : undefined;
-      const track = trackLine ? lineDistance(forEach, cameraPosition, false) : undefined;
+      // Batched, a line is where its points are drawn; a path, for the tracked satellite, where its
+      // samples are.
+      const drawn = (name: string, rotation?: Matrix3) => {
+        const line = satellite.components[name];
+        return line instanceof BatchedLine ? polylineDistance(line.points, cameraPosition, rotation) : undefined;
+      };
+      const orbit = orbitLine ? ((icrfToFixed && drawn("Orbit", icrfToFixed)) ?? lineDistance(forEach, cameraPosition, true)) : undefined;
+      const track = trackLine ? (drawn("Orbit track") ?? lineDistance(forEach, cameraPosition, false)) : undefined;
       // Without a sample, the shell stands.
       if (orbit === undefined && track === undefined) {
         return shell;
