@@ -94,7 +94,7 @@ extension SatelliteDetails {
         /// Whose layer it is.
         public enum Kind: Sendable, Hashable {
             case satellite(Satellite, instrument: String)
-            /// Named by its label's qualifier, "Geostationary Ring", or `compositeName`'s fallback;
+            /// Named by its label's qualifier, "GeoRing", or `compositeName`'s fallback;
             /// its satellites sorted by name, and its cadence, short, which its row shows
             /// where another names the instrument.
             case composite(name: String, satellites: [Satellite], cadence: String?)
@@ -191,7 +191,7 @@ extension SatelliteDetails {
     /// The name a Map panel row gives a composite where its label has no qualifier.
     public static let composite = "Composite"
 
-    /// "Natural colour, Geostationary Ring" is "Geostationary Ring": a composite's Map panel row stands for no
+    /// "Natural colour, GeoRing" is "GeoRing": a composite's Map panel row stands for no
     /// one satellite.
     static func compositeName(_ label: String) -> String {
         let qualifier = label.split(separator: ",", omittingEmptySubsequences: false).dropFirst().joined(separator: ",").trimmingCharacters(in: .whitespaces)
