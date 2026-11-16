@@ -83,8 +83,8 @@ struct FramePacer {
                 stations[link.satellite, default: []].append(link.station)
             }
         }
-        /// Metres from the camera to the nearest of the segment from `a` to `b`.
-        func nearest(_ a: SIMD3<Double>, _ b: SIMD3<Double>) -> Double {
+        // Metres from the camera to the nearest of the segment from `a` to `b`.
+        func segmentDistance(_ a: SIMD3<Double>, _ b: SIMD3<Double>) -> Double {
             let along = b - a
             let t = min(max(dot(camera - a, along) / length_squared(along), 0), 1)
             return distance(a + t * along, camera)
@@ -96,27 +96,26 @@ struct FramePacer {
                 return []
             }
             let own = motion.speed(atRadius: length(position))
-            let near = (stations[satellites[index].id] ?? []).reduce(distance(position, camera)) { min($0, nearest($1, position)) }
-            var parts = [(near, own)]
+            let nearest = (stations[satellites[index].id] ?? []).reduce(distance(position, camera)) { min($0, segmentDistance($1, position)) }
+            var parts = [(nearest, own)]
             let (start, step) = ((trajectory.startMilliseconds - time) / 1000, trajectory.stepMilliseconds / 1000)
             for turned in [true, false] where turned ? orbit : track {
                 guard let line = RenderPacing.lineDistance(trajectory.positions, start: start, step: step, turned: turned, chord: motion.chord, from: camera)
                 else {
                     continue
                 }
-                // An orbit turns with the Earth, no further out than the camera and the
-                // line's distance from it; an orbit track grows a period ahead, anywhere
-                // along it, at the satellite's speed.
+                // An orbit turns with the Earth, within the camera's radius and the line's
+                // distance; an orbit track grows a period ahead at the satellite's speed.
                 parts.append(turned ? (line, motion.turningSpeed(within: length(camera) + line)) : (line, own))
-                // The two segments from the satellite to its nodes either side move with it.
-                let node = Int((-start / step).rounded(.down))
-                let sides = [node, node + 1].filter(trajectory.positions.indices.contains).map { node in
-                    let sample = trajectory.positions[node]
-                    let angle = turned ? OrbitMotion.earthRotationRate * (start + Double(node) * step) : 0
-                    return SIMD3(cos(angle) * sample.x - sin(angle) * sample.y, sin(angle) * sample.x + cos(angle) * sample.y, sample.z)
+                // The segments from the satellite to the nodes either side move with it. A
+                // line steps over samples only seen from twice its radius out.
+                let current = Int((-start / step).rounded(.down))
+                let lineStride = length(camera) < 2 * motion.inner ? 1 : RenderPacing.lineStride
+                let neighbours = (current - lineStride + 1...current + lineStride).filter(trajectory.positions.indices.contains).map {
+                    RenderPacing.turned(trajectory.positions[$0], by: turned ? OrbitMotion.earthRotationRate * (start + Double($0) * step) : 0)
                 }
-                if let segments = sides.map({ nearest($0, position) }).min() {
-                    parts.append((segments, sides.reduce(own) { max($0, turned ? motion.turningSpeed(within: length($1)) : 0) }))
+                if let segments = neighbours.map({ segmentDistance($0, position) }).min() {
+                    parts.append((segments, neighbours.reduce(own) { max($0, turned ? motion.turningSpeed(within: length($1)) : 0) }))
                 }
             }
             return parts

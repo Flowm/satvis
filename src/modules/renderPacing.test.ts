@@ -130,45 +130,52 @@ describe("lineSpeed", () => {
 describe("turningLineSpeed", () => {
   const shell = { outer: 46_070_000, speed: 14_600 };
 
-  test("is the Earth's turn within the radius, at most the outer one's and the shell's", () => {
+  test("is the Earth's turn within the radius, at most the outer one's and the drift's, and the shell's", () => {
     expect(turningLineSpeed(20_000_000, shell)).toBeCloseTo(1.1 * EARTH_ROTATION_RAD_S * 20_000_000);
-    expect(turningLineSpeed(1e9, shell)).toBeCloseTo(1.1 * EARTH_ROTATION_RAD_S * shell.outer);
+    expect(turningLineSpeed(1e9, shell)).toBeCloseTo(1.1 * EARTH_ROTATION_RAD_S * (shell.outer + DRIFT));
     expect(turningLineSpeed(1e9, { ...shell, speed: 1_000 })).toBe(1_000);
   });
 
-  test("bounds every node of a line turning with the Earth, seen from the camera, by its nearest", () => {
+  test("bounds every point of a line turning with the Earth, seen from the camera, by its nearest", () => {
+    const molniya = { outer: 46_050_000, speed: Infinity };
     // A Molniya-like ellipse in inertial space, 7,000 to 46,000 km from the centre, tilted 63.4°.
     const tilt = (63.4 * Math.PI) / 180;
-    const nodes = Array.from({ length: 120 }, (_, index) => {
+    const nodes = Array.from({ length: 120 }, (_, index): [number, number, number] => {
       const anomaly = (2 * Math.PI * index) / 120;
       const radius = (26_500_000 * (1 - 0.736 ** 2)) / (1 + 0.736 * Math.cos(anomaly));
-      const along = radius * Math.cos(anomaly);
-      const across = radius * Math.sin(anomaly);
-      return [along, across * Math.cos(tilt), across * Math.sin(tilt)] as [number, number, number];
+      return [radius * Math.cos(anomaly), radius * Math.sin(anomaly) * Math.cos(tilt), radius * Math.sin(anomaly) * Math.sin(tilt)];
     });
-    const turned = (seconds: number) =>
-      nodes.map(([x, y, z]) => {
-        const angle = -EARTH_ROTATION_RAD_S * seconds;
-        return new Cartesian3(Math.cos(angle) * x - Math.sin(angle) * y, Math.sin(angle) * x + Math.cos(angle) * y, z);
-      });
-    const [now, later] = [turned(0), turned(0.5)];
+    // The line as drawn after `seconds`: its nodes turned with the Earth, and the chords between them.
+    const line = (seconds: number) => {
+      const angle = -EARTH_ROTATION_RAD_S * seconds;
+      const turned = nodes.map(([x, y, z]) => new Cartesian3(Math.cos(angle) * x - Math.sin(angle) * y, Math.sin(angle) * x + Math.cos(angle) * y, z));
+      return turned.flatMap((node, index) => [0, 0.25, 0.5, 0.75].map((t) => Cartesian3.lerp(node, turned[(index + 1) % turned.length]!, t, new Cartesian3())));
+    };
+    const [now, later] = [line(0), line(0.5)];
+    const offset = 3_000_000;
     const cameras = [
+      // 15,000 km inside the apogee, which lies in the equator's plane: there the bound is nearly met.
+      new Cartesian3(-31_000_000, 0, 0),
       new Cartesian3(25_000_000, 0, 0),
-      new Cartesian3(0, -8_000_000, 0),
+      new Cartesian3(0, -60_000_000, 0),
       new Cartesian3(0, 0, 30_000_000),
-      ...now.filter((_, index) => index % 10 === 0).map((node) => Cartesian3.multiplyByScalar(node, 1.05, new Cartesian3())),
+      ...now
+        .filter((_, index) => index % 40 === 0)
+        .map((point) => Cartesian3.add(point, Cartesian3.multiplyByScalar(Cartesian3.normalize(point, new Cartesian3()), offset, new Cartesian3()), new Cartesian3())),
     ];
     for (const camera of cameras) {
-      const line = lineDistance(samplesOf(nodes), camera, false)!;
-      const bound = turningLineSpeed(Cartesian3.magnitude(camera) + line, { outer: 46_050_000, speed: Infinity }) / line;
-      for (const [index, node] of now.entries()) {
-        const speed = Cartesian3.distance(node, later[index]!) / 0.5;
-        expect(speed / Cartesian3.distance(node, camera)).toBeLessThanOrEqual(bound);
+      // Samples at the instant asked for, so turned by nothing.
+      const distance = lineDistance(samplesOf(nodes, 0, 0), camera, true)!;
+      // Within the margin the bound is infinite, which proves nothing.
+      expect(distance).toBeGreaterThan(0);
+      const bound = turningLineSpeed(Cartesian3.magnitude(camera) + distance, molniya) / distance;
+      for (const [index, point] of now.entries()) {
+        const speed = Cartesian3.distance(point, later[index]!) / 0.5;
+        expect(speed / Cartesian3.distance(point, camera)).toBeLessThanOrEqual(bound);
       }
     }
     // By the perigee, far under the apogee's turn.
-    const perigee = Cartesian3.multiplyByScalar(now[0]!, 1.05, new Cartesian3());
-    expect(turningLineSpeed(Cartesian3.magnitude(perigee) + 2e6, { outer: 46_050_000, speed: Infinity })).toBeLessThan(0.5 * 1.1 * EARTH_ROTATION_RAD_S * 46_050_000);
+    expect(turningLineSpeed(7_000_000 * 1.05 + 2e6, molniya)).toBeLessThan(0.5 * 1.1 * EARTH_ROTATION_RAD_S * molniya.outer);
   });
 });
 

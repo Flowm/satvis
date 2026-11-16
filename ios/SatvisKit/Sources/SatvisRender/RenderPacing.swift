@@ -49,10 +49,10 @@ struct OrbitMotion: Equatable {
 
     /// Metres a second at most of an orbit's line, held still in inertial space,
     /// where it runs within `radius` of the Earth's centre: the Earth's turn there,
-    /// a tenth on top for its drift. At its apogee instead, MMS 4's line bounded
-    /// 2,000 km from an iPad mini's camera drew every other frame, not every fifth.
+    /// a tenth on top. Bounded at its apogee instead, MMS 4's line 2,000 km from an
+    /// iPad mini's camera drew every other frame or every frame, not every fifth.
     func turningSpeed(within radius: Double) -> Double {
-        min(1.1 * Self.earthRotationRate * min(radius, outer), speed)
+        min(1.1 * Self.earthRotationRate * min(radius, outer + RenderPacing.lineDrift), speed)
     }
 
     /// The shell widened to what else the satellite draws: an orbit's line, inside
@@ -89,6 +89,9 @@ enum RenderPacing {
     /// Metres an orbit's line may lie off its samples, for the drift ramped in to
     /// close the loop (Shaders/Lines.msl): 31 km for the ISS.
     static let lineDrift = 100_000.0
+    /// The most samples a line steps over between two of its points, as
+    /// Shaders/Lines.msl's `maximumLineStride`; never from under twice its radius.
+    static let lineStride = 4
     /// Metres from the Earth's centre, under the lowest ground a link ends on.
     static let lowestGround = 6_340_000.0
     /// How many of the satellites whose shells bound the rate most are taken where
@@ -155,6 +158,12 @@ enum RenderPacing {
             }
         }
         return fastest * pixelsPerRadian
+    }
+
+    /// `sample` turned `angle` radians about the Earth's axis, as an orbit's node
+    /// is turned with the Earth.
+    static func turned(_ sample: SIMD3<Double>, by angle: Double) -> SIMD3<Double> {
+        SIMD3(cos(angle) * sample.x - sin(angle) * sample.y, sin(angle) * sample.x + cos(angle) * sample.y, sample.z)
     }
 
     /// The nearest an orbit's line through `samples` comes to `camera`, now: the

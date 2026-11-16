@@ -159,7 +159,9 @@ export function lineDistance(forEach: (visit: SampleVisitor) => void, camera: Ca
 interface LineToPlace {
   /** rad/s, the line held to its shell. */
   shell: number;
+  /** Whose line it is. */
   satellite: PacedSatellite;
+  /** Its orbit's, for the line's turn. */
   bound: OrbitBound;
   /** m/s, the satellite's where it is (`lineSpeed`). */
   speed: number;
@@ -193,12 +195,12 @@ export function lineSpeed(radius: number, bound: Pick<OrbitBound, "inner" | "out
 
 /**
  * Metres a second at most of an orbit's line, held still in inertial space, where it runs within
- * `radius` metres of the Earth's centre: the Earth's turn there, a tenth on top for its drift. At
- * its apogee instead, MMS 4's line 2,000 km from an iPad mini's camera drew the native app's
- * every other frame, not every fifth.
+ * `radius` metres of the Earth's centre: the Earth's turn there, a tenth on top. Bounded at its
+ * apogee instead, MMS 4's line 2,000 km from an iPad mini's camera drew the native app's every
+ * other frame or every frame, not every fifth.
  */
 export function turningLineSpeed(radius: number, bound: Pick<OrbitBound, "outer" | "speed">): number {
-  return Math.min(1.1 * EARTH_ROTATION_RAD_S * Math.min(radius, bound.outer), bound.speed);
+  return Math.min(1.1 * EARTH_ROTATION_RAD_S * Math.min(radius, bound.outer + LINE_DRIFT_METRES), bound.speed);
 }
 
 /** Simulation seconds in which motion at `angularRateRadS` crosses `limits.pixels`, clamped to the limits. */
@@ -306,7 +308,7 @@ export class RenderPacer {
 
     // Radians a second past which the floor stands, whatever else moves.
     const enough = this.#limits.pixels / (this.#limits.floor * pixelsPerRadian);
-    /** The rate of a line measured where it is drawn, never past its shell's. */
+    // A line's rate where it is drawn, never past its shell's.
     const place = ({ shell, satellite, bound, speed }: LineToPlace): number => {
       const { trajectory } = satellite.props;
       const forEach = (visit: SampleVisitor) => trajectory.forEachSample(time, visit);
@@ -316,9 +318,8 @@ export class RenderPacer {
       if (orbit === undefined && track === undefined) {
         return shell;
       }
-      // An orbit, rebuilt only every half period, turns with the Earth, no further out than the
-      // camera and the line's distance from it; an orbit track is re-cut from the satellite to a
-      // period ahead, its ends anywhere along it at the satellite's speed.
+      // The batched orbit, rebuilt every half period, turns with the Earth within the camera's
+      // radius and its distance; an orbit track's ends move at the satellite's speed.
       const placed = Math.max(
         orbit === undefined ? 0 : angularRate(orbit, turningLineSpeed(cameraRadius + orbit, bound), horizon),
         track === undefined ? 0 : angularRate(track, speed, horizon),
@@ -352,8 +353,7 @@ export class RenderPacer {
         if (shell > own) {
           const line = { shell, satellite, bound, speed: lineSpeed(Cartesian3.magnitude(position), bound) };
           if (shell >= enough) {
-            // Past the floor on its shell, as a line whose shell holds the camera is: taken where it
-            // is now, as the native app takes it. Held to PLACED_LINES, a 33rd kept the floor.
+            // As a line whose shell holds the camera: held to its shell, a 33rd kept the floor.
             rate = Math.max(rate, place(line));
           } else if (toPlace.length === PLACED_LINES && shell <= toPlace[0]!.shell) {
             rate = Math.max(rate, shell);

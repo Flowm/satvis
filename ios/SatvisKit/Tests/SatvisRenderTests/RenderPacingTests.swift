@@ -127,7 +127,7 @@ import simd
         let leo = Self.leo.speed(atRadius: Self.earthRadius + 410_000)
         #expect(leo > 1.1 * 7_660 && leo <= Self.leo.speed)
         // An orbit's line turns with the Earth, at its outer radius at most.
-        #expect(Self.molniya.turningSpeed(within: 1e9) == 1.1 * OrbitMotion.earthRotationRate * Self.molniya.outer)
+        #expect(Self.molniya.turningSpeed(within: 1e9) == 1.1 * OrbitMotion.earthRotationRate * (Self.molniya.outer + RenderPacing.lineDrift))
         #expect(Self.molniya.turningSpeed(within: 20_000_000) == 1.1 * OrbitMotion.earthRotationRate * 20_000_000)
     }
 
@@ -208,24 +208,26 @@ import simd
     @Test(arguments: [0, 1]) func boundsAnOrbitsLineTurningWithTheEarth(record: Int) throws {
         let (trajectory, motion) = try Self.orbit(record)
         let time = trajectory.startMilliseconds + Double(trajectory.positions.count / 2) * trajectory.stepMilliseconds
-        func turned(_ seconds: Double) -> [SIMD3<Double>] {
-            trajectory.positions.enumerated().map { index, sample in
-                let angle = OrbitMotion.earthRotationRate * ((trajectory.startMilliseconds - time) / 1000 + Double(index) * trajectory.stepMilliseconds / 1000 - seconds)
-                return SIMD3(cos(angle) * sample.x - sin(angle) * sample.y, sin(angle) * sample.x + cos(angle) * sample.y, sample.z)
+        let (start, step) = ((trajectory.startMilliseconds - time) / 1000, trajectory.stepMilliseconds / 1000)
+        // The line as drawn: its nodes turned to the instant, and the chords between them.
+        func line(after seconds: Double) -> [SIMD3<Double>] {
+            let nodes = trajectory.positions.enumerated().map {
+                RenderPacing.turned($1, by: OrbitMotion.earthRotationRate * (start + Double($0) * step - seconds))
             }
+            return zip(nodes, nodes.dropFirst()).flatMap { a, b in [0, 0.25, 0.5, 0.75].map { a + $0 * (b - a) } }
         }
-        let (now, later) = (turned(0), turned(0.5))
-        // Along every direction, and just off every tenth node.
+        let (now, later) = (line(after: 0), line(after: 0.5))
+        // Along every direction, and off every 40th point by more than the line's margin.
         let directions: [SIMD3<Double>] = [[1, 0, 0], [0, 1, 0], [0, 0, 1], simd_normalize(SIMD3(-1, 1, 1)), simd_normalize(SIMD3(1, -1, 0.3))]
-        let around: [SIMD3<Double>] = directions.flatMap { [$0 * 2.5e7, $0 * 8e6] }
-        let offNodes: [SIMD3<Double>] = stride(from: 0, to: now.count, by: 10).map { now[$0] * 1.05 }
-        let cameras = around + offNodes
-        for camera in cameras {
-            let line = try #require(
-                RenderPacing.lineDistance(
-                    trajectory.positions, start: (trajectory.startMilliseconds - time) / 1000, step: trajectory.stepMilliseconds / 1000,
-                    turned: true, chord: motion.chord, from: camera))
-            let bound = motion.turningSpeed(within: length(camera) + line) / line
+        let around: [SIMD3<Double>] = directions.flatMap { [$0 * 2.5e7, $0 * 6e7] }
+        let offNodes: [SIMD3<Double>] = stride(from: 0, to: now.count, by: 40).map {
+            now[$0] + simd_normalize(now[$0]) * (motion.chord + RenderPacing.lineDrift + 1_000_000)
+        }
+        for camera in around + offNodes {
+            let distanceToLine = try #require(RenderPacing.lineDistance(trajectory.positions, start: start, step: step, turned: true, chord: motion.chord, from: camera))
+            // Within the margin the bound is infinite, which proves nothing.
+            try #require(distanceToLine > 0, "camera \(camera)")
+            let bound = motion.turningSpeed(within: length(camera) + distanceToLine) / distanceToLine
             for (here, there) in zip(now, later) {
                 #expect(distance(here, there) / 0.5 / distance(here, camera) <= bound)
             }
@@ -235,5 +237,25 @@ import simd
             let camera = perigee * 1.05
             #expect(motion.turningSpeed(within: length(camera) + 2e6) < 0.5 * 1.1 * OrbitMotion.earthRotationRate * motion.outer)
         }
+    }
+
+    // From 15,000 km inside an apogee in the equator's plane the bound is nearly met,
+    // as renderPacing.test.ts has it: a fifth under, it fails.
+    @Test func nearlyMeetsTheBoundInsideAnEquatorialApogee() throws {
+        let tilt = 63.4 * Double.pi / 180
+        let nodes = (0..<120).map { index in
+            let anomaly = 2 * Double.pi * Double(index) / 120
+            let radius = 26_500_000 * (1 - 0.736 * 0.736) / (1 + 0.736 * cos(anomaly))
+            return SIMD3(radius * cos(anomaly), radius * sin(anomaly) * cos(tilt), radius * sin(anomaly) * sin(tilt))
+        }
+        let radii = nodes.map { length($0) }
+        let chord = zip(nodes, nodes.dropFirst()).map { distance($0, $1) }.max()!
+        let motion = try #require(OrbitMotion(lowest: radii.min()!, highest: radii.max()!, farthestStep: chord, step: 1, hasCone: false))
+        let camera = SIMD3(-31_000_000.0, 0, 0)
+        let line = try #require(RenderPacing.lineDistance(nodes, start: 0, step: 0, turned: true, chord: motion.chord, from: camera))
+        let fastest = nodes.map { OrbitMotion.earthRotationRate * hypot($0.x, $0.y) / distance($0, camera) }.max()!
+        let bound = motion.turningSpeed(within: length(camera) + line) / line
+        #expect(fastest <= bound)
+        #expect(fastest > 0.8 * bound)
     }
 }
