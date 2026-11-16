@@ -24,7 +24,7 @@ import simd
     /// satellite draws `nearest` metres from the camera, at its orbit's top speed.
     static func pixelRate(_ motions: [OrbitMotion?], at camera: SIMD3<Double> = home, cones: Bool = false, nearest: Double? = 30_000_000) -> Double {
         RenderPacing.pixelRate(
-            motions, nearest: { index in nearest.map { ($0, motions[index]!.speed) } }, lines: false, linked: [], cones: cones, camera: camera,
+            motions, nearest: { index in nearest.map { [($0, motions[index]!.speed)] } ?? [] }, lines: false, linked: [], cones: cones, camera: camera,
             pixelsPerRadian: pixelsPerRadian)
     }
 
@@ -76,7 +76,7 @@ import simd
             Array(repeating: Self.leo, count: 100) + [Self.molniya],
             nearest: {
                 placed.append($0)
-                return (40_000_000, 10_000)
+                return [(40_000_000, 10_000)]
             }, lines: false, linked: [], cones: false, camera: Self.home, pixelsPerRadian: Self.pixelsPerRadian)
         // The Molniya orbit, whose shell holds the camera, and the first of the rest.
         #expect(placed.count == RenderPacing.placed + 1)
@@ -91,7 +91,7 @@ import simd
             Array(repeating: Self.molniya, count: 100),
             nearest: { _ in
                 placed += 1
-                return (100_000, 10_000)
+                return [(100_000, 10_000)]
             }, lines: false, linked: [], cones: false, camera: Self.home, pixelsPerRadian: Self.pixelsPerRadian)
         #expect(rate == .infinity)
         #expect(placed == 1)
@@ -110,7 +110,7 @@ import simd
         let camera = SIMD3(Self.earthRadius + 1_000_000, 0, 0)
         func rate(linked: Set<Int>) -> Double {
             RenderPacing.pixelRate(
-                [geo], nearest: { _ in (50_000, geo.speed) }, lines: false, linked: linked, cones: false, camera: camera, pixelsPerRadian: Self.pixelsPerRadian)
+                [geo], nearest: { _ in [(50_000, geo.speed)] }, lines: false, linked: linked, cones: false, camera: camera, pixelsPerRadian: Self.pixelsPerRadian)
         }
         #expect(rate(linked: []) < RenderPacing.pixels)
         #expect(rate(linked: [0]) == .infinity)
@@ -118,16 +118,17 @@ import simd
 
     @Test func anEccentricOrbitIsSlowFarFromPerigee() {
         // At apogee, 46,000 km out, a Molniya satellite moves at about 1.5 km/s.
-        let apogee = Self.molniya.speed(atRadius: 46_000_000, turning: false)
+        let apogee = Self.molniya.speed(atRadius: 46_000_000)
         #expect(apogee < 0.4 * Self.molniya.speed)
         #expect(apogee > 1.5e3)
         // At perigee, 7,000 km out, about 10 km/s, a tenth on top; on a circle, its
         // own speed.
-        #expect(Self.molniya.speed(atRadius: 7_000_000, turning: false) > 1.1 * 9_900)
-        let leo = Self.leo.speed(atRadius: Self.earthRadius + 410_000, turning: false)
+        #expect(Self.molniya.speed(atRadius: 7_000_000) > 1.1 * 9_900)
+        let leo = Self.leo.speed(atRadius: Self.earthRadius + 410_000)
         #expect(leo > 1.1 * 7_660 && leo <= Self.leo.speed)
-        // An orbit's line turns with the Earth at its outer radius.
-        #expect(Self.molniya.speed(atRadius: 46_000_000, turning: true) >= 1.1 * OrbitMotion.earthRotationRate * Self.molniya.outer)
+        // An orbit's line turns with the Earth, at its outer radius at most.
+        #expect(Self.molniya.turningSpeed(within: 1e9) == 1.1 * OrbitMotion.earthRotationRate * Self.molniya.outer)
+        #expect(Self.molniya.turningSpeed(within: 20_000_000) == 1.1 * OrbitMotion.earthRotationRate * 20_000_000)
     }
 
     @Test func aConeReachesTowardTheCamera() {
@@ -176,13 +177,7 @@ import simd
     // The fixed-frame speed by finite differences, along the whole window,
     // never past the bound where the satellite is, nor past the orbit's.
     @Test(arguments: [0, 1]) func holdsSGP4sSpeedWhereverTheSatelliteIs(record: Int) throws {
-        let epoch = try #require(ISO8601DateFormatter().date(from: "2026-10-01T06:00:00Z")).timeIntervalSince1970 * 1000
-        let trajectory = try #require(SampledTrajectory(try SGP4Propagator(Self.records[record].meanElements), around: epoch))
-        let radii = trajectory.positions.map { length($0) }
-        let farthestStep = zip(trajectory.positions, trajectory.positions.dropFirst()).map { distance($0, $1) }.max() ?? 0
-        let motion = try #require(
-            OrbitMotion(
-                lowest: radii.min()!, highest: radii.max()!, farthestStep: farthestStep, step: trajectory.stepMilliseconds / 1000, hasCone: false))
+        let (trajectory, motion) = try Self.orbit(record)
         let start = trajectory.startMilliseconds + 3 * trajectory.stepMilliseconds
         let end = trajectory.startMilliseconds + Double(trajectory.positions.count - 4) * trajectory.stepMilliseconds
         for time in stride(from: start, to: end, by: trajectory.stepMilliseconds / 7) {
@@ -190,8 +185,55 @@ import simd
                 continue
             }
             let speed = distance(here, later) / 0.5
-            #expect(speed <= motion.speed(atRadius: length(here), turning: false))
+            #expect(speed <= motion.speed(atRadius: length(here)))
             #expect(speed <= motion.speed)
+        }
+    }
+
+    /// Record `record`'s samples around 06:00 on its epoch day, and their motion.
+    static func orbit(_ record: Int) throws -> (SampledTrajectory, OrbitMotion) {
+        let epoch = try #require(ISO8601DateFormatter().date(from: "2026-10-01T06:00:00Z")).timeIntervalSince1970 * 1000
+        let trajectory = try #require(SampledTrajectory(try SGP4Propagator(Self.records[record].meanElements), around: epoch))
+        let radii = trajectory.positions.map { length($0) }
+        let farthestStep = zip(trajectory.positions, trajectory.positions.dropFirst()).map { distance($0, $1) }.max() ?? 0
+        let motion = try #require(
+            OrbitMotion(
+                lowest: radii.min()!, highest: radii.max()!, farthestStep: farthestStep, step: trajectory.stepMilliseconds / 1000, hasCone: false))
+        return (trajectory, motion)
+    }
+
+    // Every node of an orbit's line, turned with the Earth as it is drawn, crosses
+    // the view from cameras around and inside the orbit no faster than the Earth's
+    // turn within the camera's radius and the line's distance allows, there.
+    @Test(arguments: [0, 1]) func boundsAnOrbitsLineTurningWithTheEarth(record: Int) throws {
+        let (trajectory, motion) = try Self.orbit(record)
+        let time = trajectory.startMilliseconds + Double(trajectory.positions.count / 2) * trajectory.stepMilliseconds
+        func turned(_ seconds: Double) -> [SIMD3<Double>] {
+            trajectory.positions.enumerated().map { index, sample in
+                let angle = OrbitMotion.earthRotationRate * ((trajectory.startMilliseconds - time) / 1000 + Double(index) * trajectory.stepMilliseconds / 1000 - seconds)
+                return SIMD3(cos(angle) * sample.x - sin(angle) * sample.y, sin(angle) * sample.x + cos(angle) * sample.y, sample.z)
+            }
+        }
+        let (now, later) = (turned(0), turned(0.5))
+        // Along every direction, and just off every tenth node.
+        let directions: [SIMD3<Double>] = [[1, 0, 0], [0, 1, 0], [0, 0, 1], simd_normalize(SIMD3(-1, 1, 1)), simd_normalize(SIMD3(1, -1, 0.3))]
+        let around: [SIMD3<Double>] = directions.flatMap { [$0 * 2.5e7, $0 * 8e6] }
+        let offNodes: [SIMD3<Double>] = stride(from: 0, to: now.count, by: 10).map { now[$0] * 1.05 }
+        let cameras = around + offNodes
+        for camera in cameras {
+            let line = try #require(
+                RenderPacing.lineDistance(
+                    trajectory.positions, start: (trajectory.startMilliseconds - time) / 1000, step: trajectory.stepMilliseconds / 1000,
+                    turned: true, chord: motion.chord, from: camera))
+            let bound = motion.turningSpeed(within: length(camera) + line) / line
+            for (here, there) in zip(now, later) {
+                #expect(distance(here, there) / 0.5 / distance(here, camera) <= bound)
+            }
+        }
+        // By the Molniya orbit's perigee, far under its apogee's turn.
+        if record == 0, let perigee = now.min(by: { length($0) < length($1) }) {
+            let camera = perigee * 1.05
+            #expect(motion.turningSpeed(within: length(camera) + 2e6) < 0.5 * 1.1 * OrbitMotion.earthRotationRate * motion.outer)
         }
     }
 }

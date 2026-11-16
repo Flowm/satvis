@@ -62,9 +62,10 @@ struct FramePacer {
     }
 
     /// The most device pixels a simulation second anything on a frame drawn from
-    /// `pose` at `time` can move (`RenderPacing.pixelRate`): each satellite where
-    /// it is, or its orbit's lines where their nodes are, and its ground station
-    /// links, which move no faster than it does, where they pass nearest.
+    /// `pose` at `time` can move (`RenderPacing.pixelRate`): each satellite and its
+    /// ground station links, which move no faster than it does, where they pass
+    /// nearest, and its orbit's lines where their nodes are, an orbit's at the
+    /// Earth's turn there.
     static func pixelRate(
         _ points: SatellitePoints, components: SatelliteComponents, links: [StationLink], pose: CameraPose, time: Double, size: SIMD2<Double>
     ) -> Double {
@@ -82,24 +83,43 @@ struct FramePacer {
                 stations[link.satellite, default: []].append(link.station)
             }
         }
-        func nearest(_ index: Int) -> (distance: Double, speed: Double)? {
+        /// Metres from the camera to the nearest of the segment from `a` to `b`.
+        func nearest(_ a: SIMD3<Double>, _ b: SIMD3<Double>) -> Double {
+            let along = b - a
+            let t = min(max(dot(camera - a, along) / length_squared(along), 0), 1)
+            return distance(a + t * along, camera)
+        }
+        func nearest(_ index: Int) -> [(distance: Double, speed: Double)] {
             let trajectory = satellites[index].trajectory
             // A line is drawn while the satellite is.
             guard let position = trajectory.position(at: time), let motion = motions[index] else {
-                return nil
+                return []
             }
-            var nearest = (stations[satellites[index].id] ?? []).reduce(distance(position, camera)) { nearest, station in
-                let along = position - station
-                let t = min(max(dot(camera - station, along) / length_squared(along), 0), 1)
-                return min(nearest, distance(station + t * along, camera))
-            }
-            let start = (trajectory.startMilliseconds - time) / 1000
+            let own = motion.speed(atRadius: length(position))
+            let near = (stations[satellites[index].id] ?? []).reduce(distance(position, camera)) { min($0, nearest($1, position)) }
+            var parts = [(near, own)]
+            let (start, step) = ((trajectory.startMilliseconds - time) / 1000, trajectory.stepMilliseconds / 1000)
             for turned in [true, false] where turned ? orbit : track {
-                let line = RenderPacing.lineDistance(
-                    trajectory.positions, start: start, step: trajectory.stepMilliseconds / 1000, turned: turned, chord: motion.chord, from: camera)
-                nearest = min(nearest, line ?? .infinity)
+                guard let line = RenderPacing.lineDistance(trajectory.positions, start: start, step: step, turned: turned, chord: motion.chord, from: camera)
+                else {
+                    continue
+                }
+                // An orbit turns with the Earth, no further out than the camera and the
+                // line's distance from it; an orbit track grows a period ahead, anywhere
+                // along it, at the satellite's speed.
+                parts.append(turned ? (line, motion.turningSpeed(within: length(camera) + line)) : (line, own))
+                // The two segments from the satellite to its nodes either side move with it.
+                let node = Int((-start / step).rounded(.down))
+                let sides = [node, node + 1].filter(trajectory.positions.indices.contains).map { node in
+                    let sample = trajectory.positions[node]
+                    let angle = turned ? OrbitMotion.earthRotationRate * (start + Double(node) * step) : 0
+                    return SIMD3(cos(angle) * sample.x - sin(angle) * sample.y, sin(angle) * sample.x + cos(angle) * sample.y, sample.z)
+                }
+                if let segments = sides.map({ nearest($0, position) }).min() {
+                    parts.append((segments, sides.reduce(own) { max($0, turned ? motion.turningSpeed(within: length($1)) : 0) }))
+                }
             }
-            return (nearest, motion.speed(atRadius: length(position), turning: orbit))
+            return parts
         }
         return RenderPacing.pixelRate(
             motions, nearest: nearest, lines: orbit || track, linked: Set(stations.keys.compactMap(points.index(of:))),

@@ -155,6 +155,16 @@ export function lineDistance(forEach: (visit: SampleVisitor) => void, camera: Ca
   return Number.isFinite(nearest) ? Math.max(0, nearest - chord / 2 - LINE_DRIFT_METRES) : undefined;
 }
 
+/** A satellite whose line's shell bounds the rate more than it does, to be measured where it is drawn. */
+interface LineToPlace {
+  /** rad/s, the line held to its shell. */
+  shell: number;
+  satellite: PacedSatellite;
+  bound: OrbitBound;
+  /** m/s, the satellite's where it is (`lineSpeed`). */
+  speed: number;
+}
+
 /** How far from the Earth's centre an orbit runs, and how fast anything drawn of it moves. */
 export interface OrbitBound {
   /** m/s in the Earth-fixed frame. */
@@ -170,19 +180,25 @@ export interface OrbitBound {
 }
 
 /**
- * Metres a second at most for anything on the line of an orbit whose satellite is `radius` metres
- * from the Earth's centre: vis-viva on the shell's semi-major axis and the Earth's rotation, a
- * tenth on top. With `turned`, at least the Earth's turn at the outer radius. Never more than
- * the shell's `speed`, which an eccentric orbit far from perigee is well under.
+ * Metres a second at most for a satellite `radius` metres from the Earth's centre, and an orbit
+ * track's end a period ahead: vis-viva on the shell's semi-major axis and the Earth's rotation, a
+ * tenth on top. Never more than the shell's `speed`, which an eccentric orbit far from perigee is
+ * well under.
  */
-export function lineSpeed(radius: number, bound: Pick<OrbitBound, "inner" | "outer" | "speed">, turned: boolean): number {
+export function lineSpeed(radius: number, bound: Pick<OrbitBound, "inner" | "outer" | "speed">): number {
   const nearest = Math.max(radius - SHELL_MARGIN_METRES, bound.inner, 1);
   const inertial = Math.sqrt(MU_M3_S2 * Math.max(2 / nearest - 2 / (bound.inner + bound.outer), 0));
-  let speed = 1.1 * (inertial + EARTH_ROTATION_RAD_S * radius);
-  if (turned) {
-    speed = Math.max(speed, 1.1 * EARTH_ROTATION_RAD_S * bound.outer);
-  }
-  return Math.min(speed, bound.speed);
+  return Math.min(1.1 * (inertial + EARTH_ROTATION_RAD_S * radius), bound.speed);
+}
+
+/**
+ * Metres a second at most of an orbit's line, held still in inertial space, where it runs within
+ * `radius` metres of the Earth's centre: the Earth's turn there, a tenth on top for its drift. At
+ * its apogee instead, MMS 4's line 2,000 km from an iPad mini's camera drew the native app's
+ * every other frame, not every fifth.
+ */
+export function turningLineSpeed(radius: number, bound: Pick<OrbitBound, "outer" | "speed">): number {
+  return Math.min(1.1 * EARTH_ROTATION_RAD_S * Math.min(radius, bound.outer), bound.speed);
 }
 
 /** Simulation seconds in which motion at `angularRateRadS` crosses `limits.pixels`, clamped to the limits. */
@@ -288,10 +304,32 @@ export class RenderPacer {
     const cameraPosition = camera.positionWC;
     const cameraRadius = Cartesian3.magnitude(cameraPosition);
 
+    // Radians a second past which the floor stands, whatever else moves.
+    const enough = this.#limits.pixels / (this.#limits.floor * pixelsPerRadian);
+    /** The rate of a line measured where it is drawn, never past its shell's. */
+    const place = ({ shell, satellite, bound, speed }: LineToPlace): number => {
+      const { trajectory } = satellite.props;
+      const forEach = (visit: SampleVisitor) => trajectory.forEachSample(time, visit);
+      const orbit = orbitLine ? lineDistance(forEach, cameraPosition, true) : undefined;
+      const track = trackLine ? lineDistance(forEach, cameraPosition, false) : undefined;
+      // Without a sample, the shell stands.
+      if (orbit === undefined && track === undefined) {
+        return shell;
+      }
+      // An orbit, rebuilt only every half period, turns with the Earth, no further out than the
+      // camera and the line's distance from it; an orbit track is re-cut from the satellite to a
+      // period ahead, its ends anywhere along it at the satellite's speed.
+      const placed = Math.max(
+        orbit === undefined ? 0 : angularRate(orbit, turningLineSpeed(cameraRadius + orbit, bound), horizon),
+        track === undefined ? 0 : angularRate(track, speed, horizon),
+      );
+      return Math.min(shell, placed);
+    };
+
     let rate = 0;
     // Lines whose shells bound the rate more than their satellites do, to be measured where they
     // are drawn: the PLACED_LINES that bound it most, the least first.
-    const toPlace: { shell: number; satellite: PacedSatellite; speed: number }[] = [];
+    const toPlace: LineToPlace[] = [];
     for (const satellite of this.#sources.satellites()) {
       // Cesium loads a model only on rendered frames.
       if (models && satellite.model?.pending) {
@@ -312,11 +350,16 @@ export class RenderPacer {
         const lineInner = bound.inner - bound.chord / 2 - LINE_DRIFT_METRES;
         const shell = angularRate(distanceToShell(cameraRadius, lineInner, bound.outer + LINE_DRIFT_METRES), bound.speed, horizon);
         if (shell > own) {
-          if (toPlace.length === PLACED_LINES && shell <= toPlace[0]!.shell) {
+          const line = { shell, satellite, bound, speed: lineSpeed(Cartesian3.magnitude(position), bound) };
+          if (shell >= enough) {
+            // Past the floor on its shell, as a line whose shell holds the camera is: taken where it
+            // is now, as the native app takes it. Held to PLACED_LINES, a 33rd kept the floor.
+            rate = Math.max(rate, place(line));
+          } else if (toPlace.length === PLACED_LINES && shell <= toPlace[0]!.shell) {
             rate = Math.max(rate, shell);
           } else {
             const at = toPlace.findIndex((entry) => entry.shell > shell);
-            toPlace.splice(at === -1 ? toPlace.length : at, 0, { shell, satellite, speed: lineSpeed(Cartesian3.magnitude(position), bound, orbitLine) });
+            toPlace.splice(at === -1 ? toPlace.length : at, 0, line);
             if (toPlace.length > PLACED_LINES) {
               rate = Math.max(rate, toPlace.shift()!.shell);
             }
@@ -332,23 +375,16 @@ export class RenderPacer {
         // Carried with the satellite and turned with its nadir, all within CONE_RADIUS_METERS of it.
         rate = Math.max(rate, angularRate(distance - CONE_RADIUS_METERS, bound.speed + bound.turnRate * CONE_RADIUS_METERS, horizon));
       }
-      if (rate === Infinity) {
+      if (rate >= enough) {
         return this.#limits.floor;
       }
     }
-    for (const { shell, satellite, speed } of toPlace.toReversed()) {
+    for (const line of toPlace.toReversed()) {
       // None after this one can raise the rate.
-      if (shell <= rate) {
+      if (line.shell <= rate) {
         break;
       }
-      const { trajectory } = satellite.props;
-      const forEach = (visit: SampleVisitor) => trajectory.forEachSample(time, visit);
-      const nearest = Math.min(
-        (orbitLine ? lineDistance(forEach, cameraPosition, true) : undefined) ?? Infinity,
-        (trackLine ? lineDistance(forEach, cameraPosition, false) : undefined) ?? Infinity,
-      );
-      // Without a sample, the shell stands.
-      rate = Math.max(rate, Number.isFinite(nearest) ? Math.min(shell, angularRate(nearest, speed, horizon)) : shell);
+      rate = Math.max(rate, place(line));
     }
     return renderTimeChange(rate, pixelsPerRadian, this.#limits);
   }
