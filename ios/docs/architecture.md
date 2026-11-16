@@ -272,11 +272,16 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   have moved half a device pixel, as the web app paces CesiumJS's render on
   demand (`RenderPacing`; the default view draws 4 frames a second). Paced, a
   frame is drawn on the first refresh by which something could have moved that
-  far, so the rate falls on a divisor of the screen's: every active orbit drew
-  12 frames a second on an iPad mini, and every frame while MMS 1's line passed
-  within 50 km of the camera. An orbit's line is bounded by the Earth's turn
-  within the camera's radius and its distance: bounded at its apogee's, MMS 4's
-  line 2,000 km away drew 30 frames a second or every frame. Whatever
+  far, so the rate falls on a divisor of the screen's: every active orbit draws
+  10 or 12 frames a second on an iPad mini, and every frame while MMS 1's line
+  passed within 50 km of the camera. An orbit's line is bounded by the Earth's
+  turn within the camera's radius and its distance to the segments `Lines.msl`
+  draws. Bounded at its apogee's, MMS 4's line 2,000 km away drew 30 frames a
+  second or every frame. Taken at its samples less its farthest step, thousands
+  of kilometres on an eccentric orbit, every active orbit drew 20 frames a
+  second at one hour and at another as many as the GPU could, 45; at its
+  segments as stepped coarsest, 20 or 15. Leaving out what of a line lies off the view saved no frame and cost 2 ms a
+  bound (`FramePacer.pixelRate`). Whatever
   changes what is drawn has to say so (`needsDraw`, or the surface's, the
   models' and the ground tracks' revisions). While the frames fall behind, a
   frame begins only once a drawable is free (`DrawableGate`): MTKView's
