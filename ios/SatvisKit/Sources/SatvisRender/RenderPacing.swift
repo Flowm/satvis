@@ -159,7 +159,11 @@ enum RenderPacing {
                 }
             }
         }
-        for (shell, index) in toPlace {
+        for (shell, index) in toPlace.reversed() {
+            // None after this one can raise the bound.
+            if shell <= fastest {
+                break
+            }
             if let motion = motions[index], let atPlace = placedRate(index, motion) {
                 fastest = max(fastest, min(shell, atPlace))
             }

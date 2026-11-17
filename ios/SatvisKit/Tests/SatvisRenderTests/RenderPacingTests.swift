@@ -70,19 +70,33 @@ import simd
         #expect(Self.pixelRate([Self.leo], nearest: 1) == Self.leoShellRate)
     }
 
-    @Test func placesOnlyTheSatellitesWhoseShellsBoundTheRateMost() {
-        var placed: [Int] = []
-        let rate = RenderPacing.pixelRate(
-            Array(repeating: Self.leo, count: 100) + [Self.molniya],
-            nearest: {
-                placed.append($0)
-                return [(40_000_000, 10_000)]
-            }, lines: false, linked: [], cones: false, camera: Self.home, pixelsPerRadian: Self.pixelsPerRadian)
-        // The Molniya orbit, whose shell holds the camera, and the first of the rest.
-        #expect(placed.count == RenderPacing.placed + 1)
-        #expect(placed.contains(100))
-        // The low orbits left on their shells bound it.
-        #expect(abs(rate - Self.leoShellRate) < 1e-9)
+    @Test func placesOnlyTheSatellitesWhoseShellsBoundTheRateMost() throws {
+        // Forty low orbits, each 100 km over the last, and a Molniya orbit whose
+        // shell holds the camera.
+        let low = try (0..<40).map { step in
+            let lowest = Self.earthRadius + 400_000 + Double(step) * 100_000
+            return try #require(OrbitMotion(lowest: lowest, highest: lowest + 20_000, farthestStep: 7_660 * 46, step: 46, hasCone: false))
+        }
+        func rate(near: Int?) -> (rate: Double, placed: [Int]) {
+            var placed: [Int] = []
+            let rate = RenderPacing.pixelRate(
+                low + [Self.molniya],
+                nearest: { index in
+                    placed.append(index)
+                    return [(index == near ? 1_000_000 : 40_000_000, 10_000)]
+                }, lines: false, linked: [], cones: false, camera: Self.home, pixelsPerRadian: Self.pixelsPerRadian)
+            return (rate, placed)
+        }
+        // All far off: the Molniya orbit, then the highest 32, the nearest first;
+        // the low ones left on their shells bound it.
+        let far = rate(near: nil)
+        #expect(far.placed == [40] + (8..<40).reversed())
+        #expect(abs(far.rate - Self.pixelRate([low[7]], nearest: 1)) < 1e-9)
+        // The highest near the camera, held to its shell: none after it can raise
+        // the rate.
+        let near = rate(near: 39)
+        #expect(near.placed == [40, 39])
+        #expect(abs(near.rate - Self.pixelRate([low[39]], nearest: 1)) < 1e-9)
     }
 
     @Test func stopsPlacingOnceEveryFrameIsDrawnAnyway() {
