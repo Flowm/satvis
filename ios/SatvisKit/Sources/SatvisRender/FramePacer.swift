@@ -64,8 +64,8 @@ struct FramePacer {
     /// The most device pixels a simulation second anything on a frame drawn from
     /// `pose` at `time` can move (`RenderPacing.pixelRate`): each satellite and its
     /// ground station links, which move no faster than it does, where they pass
-    /// nearest, and its orbit's lines where their nodes are, an orbit's at the
-    /// Earth's turn there.
+    /// nearest, and its orbit's lines where Shaders/Lines.msl draws their
+    /// segments, an orbit's at the Earth's turn there.
     static func pixelRate(
         _ points: SatellitePoints, components: SatelliteComponents, links: [StationLink], pose: CameraPose, time: Double, size: SIMD2<Double>
     ) -> Double {

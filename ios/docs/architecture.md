@@ -280,9 +280,9 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   second or every frame. Taken at its samples less its farthest step, thousands
   of kilometres on an eccentric orbit, every active orbit drew 20 frames a
   second at one hour and at another as many as the GPU could, 45; at its
-  segments as stepped coarsest, 20 or 15. Leaving out what of a line lies off the view saved no frame and cost 2 ms a
-  bound (`FramePacer.pixelRate`). Whatever
-  changes what is drawn has to say so (`needsDraw`, or the surface's, the
+  segments as stepped coarsest, 20 or 15. Leaving out what of a line lies
+  off the view saved no frame and cost 2 ms a bound (`FramePacer.pixelRate`).
+  Whatever changes what is drawn has to say so (`needsDraw`, or the surface's, the
   models' and the ground tracks' revisions). While the frames fall behind, a
   frame begins only once a drawable is free (`DrawableGate`): MTKView's
   `currentDrawable` blocked the main thread 20 ms a frame with every active
