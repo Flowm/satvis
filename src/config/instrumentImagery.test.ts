@@ -145,7 +145,7 @@ describe("imageryLayers of composites", () => {
   const ring = {
     provider: "eumetview",
     layer: "mumi:wideareacoverage_rgb_natural",
-    label: "Natural colour, Geostationary Ring",
+    label: "Natural colour, GeoRing",
     kind: "rgb",
     period: "PT3H",
     maxLevel: 6,
@@ -155,7 +155,7 @@ describe("imageryLayers of composites", () => {
   const mosaic = {
     provider: "georing",
     layer: "mosaic",
-    label: "Day/Night, Geostationary Ring",
+    label: "Day/Night, GeoRing",
     kind: "rgb",
     period: "PT1H",
     window: "P7D",
@@ -188,8 +188,8 @@ describe("imageryLayers of composites", () => {
           : [layer.key, layer.satellite, layer.instrument, layer.product, layer.detail],
       ),
     ).toEqual([
-      ["georing:mosaic", "Geostationary Ring", "hourly", "Day/Night", ["GOES 19"], "hourly, last 7 days"],
-      ["eumetview:mumi:wideareacoverage_rgb_natural", "Geostationary Ring", "3-hourly", "Natural", ["GOES 19", "METEOSAT-9 (MSG-2)"], "every 3 h since 2022"],
+      ["georing:mosaic", "GeoRing", "hourly", "Day/Night", ["GOES 19"], "hourly, last 7 days"],
+      ["eumetview:mumi:wideareacoverage_rgb_natural", "GeoRing", "3-hourly", "Natural", ["GOES 19", "METEOSAT-9 (MSG-2)"], "every 3 h since 2022"],
       ["60133:gibs:GOES-East_ABI_GeoColor", "GOES 19", "ABI", "GeoColor", "every 10 min, last 90 days"],
     ]);
   });

@@ -5,10 +5,11 @@
 // second and kept the GPU 52% busy; 0.5 s drew 2 and kept it 6% busy. A LEO satellite
 // crosses about 0.5 device pixels a second there, so the frames in between were the same.
 
-import { Cartesian3, Ellipsoid, type JulianDate, OrthographicOffCenterFrustum, PerspectiveFrustum } from "@cesium/core";
-import { type Scene, SceneMode } from "@cesium/engine";
+import { Cartesian3, Ellipsoid, type JulianDate, Matrix3, OrthographicOffCenterFrustum, PerspectiveFrustum } from "@cesium/core";
+import { type Scene, SceneMode, Transforms } from "@cesium/engine";
 
 import type { SampleVisitor } from "@/modules/util/GridPositionProperty";
+import { BatchedLine } from "@/modules/util/PolylineBatch";
 import { trajectoryWindow } from "@/modules/util/trajectoryWindow";
 
 import { EARTH_ROTATION_RAD_S, MU_KM3_S2 } from "./Orbit";
@@ -21,6 +22,8 @@ export interface PacedSatellite {
     readonly orbit: Orbit;
     readonly trajectory: {
       readonly entityPosition?: { getValue(time: JulianDate, result?: Cartesian3): Cartesian3 | undefined };
+      /** Metres from the Earth's centre to the nearest and the farthest of its samples, the same array until they change. */
+      readonly radiusRange?: readonly [nearest: number, farthest: number] | undefined;
       forEachSample(time: JulianDate, visit: SampleVisitor): void;
     };
   };
@@ -59,8 +62,9 @@ const CAMERA_RECOMPUTE_MS = 50;
 const PACED_COMPONENTS = new Set(["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model"]);
 
 /**
- * Metres either side of the mean elements' perigee and apogee. SGP4's short-period terms
- * moved the ISS's radius up to 20 km past them (Orbit.test.ts).
+ * Metres either side of a shell: of its samples' radii, or of the mean elements' perigee and
+ * apogee for a satellite without them. SGP4's short-period terms moved the ISS's radius up to
+ * 20 km past those (Orbit.test.ts).
  */
 const SHELL_MARGIN_METRES = 50_000;
 
@@ -90,8 +94,8 @@ export const REACHING_COMPONENTS: readonly string[] = ["Orbit", "Orbit track", "
 const MU_M3_S2 = MU_KM3_S2 * 1e9;
 
 /**
- * Satellites whose lines are measured at their samples in a bound, those whose shells bound
- * the rate most; the rest keep their shells. The native app's iPad mini spent 15 ms a frame
+ * Satellites whose lines are measured where they are drawn in a bound, those whose shells
+ * bound the rate most; the rest keep their shells. The native app's iPad mini spent 15 ms a frame
  * on all 16,762 active ones.
  */
 const PLACED_LINES = 32;
@@ -167,6 +171,30 @@ interface LineToPlace {
   speed: number;
 }
 
+/**
+ * Metres from `camera` to the nearest of a batched line's segments through `points` (x, y, z
+ * each), as they are drawn: turned by `rotation` where the batch turns them. Undefined without a
+ * segment.
+ */
+export function polylineDistance(points: ArrayLike<number>, camera: Cartesian3, rotation?: Matrix3): number | undefined {
+  let nearest = Infinity;
+  const at = (index: number, result: Cartesian3) => {
+    Cartesian3.fromArray(points as number[], index * 3, result);
+    return rotation ? Matrix3.multiplyByVector(rotation, result, result) : result;
+  };
+  const [a, b, along, foot] = [new Cartesian3(), new Cartesian3(), new Cartesian3(), new Cartesian3()];
+  at(0, b);
+  for (let index = 1; index < points.length / 3; index += 1) {
+    Cartesian3.clone(b, a);
+    at(index, b);
+    Cartesian3.subtract(b, a, along);
+    const squared = Cartesian3.magnitudeSquared(along);
+    const t = squared > 0 ? Math.min(Math.max(Cartesian3.dot(Cartesian3.subtract(camera, a, foot), along) / squared, 0), 1) : 0;
+    nearest = Math.min(nearest, Cartesian3.distance(Cartesian3.add(a, Cartesian3.multiplyByScalar(along, t, foot), foot), camera));
+  }
+  return Number.isFinite(nearest) ? nearest : undefined;
+}
+
 /** How far from the Earth's centre an orbit runs, and how fast anything drawn of it moves. */
 export interface OrbitBound {
   /** m/s in the Earth-fixed frame. */
@@ -222,7 +250,25 @@ export class RenderPacer {
 
   readonly #bounds = new WeakMap<Orbit, OrbitBound>();
 
+  /** Each set of samples' bound, by their `radiusRange`, and the element set's it was made from. */
+  readonly #sampledBounds = new WeakMap<readonly [number, number], { from: OrbitBound; bound: OrbitBound }>();
+
   readonly #position = new Cartesian3();
+
+  /** Each satellite's orbit bound in the last bound taken, in `sources.satellites()`'s order. */
+  readonly #satelliteBounds: OrbitBound[] = [];
+
+  /** rad/s, the most each satellite could add from its shell in the last bound taken. */
+  #shellRates = new Float64Array(0);
+
+  /** Indices of the satellites to visit, the most first. */
+  readonly #order: number[] = [];
+
+  /** rad/s, the last bound's, from which the next sorts only those that could matter. */
+  #lastRate = 0;
+
+  /** `Transforms.computeIcrfToFixedMatrix`'s result, reused every bound. */
+  readonly #icrfToFixed = new Matrix3();
 
   readonly #cameraAt = new Cartesian3();
 
@@ -305,6 +351,8 @@ export class RenderPacer {
     const models = components.includes("3D model");
     const cameraPosition = camera.positionWC;
     const cameraRadius = Cartesian3.magnitude(cameraPosition);
+    // The batched orbits' turn into the fixed frame; undefined until the IAU data loads.
+    const icrfToFixed = Transforms.computeIcrfToFixedMatrix(time, this.#icrfToFixed);
 
     // Radians a second past which the floor stands, whatever else moves.
     const enough = this.#limits.pixels / (this.#limits.floor * pixelsPerRadian);
@@ -312,8 +360,14 @@ export class RenderPacer {
     const place = ({ shell, satellite, bound, speed }: LineToPlace): number => {
       const { trajectory } = satellite.props;
       const forEach = (visit: SampleVisitor) => trajectory.forEachSample(time, visit);
-      const orbit = orbitLine ? lineDistance(forEach, cameraPosition, true) : undefined;
-      const track = trackLine ? lineDistance(forEach, cameraPosition, false) : undefined;
+      // Batched, a line is where its points are drawn; a path, for the tracked satellite, where its
+      // samples are.
+      const drawn = (name: string, rotation?: Matrix3) => {
+        const line = satellite.components[name];
+        return line instanceof BatchedLine ? polylineDistance(line.points, cameraPosition, rotation) : undefined;
+      };
+      const orbit = orbitLine ? ((icrfToFixed && drawn("Orbit", icrfToFixed)) ?? lineDistance(forEach, cameraPosition, true)) : undefined;
+      const track = trackLine ? (drawn("Orbit track") ?? lineDistance(forEach, cameraPosition, false)) : undefined;
       // Without a sample, the shell stands.
       if (orbit === undefined && track === undefined) {
         return shell;
@@ -327,64 +381,105 @@ export class RenderPacer {
       return Math.min(shell, placed);
     };
 
-    let rate = 0;
-    // Lines whose shells bound the rate more than their satellites do, to be measured where they
-    // are drawn: the PLACED_LINES that bound it most, the least first.
-    const toPlace: LineToPlace[] = [];
-    for (const satellite of this.#sources.satellites()) {
+    const satellites = this.#sources.satellites();
+    const lineShell = (bound: OrbitBound) =>
+      // A line's far points can pass closer than the satellite. It runs inside its samples by half a
+      // chord and off them by the drift. A camera within an eccentric orbit's shell (Arktika-M's runs
+      // 7,090 to 46,015 km) is measured to the line.
+      angularRate(distanceToShell(cameraRadius, bound.inner - bound.chord / 2 - LINE_DRIFT_METRES, bound.outer + LINE_DRIFT_METRES), bound.speed, horizon);
+    // The ribbon lies on the ground under the orbit, its clipped ends following the subpoint, slower
+    // than the satellite.
+    const groundTrackRate = (bound: OrbitBound) => angularRate(distanceToShell(cameraRadius, GROUND_RADIUS_METRES, bound.outer), bound.speed, horizon);
+    // Carried with the satellite and turned with its nadir, all within CONE_RADIUS_METERS of it.
+    const coneRate = (distance: number, bound: OrbitBound) => angularRate(distance - CONE_RADIUS_METERS, bound.speed + bound.turnRate * CONE_RADIUS_METERS, horizon);
+
+    // The most each satellite could add from its shell alone, which no position in it comes nearer
+    // than: all but a hundred of 16,894 active ones then need no position.
+    const bounds = this.#satelliteBounds;
+    bounds.length = satellites.length;
+    if (this.#shellRates.length < satellites.length) {
+      // A quarter over, so a few satellites more need no new array.
+      this.#shellRates = new Float64Array(Math.ceil(satellites.length * 1.25));
+    }
+    const shellRates = this.#shellRates;
+    for (const [index, satellite] of satellites.entries()) {
       // Cesium loads a model only on rendered frames.
       if (models && satellite.model?.pending) {
         return this.#limits.floor;
       }
+      const range = satellite.props.trajectory.radiusRange;
+      const bound = this.#satelliteBound(satellite.props.orbit, range);
+      const shell = distanceToShell(cameraRadius, bound.inner, bound.outer);
+      bounds[index] = bound;
+      // Without samples to hold it to a shell, where it is decides.
+      shellRates[index] = range
+        ? Math.max(angularRate(shell, bound.speed, horizon), lines ? lineShell(bound) : 0, groundTracks ? groundTrackRate(bound) : 0, cone ? coneRate(shell, bound) : 0)
+        : Infinity;
+    }
+
+    let rate = 0;
+    // Lines whose shells bound the rate more than their satellites do are measured where they are
+    // drawn, PLACED_LINES of them under the floor, those that bound it most first; the rest keep
+    // their shells.
+    let measured = 0;
+    const visit = (index: number) => {
+      const satellite = satellites[index]!;
+      const bound = bounds[index]!;
       const position = satellite.props.trajectory.entityPosition?.getValue(time, this.#position);
       if (!position) {
-        continue;
+        return;
       }
-      const bound = this.#orbitBound(satellite.props.orbit);
       const distance = Cartesian3.distance(cameraPosition, position);
       const own = angularRate(distance, bound.speed, horizon);
       rate = Math.max(rate, own);
       if (lines) {
-        // A line's far points can pass closer than the satellite. It runs inside its samples by half a
-        // chord and off them by the drift. A camera within an eccentric orbit's shell (Arktika-M's runs
-        // 7,090 to 46,015 km) is measured to the line.
-        const lineInner = bound.inner - bound.chord / 2 - LINE_DRIFT_METRES;
-        const shell = angularRate(distanceToShell(cameraRadius, lineInner, bound.outer + LINE_DRIFT_METRES), bound.speed, horizon);
-        if (shell > own) {
-          const line = { shell, satellite, bound, speed: lineSpeed(Cartesian3.magnitude(position), bound) };
-          if (shell >= enough) {
-            // As a line whose shell holds the camera: held to its shell, a 33rd kept the floor.
-            rate = Math.max(rate, place(line));
-          } else if (toPlace.length === PLACED_LINES && shell <= toPlace[0]!.shell) {
-            rate = Math.max(rate, shell);
+        const shell = lineShell(bound);
+        if (shell > own && shell > rate) {
+          if (shell < enough && measured === PLACED_LINES) {
+            rate = shell;
           } else {
-            const at = toPlace.findIndex((entry) => entry.shell > shell);
-            toPlace.splice(at === -1 ? toPlace.length : at, 0, line);
-            if (toPlace.length > PLACED_LINES) {
-              rate = Math.max(rate, toPlace.shift()!.shell);
-            }
+            // As a line whose shell holds the camera: held to its shell, a 33rd kept the floor.
+            measured += shell < enough ? 1 : 0;
+            rate = Math.max(rate, place({ shell, satellite, bound, speed: lineSpeed(Cartesian3.magnitude(position), bound) }));
           }
         }
       }
       if (groundTracks && satellite.components["Ground track"] !== undefined) {
-        // The ribbon lies on the ground under the orbit, its clipped ends following the subpoint,
-        // slower than the satellite.
-        rate = Math.max(rate, angularRate(distanceToShell(cameraRadius, GROUND_RADIUS_METRES, bound.outer), bound.speed, horizon));
+        rate = Math.max(rate, groundTrackRate(bound));
       }
       if (cone) {
-        // Carried with the satellite and turned with its nadir, all within CONE_RADIUS_METERS of it.
-        rate = Math.max(rate, angularRate(distance - CONE_RADIUS_METERS, bound.speed + bound.turnRate * CONE_RADIUS_METERS, horizon));
+        rate = Math.max(rate, coneRate(distance, bound));
       }
-      if (rate >= enough) {
-        return this.#limits.floor;
+    };
+    // Visits those that could add more than `above` and at most `atMost`, the most first, until none
+    // can raise the rate; true once it passes the floor.
+    const visitBetween = (above: number, atMost: number): boolean => {
+      const order = this.#order;
+      order.length = 0;
+      for (let index = 0; index < satellites.length; index += 1) {
+        if (shellRates[index]! > above && shellRates[index]! <= atMost) {
+          order.push(index);
+        }
       }
-    }
-    for (const line of toPlace.toReversed()) {
-      // None after this one can raise the rate.
-      if (line.shell <= rate) {
-        break;
+      order.sort((a, b) => shellRates[b]! - shellRates[a]!);
+      for (const index of order) {
+        if (shellRates[index]! <= rate) {
+          break;
+        }
+        visit(index);
+        if (rate >= enough) {
+          return true;
+        }
       }
-      rate = Math.max(rate, place(line));
+      return false;
+    };
+    // Half the last bound's rate leaves the hundred or so that matter to sort; where the rate falls
+    // under it, those between are visited too.
+    const seed = this.#lastRate / 2;
+    const floored = visitBetween(seed, Infinity) || (rate < seed && visitBetween(rate, seed));
+    this.#lastRate = floored ? enough : rate;
+    if (floored) {
+      return this.#limits.floor;
     }
     return renderTimeChange(rate, pixelsPerRadian, this.#limits);
   }
@@ -403,7 +498,7 @@ export class RenderPacer {
       if (models && satellite.model?.pending) {
         return this.#limits.floor;
       }
-      const bound = this.#orbitBound(satellite.props.orbit);
+      const bound = this.#satelliteBound(satellite.props.orbit, satellite.props.trajectory.radiusRange);
       let latitude = MAP_STRETCH_LATITUDE;
       if (!reaching) {
         const position = satellite.props.trajectory.entityPosition?.getValue(time, this.#position);
@@ -420,6 +515,25 @@ export class RenderPacer {
       rate = Math.max(rate, (bound.speed * Ellipsoid.WGS84.maximumRadius) / bound.inner / Math.cos(latitude));
     }
     return renderTimeChange(rate, pixelsPerMetre, this.#limits);
+  }
+
+  /**
+   * A satellite's bound: `orbit`'s, its shell where its samples run (`range`), as the native app
+   * takes it. A week from their epochs, 213 of 16,889 active satellites ran outside their element
+   * sets' shells, by up to 142 km.
+   */
+  #satelliteBound(orbit: Orbit, range: readonly [number, number] | undefined): OrbitBound {
+    const from = this.#orbitBound(orbit);
+    if (!range) {
+      return from;
+    }
+    let sampled = this.#sampledBounds.get(range);
+    if (sampled?.from !== from) {
+      const inner = Math.max(0, range[0] - SHELL_MARGIN_METRES);
+      sampled = { from, bound: { ...from, inner, outer: range[1] + SHELL_MARGIN_METRES, turnRate: inner > 0 ? from.speed / inner : Infinity } };
+      this.#sampledBounds.set(range, sampled);
+    }
+    return sampled.bound;
   }
 
   /** `orbit`'s bound, kept for as long as the orbit is. */

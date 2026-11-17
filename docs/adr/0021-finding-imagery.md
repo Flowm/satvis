@@ -79,10 +79,10 @@ group's row says how many of its layers are on.
   as the catalog's imagery mark does. It sits inside the row's label, where a press on it
   toggles nothing.
 - A composite (ADR 0019) is one row, first in its first satellite's group, not a row per
-  satellite all on or off together. It is named by its label's qualifier, "Geostationary
-  Ring", and shows its cadence where a satellite's row shows the instrument:
-  "Geostationary Ring hourly Day/Night", "Geostationary Ring 3-hourly Natural", on two
-  lines. Its tooltip names its satellites, and its frames start with its earliest
+  satellite all on or off together. It is named by its label's qualifier, "GeoRing", and
+  shows its cadence where a satellite's row shows the instrument: "GeoRing hourly
+  Day/Night", "GeoRing 3-hourly Natural", on two lines. "Geostationary Ring" left the
+  Map panel's row no room. Its tooltip names its satellites, and its frames start with its earliest
   satellite's. Its image button opens a menu of its satellites, each opening that
   satellite's Imagery tab.
 - The list is read off the records, so opening the Map panel loads every group, as opening

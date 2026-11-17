@@ -310,10 +310,10 @@ export function shortImageryLabel(label: string): string {
   return short === "" ? label : short;
 }
 
-/** A composite's Map panel row stands for no one satellite: it is named by its label's qualifier, "Geostationary Ring", or this. */
+/** A composite's Map panel row stands for no one satellite: it is named by its label's qualifier, "GeoRing", or this. */
 export const COMPOSITE = "Composite";
 
-/** "Natural colour, Geostationary Ring" is "Geostationary Ring". */
+/** "Natural colour, GeoRing" is "GeoRing". */
 function compositeName(label: string): string {
   const qualifier = label.split(",").slice(1).join(",").trim();
   return qualifier === "" ? COMPOSITE : qualifier[0]!.toUpperCase() + qualifier.slice(1);
@@ -347,7 +347,7 @@ export interface SatelliteImageryLayer extends ImageryLayerRow, Pick<ImageryEntr
 /** A composite, as the Map panel lists it: once, for all its satellites. */
 export interface CompositeImageryLayer extends ImageryLayerRow {
   kind: "composite";
-  /** Its label's qualifier, "Geostationary Ring", or COMPOSITE. */
+  /** Its label's qualifier, "GeoRing", or COMPOSITE. */
   name: string;
   /** Its satellites by name, sorted. */
   satellites: string[];

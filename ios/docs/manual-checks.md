@@ -62,8 +62,8 @@ runs up to 2026-11-15 is `manual-verification.md` in git history
   base map showing through on the way out, no tiles asked for levels passed.
   8 h back at 600×, the frames follow the clock. Switched off after a zoom, the
   base map alone remains.
-- **Geostationary Ring.** `SATVIS_TIME` half an hour after a listed Slot, Map →
-  GEO satellites → Geostationary Ring, Day/Night: north up, the base map only
+- **GeoRing.** `SATVIS_TIME` half an hour after a listed Slot, Map →
+  GEO satellites → GeoRing, Day/Night: north up, the base map only
   poleward; another Slot's half hour moves day and night.
 
 ## Touch, flights and panels

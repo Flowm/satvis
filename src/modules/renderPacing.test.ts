@@ -1,8 +1,9 @@
-import { Cartesian3, Ellipsoid, Event, JulianDate, Math as CesiumMath, OrthographicOffCenterFrustum, PerspectiveFrustum } from "@cesium/core";
+import { Cartesian3, Ellipsoid, Event, JulianDate, Math as CesiumMath, Matrix3, OrthographicOffCenterFrustum, PerspectiveFrustum } from "@cesium/core";
 import { type Scene, SceneMode } from "@cesium/engine";
 import { describe, expect, test, vi } from "vitest";
 
 import type { SampleVisitor } from "@/modules/util/GridPositionProperty";
+import { BatchedLine } from "@/modules/util/PolylineBatch";
 
 import { EARTH_ROTATION_RAD_S } from "./Orbit";
 import type Orbit from "./Orbit";
@@ -16,6 +17,7 @@ import {
   lineDistance,
   lineSpeed,
   maxPixelsPerRadian,
+  polylineDistance,
   renderTimeChange,
   turningLineSpeed,
 } from "./renderPacing";
@@ -114,6 +116,22 @@ describe("lineDistance", () => {
   });
 });
 
+describe("polylineDistance", () => {
+  const points = [10_000_000, 0, 0, 10_000_000, 400_000, 0, 10_000_000, 600_000, 0];
+
+  test("is the distance to the nearest segment: at its foot beside it, at its end beyond it", () => {
+    expect(polylineDistance(points, new Cartesian3(12_000_000, 200_000, 0))).toBeCloseTo(2_000_000);
+    expect(polylineDistance(points, new Cartesian3(30_000_000, 900_000, 0))).toBeCloseTo(Math.hypot(20_000_000, 300_000));
+  });
+
+  test("turns the points as the batch draws them, and is undefined without a segment", () => {
+    // A quarter turn about the z axis takes the line onto the y axis.
+    const quarter = Matrix3.fromRotationZ(Math.PI / 2);
+    expect(polylineDistance(points, new Cartesian3(-200_000, 12_000_000, 0), quarter)).toBeCloseTo(2_000_000, -1);
+    expect(polylineDistance(points.slice(0, 3), new Cartesian3(12_000_000, 0, 0))).toBeUndefined();
+  });
+});
+
 describe("lineSpeed", () => {
   // Arktika-M 1's shell, metres, and the shell's bound, the perigee's speed and the Earth's turn at apogee.
   const shell = { inner: 7_036_000, outer: 46_070_000, speed: 14_600 };
@@ -208,6 +226,9 @@ describe("RenderPacer", () => {
     orbitalPeriod?: number;
     samples?: [number, number, number][];
     components?: string[];
+    drawn?: Record<string, unknown>;
+    /** Metres; by default the orbit's. */
+    radiusRange?: readonly [number, number];
   }): PacedSatellite {
     const orbit = { radiusRangeKm: [options.perigeeKm, options.apogeeKm], maxFixedSpeedKmS: 10, orbitalPeriod: options.orbitalPeriod ?? 100 } as unknown as Orbit;
     return {
@@ -215,10 +236,11 @@ describe("RenderPacer", () => {
         orbit,
         trajectory: {
           entityPosition: { getValue: () => options.position },
+          radiusRange: "radiusRange" in options ? options.radiusRange : [options.perigeeKm * 1000, options.apogeeKm * 1000],
           forEachSample: (_time: JulianDate, visit: SampleVisitor) => samplesOf(options.samples ?? [])(visit),
         },
       },
-      components: Object.fromEntries((options.components ?? []).map((name) => [name, {}])),
+      components: { ...Object.fromEntries((options.components ?? []).map((name) => [name, {}])), ...options.drawn },
     };
   }
 
@@ -258,6 +280,13 @@ describe("RenderPacer", () => {
     expect(interval([arktika(farLine)], ["Point", "Orbit track"])).toBeGreaterThan(DEFAULT_LIMITS.floor);
   });
 
+  test("measures a batched line where its points are drawn, not its samples", () => {
+    const near = new BatchedLine([new Cartesian3(26_200_000, -1_000_000, 0), new Cartesian3(26_200_000, 1_000_000, 0)]);
+    const drawn = satellite({ position: new Cartesian3(-40_000_000, 0, 10_000_000), perigeeKm: 7_086, apogeeKm: 46_020, samples: farLine, drawn: { "Orbit track": near } });
+    expect(interval([arktika(farLine)], ["Point", "Orbit track"])).toBeGreaterThan(DEFAULT_LIMITS.floor);
+    expect(interval([drawn], ["Point", "Orbit track"])).toBe(DEFAULT_LIMITS.floor);
+  });
+
   test("keeps the floor when that line passes near the camera, or has no sample", () => {
     expect(interval([arktika([...farLine, [26_000_000, 0, 0]])], ["Point", "Orbit track"])).toBe(DEFAULT_LIMITS.floor);
     expect(interval([arktika([])], ["Point", "Orbit"])).toBe(DEFAULT_LIMITS.floor);
@@ -291,6 +320,73 @@ describe("RenderPacer", () => {
     const near = (apogeeKm: number) => satellite({ position: new Cartesian3(-40_000_000, 0, 10_000_000), perigeeKm: 7_086, apogeeKm, samples });
     expect(interval([near(46_020)], ["Point", "Orbit"])).toBeCloseTo(interval([near(177_000)], ["Point", "Orbit"]), 6);
     expect(interval([near(177_000)], ["Point", "Orbit"])).toBeGreaterThan(3 * DEFAULT_LIMITS.floor);
+  });
+
+  test("reads only the positions that could raise the rate, and every one it needs once the rate falls", () => {
+    let reads = 0;
+    const counted = (options: Parameters<typeof satellite>[0]): PacedSatellite => {
+      const paced = satellite(options);
+      return {
+        ...paced,
+        props: {
+          ...paced.props,
+          trajectory: {
+            ...paced.props.trajectory,
+            entityPosition: {
+              getValue: () => {
+                reads += 1;
+                return options.position;
+              },
+            },
+          },
+        },
+      };
+    };
+    // One 1,009 km under the camera, a thousand low ones on the far side of the Earth.
+    const near = counted({ position: new Cartesian3(25_100_000, 0, 0), perigeeKm: 25_000, apogeeKm: 25_200 });
+    const low = Array.from({ length: 1000 }, (_, index) => counted({ position: new Cartesian3(-7_000_000, index * 1000, 0), perigeeKm: 6_900, apogeeKm: 7_000 }));
+    let satellites = [near, ...low];
+    const scene = stubScene();
+    const pacer = new RenderPacer(scene as unknown as Scene, { satellites: () => satellites, components: () => ["Point"], multiplier: () => 1 });
+    const now = vi.spyOn(performance, "now");
+    const bound = (at: number) => {
+      now.mockReturnValue(at);
+      scene.preUpdate.raiseEvent(scene, time);
+      return scene.maximumRenderTimeChange;
+    };
+    // At the stub's 10 km/s over the next bound and the ceiling, 1.25 s.
+    const pixelsPerRadian = maxPixelsPerRadian(2266, 1218, CesiumMath.toRadians(60));
+    const expected = (distance: number) => renderTimeChange(angularRate(distance, 10_000, 1.25), pixelsPerRadian);
+    bound(0);
+    expect(bound(1_000)).toBeCloseTo(expected(1_009_000), 9);
+    expect(reads).toBe(1);
+    satellites = low;
+    expect(bound(2_000)).toBeCloseTo(expected(33_109_000), 9);
+    expect(reads).toBe(1001);
+    now.mockRestore();
+    pacer.destroy();
+  });
+
+  test("holds a satellite to the shell its samples run in, and one without samples to where it is", () => {
+    const pixelsPerRadian = maxPixelsPerRadian(2266, 1218, CesiumMath.toRadians(60));
+    const expected = (distance: number) => renderTimeChange(angularRate(distance, 10_000, 1.25), pixelsPerRadian);
+    // 5,000 km off the camera, in its shell.
+    const steady = satellite({ position: new Cartesian3(21_109_000, 0, 0), perigeeKm: 21_000, apogeeKm: 21_200 });
+    // Its element set's low shell held far from the camera, it is propagated 1,009 km under it.
+    const drifted = (radiusRange?: readonly [number, number]) => satellite({ position: new Cartesian3(25_100_000, 0, 0), perigeeKm: 6_900, apogeeKm: 7_000, radiusRange });
+    expect(interval([steady, drifted([25_000_000, 25_200_000])], ["Point"])).toBeCloseTo(expected(1_009_000), 9);
+    expect(interval([steady, drifted(undefined)], ["Point"])).toBeCloseTo(expected(1_009_000), 9);
+    expect(interval([steady], ["Point"])).toBeCloseTo(expected(5_000_000), 9);
+  });
+
+  test("visits a satellite whose line's shell could raise the rate though its own cannot", () => {
+    const line = (x: number) => ({ "Orbit track": new BatchedLine([new Cartesian3(x, -1_000_000, 0), new Cartesian3(x, 1_000_000, 0)]) });
+    // 3,200 km under the camera, its line far off.
+    const steady = satellite({ position: new Cartesian3(22_909_000, 0, 0), perigeeKm: 22_800, apogeeKm: 23_000, drawn: line(-40_000_000) });
+    // On the far side, its shell 3,841 km over the camera; a day's samples 7,200 km apart widen its
+    // line's to the camera, and its line passes 1,800 km over it.
+    const lined = satellite({ position: new Cartesian3(-30_050_000, 0, 0), perigeeKm: 30_000, apogeeKm: 30_100, orbitalPeriod: 1440, drawn: line(27_909_000) });
+    expect(interval([steady, lined], ["Point", "Orbit track"])).toBeLessThan(interval([steady], ["Point", "Orbit track"]));
   });
 
   describe("ground tracks", () => {

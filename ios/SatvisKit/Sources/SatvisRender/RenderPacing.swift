@@ -14,6 +14,9 @@ struct OrbitMotion: Equatable {
     var chord: Double
     /// Whether it draws a sensor cone.
     var hasCone: Bool
+    /// Whether its orbit is near enough a circle for its line to step over samples
+    /// (`PreparedSatellites.mayStep`).
+    var mayStep: Bool
 
     /// The Earth's rotation, in radians a second.
     static let earthRotationRate = 7.2921158553e-5
@@ -36,6 +39,7 @@ struct OrbitMotion: Equatable {
         speed = 1.1 * (farthestStep / step + Self.earthRotationRate * outer)
         chord = farthestStep
         self.hasCone = hasCone
+        mayStep = PreparedSatellites.mayStep(lowest: lowest, highest: highest)
     }
 
     /// Metres a second at most `radius` from the Earth's centre: vis-viva on the
@@ -90,8 +94,11 @@ enum RenderPacing {
     /// close the loop (Shaders/Lines.msl): 31 km for the ISS.
     static let lineDrift = 100_000.0
     /// The most samples a line steps over between two of its points, as
-    /// Shaders/Lines.msl's `maximumLineStride`; never from under twice its radius.
+    /// Shaders/Lines.msl's `maximumLineStride`.
     static let lineStride = 4
+    /// Device pixels a stepping line may sag off its orbit, as Shaders/Lines.msl's
+    /// `maximumSagPixels`.
+    static let lineSag = 1.0
     /// Metres from the Earth's centre, under the lowest ground a link ends on.
     static let lowestGround = 6_340_000.0
     /// How many of the satellites whose shells bound the rate most are taken where
@@ -152,7 +159,11 @@ enum RenderPacing {
                 }
             }
         }
-        for (shell, index) in toPlace {
+        for (shell, index) in toPlace.reversed() {
+            // None after this one can raise the bound.
+            if shell <= fastest {
+                break
+            }
             if let motion = motions[index], let atPlace = placedRate(index, motion) {
                 fastest = max(fastest, min(shell, atPlace))
             }
@@ -166,28 +177,96 @@ enum RenderPacing {
         SIMD3(cos(angle) * sample.x - sin(angle) * sample.y, sin(angle) * sample.x + cos(angle) * sample.y, sample.z)
     }
 
-    /// The nearest an orbit's line through `samples` comes to `camera`, now: the
-    /// first sample `start` seconds from now, the rest `step` apart. An orbit
-    /// (`turned`) is held still in inertial space, each sample turned with the
-    /// Earth to now as Shaders/Lines.msl turns it; an orbit track is not. Less half
-    /// the longest `chord` between two samples, for the line between them, and
-    /// `lineDrift`. Nil without a sample.
-    static func lineDistance(
-        _ samples: some Sequence<SIMD3<Double>>, start: Double, step: Double, turned: Bool, chord: Double, from camera: SIMD3<Double>
-    ) -> Double? {
-        var nearest = Double.infinity
+    /// An orbit's line's nodes now: the first sample `start` seconds from now, the
+    /// rest `step` apart. An orbit (`turned`) is held still in inertial space, each
+    /// sample turned with the Earth to now as Shaders/Lines.msl turns it; an orbit
+    /// track is not.
+    static func lineNodes(_ samples: some Sequence<SIMD3<Double>>, start: Double, step: Double, turned: Bool) -> [SIMD3<Double>] {
         // The turn to now, sample by sample, as a unit complex number.
         let first = turned ? OrbitMotion.earthRotationRate * start : 0
         let increment = turned ? OrbitMotion.earthRotationRate * step : 0
         var turn = SIMD2(cos(first), sin(first))
         let stepTurn = SIMD2(cos(increment), sin(increment))
-        for sample in samples {
-            let node = SIMD3(turn.x * sample.x - turn.y * sample.y, turn.y * sample.x + turn.x * sample.y, sample.z)
-            // NaN, where SGP4 refused the node, is passed over by `min`.
-            nearest = min(nearest, distance(node, camera))
-            turn = SIMD2(turn.x * stepTurn.x - turn.y * stepTurn.y, turn.y * stepTurn.x + turn.x * stepTurn.y)
+        return samples.map { sample in
+            defer { turn = SIMD2(turn.x * stepTurn.x - turn.y * stepTurn.y, turn.y * stepTurn.x + turn.x * stepTurn.y) }
+            return SIMD3(turn.x * sample.x - turn.y * sample.y, turn.y * sample.x + turn.x * sample.y, sample.z)
         }
-        return nearest.isFinite ? max(0, nearest - chord / 2 - lineDrift) : nil
+    }
+
+    /// A line's `ScenePass.lineNodes` nodes from sample `first` on, where
+    /// Shaders/Lines.msl's `linePoint` draws them: each at a sample within
+    /// `samples`, the first `start` seconds from now and the next `step` on; an
+    /// orbit's turned to now and, over its first quarter, moved on by the drift
+    /// between its ends, so its loop closes. Before the samples begin, that drift
+    /// spans more than a period.
+    static func drawnLine<Samples: RandomAccessCollection<SIMD3<Double>>>(
+        _ samples: Samples, first: Int, start: Double, step: Double, turned: Bool
+    ) -> [SIMD3<Double>] where Samples.Index == Int {
+        let count = ScenePass.lineNodes
+        guard !samples.isEmpty else {
+            return []
+        }
+        let sample = { (node: Int) in min(max(node, 0), samples.count - 1) }
+        let (low, high) = (sample(first), sample(first + count - 1))
+        let nodes = lineNodes(samples[low...high], start: start + Double(low) * step, step: step, turned: turned)
+        let node = { (index: Int) in nodes[sample(index) - low] }
+        guard turned else {
+            return (first..<first + count).map(node)
+        }
+        let drift = node(first + count - 1) - node(first)
+        let ramp = (count - 1) / 4
+        return (first..<first + count).map { index in
+            node(index) + drift * min(max(Double(ramp - (index - first)) / Double(ramp), 0), 1)
+        }
+    }
+
+    /// The nearest the segments between `nodes` `strides` apart come to `camera`,
+    /// every such pair, of which a line joins some, less `lineDrift`. A segment to a node SGP4 refused
+    /// is not drawn. Nil where none is.
+    static func lineDistance(_ nodes: [SIMD3<Double>], strides: [Int], from camera: SIMD3<Double>) -> Double? {
+        var nearest = Double.infinity
+        for stride in strides {
+            for (a, b) in zip(nodes, nodes.dropFirst(stride)) where (a + b).x.isFinite && (a + b).y.isFinite && (a + b).z.isFinite {
+                nearest = min(nearest, segmentDistance(a, b, from: camera))
+            }
+        }
+        return nearest.isFinite ? max(0, nearest - lineDrift) : nil
+    }
+
+    /// The strides Shaders/Lines.msl's `lineStride` may step over the samples of a
+    /// line of `motion` with, where lines step at all (`stepsLines`), seen from
+    /// `cameraDistance` metres from the Earth's centre at `pixelsPerRadian` in the
+    /// middle of the view: at whichever radius within its samples' the shader
+    /// takes. Never empty.
+    static func lineStrides(_ motion: OrbitMotion, stepsLines: Bool, cameraDistance: Double, pixelsPerRadian: Double) -> [Int] {
+        guard stepsLines, motion.mayStep else {
+            return [1]
+        }
+        func stride(radius: Double) -> Int {
+            // Close to an orbit its near side is drawn larger than any one scale.
+            guard cameraDistance >= 2 * radius else {
+                return 1
+            }
+            let pixels = radius / cameraDistance * pixelsPerRadian
+            var stride = lineStride
+            while stride > 1 {
+                let halfArc = Double.pi * Double(stride) / Double(ScenePass.lineNodes - 1)
+                if pixels * 0.5 * halfArc * halfArc <= lineSag {
+                    break
+                }
+                stride /= 2
+            }
+            return stride
+        }
+        let (fewest, most) = (stride(radius: motion.outer - OrbitMotion.shellMargin), stride(radius: motion.inner + OrbitMotion.shellMargin))
+        return Array(sequence(first: fewest) { $0 < most ? $0 * 2 : nil })
+    }
+
+    /// Metres from `camera` to the nearest of the segment from `a` to `b`.
+    static func segmentDistance(_ a: SIMD3<Double>, _ b: SIMD3<Double>, from camera: SIMD3<Double>) -> Double {
+        let along = b - a
+        let t = length_squared(along) > 0 ? min(max(dot(camera - a, along) / length_squared(along), 0), 1) : 0
+        return distance(a + t * along, camera)
     }
 
     /// The latitude the map's stretch east to west is taken at, at most, in
