@@ -227,6 +227,8 @@ describe("RenderPacer", () => {
     samples?: [number, number, number][];
     components?: string[];
     drawn?: Record<string, unknown>;
+    /** Metres; by default the orbit's. */
+    radiusRange?: readonly [number, number];
   }): PacedSatellite {
     const orbit = { radiusRangeKm: [options.perigeeKm, options.apogeeKm], maxFixedSpeedKmS: 10, orbitalPeriod: options.orbitalPeriod ?? 100 } as unknown as Orbit;
     return {
@@ -234,6 +236,7 @@ describe("RenderPacer", () => {
         orbit,
         trajectory: {
           entityPosition: { getValue: () => options.position },
+          radiusRange: "radiusRange" in options ? options.radiusRange : [options.perigeeKm * 1000, options.apogeeKm * 1000],
           forEachSample: (_time: JulianDate, visit: SampleVisitor) => samplesOf(options.samples ?? [])(visit),
         },
       },
@@ -362,6 +365,28 @@ describe("RenderPacer", () => {
     expect(reads).toBe(1001);
     now.mockRestore();
     pacer.destroy();
+  });
+
+  test("holds a satellite to the shell its samples run in, and one without samples to where it is", () => {
+    const pixelsPerRadian = maxPixelsPerRadian(2266, 1218, CesiumMath.toRadians(60));
+    const expected = (distance: number) => renderTimeChange(angularRate(distance, 10_000, 1.25), pixelsPerRadian);
+    // 5,000 km off the camera, in its shell.
+    const steady = satellite({ position: new Cartesian3(21_109_000, 0, 0), perigeeKm: 21_000, apogeeKm: 21_200 });
+    // Its element set's low shell held far from the camera, it is propagated 1,009 km under it.
+    const drifted = (radiusRange?: readonly [number, number]) => satellite({ position: new Cartesian3(25_100_000, 0, 0), perigeeKm: 6_900, apogeeKm: 7_000, radiusRange });
+    expect(interval([steady, drifted([25_000_000, 25_200_000])], ["Point"])).toBeCloseTo(expected(1_009_000), 9);
+    expect(interval([steady, drifted(undefined)], ["Point"])).toBeCloseTo(expected(1_009_000), 9);
+    expect(interval([steady], ["Point"])).toBeCloseTo(expected(5_000_000), 9);
+  });
+
+  test("visits a satellite whose line's shell could raise the rate though its own cannot", () => {
+    const line = (x: number) => ({ "Orbit track": new BatchedLine([new Cartesian3(x, -1_000_000, 0), new Cartesian3(x, 1_000_000, 0)]) });
+    // 3,200 km under the camera, its line far off.
+    const steady = satellite({ position: new Cartesian3(22_909_000, 0, 0), perigeeKm: 22_800, apogeeKm: 23_000, drawn: line(-40_000_000) });
+    // On the far side, its shell 3,841 km over the camera; a day's samples 7,200 km apart widen its
+    // line's to the camera, and its line passes 1,800 km over it.
+    const lined = satellite({ position: new Cartesian3(-30_050_000, 0, 0), perigeeKm: 30_000, apogeeKm: 30_100, orbitalPeriod: 1440, drawn: line(27_909_000) });
+    expect(interval([steady, lined], ["Point", "Orbit track"])).toBeLessThan(interval([steady], ["Point", "Orbit track"]));
   });
 
   describe("ground tracks", () => {

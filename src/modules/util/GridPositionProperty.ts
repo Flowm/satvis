@@ -62,6 +62,9 @@ export class GridPositionProperty {
 
   #anchor = new JulianDate();
 
+  /** `radiusRange`, kept until the samples change. */
+  #radii: readonly [nearest: number, farthest: number] | undefined;
+
   constructor(referenceFrame: ReferenceFrame = ReferenceFrame.FIXED) {
     this.#frame = referenceFrame;
   }
@@ -90,6 +93,26 @@ export class GridPositionProperty {
     return this.#firstIndex;
   }
 
+  /**
+   * Metres from the Earth's centre to the nearest and the farthest of the samples held, which
+   * an interpolated position lies between; the same array until they change. Undefined without
+   * a sample SGP4 gave.
+   */
+  get radiusRange(): readonly [nearest: number, farthest: number] | undefined {
+    if (this.#radii === undefined) {
+      let [nearest, farthest] = [Infinity, -Infinity];
+      for (let at = 0; at < this.#count * 3; at += 3) {
+        const radius = Math.hypot(this.#positions[at] as number, this.#positions[at + 1] as number, this.#positions[at + 2] as number);
+        if (Number.isFinite(radius)) {
+          nearest = Math.min(nearest, radius);
+          farthest = Math.max(farthest, radius);
+        }
+      }
+      this.#radii = nearest <= farthest ? [nearest, farthest] : undefined;
+    }
+    return this.#radii;
+  }
+
   timeAt(gridIndex: number, result?: JulianDate): JulianDate {
     return JulianDate.addSeconds(this.#anchor, gridIndex * this.#stepSeconds, result ?? new JulianDate());
   }
@@ -101,6 +124,7 @@ export class GridPositionProperty {
     this.#anchor = JulianDate.fromDate(new Date(anchorEpochMs));
     this.#firstIndex = 0;
     this.#count = 0;
+    this.#radii = undefined;
     this._definitionChanged.raiseEvent(this);
   }
 
@@ -110,6 +134,7 @@ export class GridPositionProperty {
     this.#count = 0;
     this.#stepSeconds = 0;
     this.#positions = new Float64Array(0);
+    this.#radii = undefined;
     this._definitionChanged.raiseEvent(this);
   }
 
@@ -123,6 +148,7 @@ export class GridPositionProperty {
     if (incoming === 0) {
       return true;
     }
+    this.#radii = undefined;
     if (this.#count === 0) {
       this.#firstIndex = gridIndex;
       this.#ensure(incoming);
@@ -165,6 +191,7 @@ export class GridPositionProperty {
     if (drop <= 0 || this.#count === 0) {
       return;
     }
+    this.#radii = undefined;
     if (drop >= this.#count) {
       this.#firstIndex = gridIndex;
       this.#count = 0;
@@ -177,6 +204,7 @@ export class GridPositionProperty {
 
   dropAfter(gridIndex: number): void {
     const keep = gridIndex - this.#firstIndex + 1;
+    this.#radii = undefined;
     if (keep < 0) {
       this.#count = 0;
       return;

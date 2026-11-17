@@ -22,6 +22,8 @@ export interface PacedSatellite {
     readonly orbit: Orbit;
     readonly trajectory: {
       readonly entityPosition?: { getValue(time: JulianDate, result?: Cartesian3): Cartesian3 | undefined };
+      /** Metres from the Earth's centre to the nearest and the farthest of its samples, the same array until they change. */
+      readonly radiusRange?: readonly [nearest: number, farthest: number] | undefined;
       forEachSample(time: JulianDate, visit: SampleVisitor): void;
     };
   };
@@ -60,8 +62,9 @@ const CAMERA_RECOMPUTE_MS = 50;
 const PACED_COMPONENTS = new Set(["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model"]);
 
 /**
- * Metres either side of the mean elements' perigee and apogee. SGP4's short-period terms
- * moved the ISS's radius up to 20 km past them (Orbit.test.ts).
+ * Metres either side of a shell: of its samples' radii, or of the mean elements' perigee and
+ * apogee for a satellite without them. SGP4's short-period terms moved the ISS's radius up to
+ * 20 km past those (Orbit.test.ts).
  */
 const SHELL_MARGIN_METRES = 50_000;
 
@@ -91,8 +94,8 @@ export const REACHING_COMPONENTS: readonly string[] = ["Orbit", "Orbit track", "
 const MU_M3_S2 = MU_KM3_S2 * 1e9;
 
 /**
- * Satellites whose lines are measured at their samples in a bound, those whose shells bound
- * the rate most; the rest keep their shells. The native app's iPad mini spent 15 ms a frame
+ * Satellites whose lines are measured where they are drawn in a bound, those whose shells
+ * bound the rate most; the rest keep their shells. The native app's iPad mini spent 15 ms a frame
  * on all 16,762 active ones.
  */
 const PLACED_LINES = 32;
@@ -247,13 +250,16 @@ export class RenderPacer {
 
   readonly #bounds = new WeakMap<Orbit, OrbitBound>();
 
+  /** Each set of samples' bound, by their `radiusRange`, and the element set's it was made from. */
+  readonly #sampledBounds = new WeakMap<readonly [number, number], { from: OrbitBound; bound: OrbitBound }>();
+
   readonly #position = new Cartesian3();
 
   /** Each satellite's orbit bound in the last bound taken, in `sources.satellites()`'s order. */
   readonly #satelliteBounds: OrbitBound[] = [];
 
   /** rad/s, the most each satellite could add from its shell in the last bound taken. */
-  #most = new Float64Array(0);
+  #shellRates = new Float64Array(0);
 
   /** Indices of the satellites to visit, the most first. */
   readonly #order: number[] = [];
@@ -391,19 +397,24 @@ export class RenderPacer {
     // than: all but a hundred of 16,894 active ones then need no position.
     const bounds = this.#satelliteBounds;
     bounds.length = satellites.length;
-    if (this.#most.length < satellites.length) {
-      this.#most = new Float64Array(Math.ceil(satellites.length * 1.25));
+    if (this.#shellRates.length < satellites.length) {
+      // A quarter over, so a few satellites more need no new array.
+      this.#shellRates = new Float64Array(Math.ceil(satellites.length * 1.25));
     }
-    const most = this.#most;
+    const shellRates = this.#shellRates;
     for (const [index, satellite] of satellites.entries()) {
       // Cesium loads a model only on rendered frames.
       if (models && satellite.model?.pending) {
         return this.#limits.floor;
       }
-      const bound = this.#orbitBound(satellite.props.orbit);
+      const range = satellite.props.trajectory.radiusRange;
+      const bound = this.#satelliteBound(satellite.props.orbit, range);
       const shell = distanceToShell(cameraRadius, bound.inner, bound.outer);
       bounds[index] = bound;
-      most[index] = Math.max(angularRate(shell, bound.speed, horizon), lines ? lineShell(bound) : 0, groundTracks ? groundTrackRate(bound) : 0, cone ? coneRate(shell, bound) : 0);
+      // Without samples to hold it to a shell, where it is decides.
+      shellRates[index] = range
+        ? Math.max(angularRate(shell, bound.speed, horizon), lines ? lineShell(bound) : 0, groundTracks ? groundTrackRate(bound) : 0, cone ? coneRate(shell, bound) : 0)
+        : Infinity;
     }
 
     let rate = 0;
@@ -446,13 +457,13 @@ export class RenderPacer {
       const order = this.#order;
       order.length = 0;
       for (let index = 0; index < satellites.length; index += 1) {
-        if (most[index]! > above && most[index]! <= atMost) {
+        if (shellRates[index]! > above && shellRates[index]! <= atMost) {
           order.push(index);
         }
       }
-      order.sort((a, b) => most[b]! - most[a]!);
+      order.sort((a, b) => shellRates[b]! - shellRates[a]!);
       for (const index of order) {
-        if (most[index]! <= rate) {
+        if (shellRates[index]! <= rate) {
           break;
         }
         visit(index);
@@ -487,7 +498,7 @@ export class RenderPacer {
       if (models && satellite.model?.pending) {
         return this.#limits.floor;
       }
-      const bound = this.#orbitBound(satellite.props.orbit);
+      const bound = this.#satelliteBound(satellite.props.orbit, satellite.props.trajectory.radiusRange);
       let latitude = MAP_STRETCH_LATITUDE;
       if (!reaching) {
         const position = satellite.props.trajectory.entityPosition?.getValue(time, this.#position);
@@ -504,6 +515,25 @@ export class RenderPacer {
       rate = Math.max(rate, (bound.speed * Ellipsoid.WGS84.maximumRadius) / bound.inner / Math.cos(latitude));
     }
     return renderTimeChange(rate, pixelsPerMetre, this.#limits);
+  }
+
+  /**
+   * A satellite's bound: `orbit`'s, its shell where its samples run (`range`), as the native app
+   * takes it. A week from their epochs, 213 of 16,889 active satellites ran outside their element
+   * sets' shells, by up to 142 km.
+   */
+  #satelliteBound(orbit: Orbit, range: readonly [number, number] | undefined): OrbitBound {
+    const from = this.#orbitBound(orbit);
+    if (!range) {
+      return from;
+    }
+    let sampled = this.#sampledBounds.get(range);
+    if (sampled?.from !== from) {
+      const inner = Math.max(0, range[0] - SHELL_MARGIN_METRES);
+      sampled = { from, bound: { ...from, inner, outer: range[1] + SHELL_MARGIN_METRES, turnRate: inner > 0 ? from.speed / inner : Infinity } };
+      this.#sampledBounds.set(range, sampled);
+    }
+    return sampled.bound;
   }
 
   /** `orbit`'s bound, kept for as long as the orbit is. */

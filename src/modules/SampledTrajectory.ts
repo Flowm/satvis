@@ -133,6 +133,14 @@ export class SampledTrajectory {
     return fixed ? (fixed.getRawValues(start, end) as Cartesian3[]) : [];
   }
 
+  /**
+   * Metres from the Earth's centre to the nearest and the farthest of its samples
+   * (`GridPositionProperty.radiusRange`); undefined once `fixed` has taken over, or before a sample.
+   */
+  get radiusRange(): readonly [nearest: number, farthest: number] | undefined {
+    return this.#grid?.radiusRange;
+  }
+
   /** For "where is it now" reads. Path graphics use `fixed` instead. */
   get entityPosition(): GridPositionProperty | SampledPositionProperty | undefined {
     if (!this.#data) {

@@ -36,6 +36,25 @@ describe("GridPositionProperty", () => {
     expect(property.getValue(at(0))).toBeUndefined();
   });
 
+  test("knows the nearest and farthest its samples come to the Earth's centre, until they change", () => {
+    const radius = (gridIndex: number) => Math.hypot(gridIndex * 100, gridIndex * -200, 7000);
+    const property = filled(0, 10);
+    const range = property.radiusRange;
+    expect(range).toEqual([radius(0), radius(9)]);
+    expect(property.radiusRange).toBe(range);
+    property.add(10, ramp(10, 2));
+    expect(property.radiusRange).toEqual([radius(0), radius(11)]);
+    property.dropBefore(4);
+    expect(property.radiusRange).toEqual([radius(4), radius(11)]);
+    property.dropAfter(8);
+    expect(property.radiusRange).toEqual([radius(4), radius(8)]);
+    // A sample SGP4 refused is no radius; without any, there is no range.
+    property.add(9, new Float64Array([NaN, NaN, NaN]));
+    expect(property.radiusRange).toEqual([radius(4), radius(8)]);
+    property.reset(ANCHOR_MS, STEP);
+    expect(property.radiusRange).toBeUndefined();
+  });
+
   test("reproduces the samples it was given, exactly", () => {
     const property = filled();
     for (let index = 0; index < 10; index += 1) {
