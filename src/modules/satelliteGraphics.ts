@@ -158,6 +158,7 @@ export function scanPlane(position: Cartesian3 | undefined, next: Cartesian3 | u
   return frame && { point: Cartesian3.clone(position!), ahead: Matrix3.getColumn(frame, 0, new Cartesian3()) };
 }
 
+/** The fan's axes in the Earth-fixed frame: ahead along the track, starboard tilted by `rollRad`, boresight down. */
 function fanFrame(position: Cartesian3 | undefined, next: Cartesian3 | undefined, rollRad: number): Matrix3 | undefined {
   const ellipsoid = Ellipsoid.WGS84;
   const here = position && ellipsoid.scaleToGeodeticSurface(position, scratchSubpoint);

@@ -2,7 +2,18 @@
 // time passes, and which representation fits the scene. The satellite's collection
 // (SatelliteComponentCollection) holds them and asks.
 
-import { BoundingSphere, Cartesian2, Cartesian3, Color, DistanceDisplayCondition, JulianDate, NearFarScalar, PerspectiveFrustum, TimeInterval } from "@cesium/core";
+import {
+  BoundingSphere,
+  Cartesian2,
+  Cartesian3,
+  Color,
+  DistanceDisplayCondition,
+  JulianDate,
+  NearFarScalar,
+  PerspectiveFrustum,
+  type Quaternion,
+  TimeInterval,
+} from "@cesium/core";
 import {
   CallbackProperty,
   ColorMaterialProperty,
@@ -655,10 +666,10 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
       };
       const next = new JulianDate();
       component.position = trajectory.entityPosition as typeof component.position;
-      component.orientation = new CallbackProperty((time?: JulianDate) => {
+      component.orientation = new CallbackProperty((time?: JulianDate, result?: Quaternion) => {
         const at = time as JulianDate;
         const roll = shapeFor(at)?.rollRad;
-        return roll === undefined ? undefined : fanOrientation(trajectory.position(at), trajectory.position(JulianDate.addSeconds(at, 1, next)), roll);
+        return roll === undefined ? undefined : fanOrientation(trajectory.position(at), trajectory.position(JulianDate.addSeconds(at, 1, next)), roll, result);
       }, false) as unknown as typeof component.orientation;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sensor = (component as any).rectangularSensor as InstanceType<typeof CesiumSensorVolumes.RectangularSensorGraphics>;

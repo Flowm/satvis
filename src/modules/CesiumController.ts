@@ -21,7 +21,7 @@ import utc from "dayjs/plugin/utc";
 
 import { usePostHog } from "@/composables/usePostHog";
 import { defaultViewDistance } from "@/config/defaultView";
-import { type DrawnImagery, isGranuleLayer, readImageryList, type TiledImagery } from "@/config/instrumentImagery";
+import { type DrawnImagery, granuleLayerOwner, isGranuleLayer, type TiledImagery } from "@/config/instrumentImagery";
 import { parseLayer } from "@/config/layers";
 import { TOUCH_HOLD_MS } from "@/config/layout";
 import { type FrameRate, frameIntervalFor, msaaSamplesFor, resolutionScaleFor } from "@/config/rendering";
@@ -436,8 +436,8 @@ export class CesiumController {
     return (time) => {
       if (Date.now() - lookedAt >= FOLLOW_LOOKUP_MS && !signal.aborted) {
         lookedAt = Date.now();
-        const owner = this.sats.catalog.entries.find(({ metadata }) => readImageryList(metadata.imagery).some(({ drawn, merged }) => !merged && drawn?.token === token));
-        const found = owner && this.sats.getSatellite(owner.name);
+        const owner = granuleLayerOwner(this.sats.catalog.entries, token);
+        const found = owner && this.sats.getSatellite(owner.entry.name);
         if (found !== sat) {
           release(sat);
         }
@@ -445,7 +445,8 @@ export class CesiumController {
         // A no-op where it is drawn; brings it back to a satellite rebuilt, or after the component is switched off.
         sat?.enableComponent(SCAN_COMPONENT);
       }
-      const trajectory = sat?.props.trajectory;
+      // The fill's shader reads Earth-fixed positions, which only 3D's depth gives.
+      const trajectory = this.viewer.scene.mode === SceneMode.SCENE3D ? sat?.props.trajectory : undefined;
       return trajectory && scanPlane(trajectory.position(time), trajectory.position(JulianDate.addSeconds(time, 1, next)));
     };
   }

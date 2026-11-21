@@ -1,6 +1,6 @@
-// Overpass replay (ADR 0023): the clock set back to an overpass a granule layer has, playing,
-// with the layer on, so its granules appear behind the satellite as it flies over. What is
-// replayed comes from CMR, what it shows from GIBS.
+// A granule layer's overpasses and granules as CMR lists them (ADR 0023): a station's, which
+// its passes replay, the newest, which the Imagery tab card goes to, and a satellite's around
+// the clock, which the timeline shades. What they show comes from GIBS.
 
 import type { GranuleLayer } from "@/config/instrumentImagery";
 import { fetchGranules, type Granule, type GroundPoint, groupOverpasses, type Overpass } from "@/modules/util/cmrGranules";
@@ -76,9 +76,12 @@ export interface ReplayPlan {
   centre: GroundPoint;
 }
 
+/** How long before an overpass the clock is set: the satellite comes up to it. */
+export const REPLAY_LEAD_MS = 5 * MINUTE;
+
 /** A pass or an overpass over a station: from five minutes before it starts, at 30×, above the station. */
 export function stationReplay(overpass: Pick<Overpass, "start">, station: GroundPoint): ReplayPlan {
-  return { time: overpass.start - 5 * MINUTE, multiplier: 30, centre: station };
+  return { time: overpass.start - REPLAY_LEAD_MS, multiplier: 30, centre: station };
 }
 
 /** How far around the clock a satellite's own overpasses are listed for the timeline: a day each way, about 14 orbits. */
@@ -97,8 +100,8 @@ export async function orbitOverpasses(layer: GranuleLayer, around: number, signa
 /** How far before its replay's start the clock still counts as at an overpass: a step lands on it a moment early. */
 const STEP_SLACK_MS = MINUTE;
 
-/** How long after its end the clock still counts as at an overpass. */
-const AFTER_MS = 10 * MINUTE;
+/** How long after its end the clock still counts as at an overpass, or at a granule: the fill's slack, and some. */
+export const AFTER_OVERPASS_MS = 10 * MINUTE;
 
 /** Where the clock is among a list of replays. */
 export interface ReplayPlace<T> {
@@ -115,6 +118,6 @@ export interface ReplayPlace<T> {
 export function replayPlace<T extends { end: number }>(items: readonly T[], time: number, plan: (item: T) => ReplayPlan): ReplayPlace<T> {
   const begun = items.filter((item) => plan(item).time <= time + STEP_SLACK_MS).length;
   const last = items[begun - 1];
-  const current = last !== undefined && time <= last.end + AFTER_MS ? last : undefined;
+  const current = last !== undefined && time <= last.end + AFTER_OVERPASS_MS ? last : undefined;
   return { current, previous: items[current === undefined ? begun - 1 : begun - 2], next: items[begun] };
 }

@@ -23,7 +23,7 @@
 <script setup lang="ts">
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { computed, watch } from "vue";
+import { computed } from "vue";
 
 import { useOverpassReplay } from "@/composables/useOverpassReplay";
 import { useViewerClock } from "@/composables/useViewerClock";
@@ -32,23 +32,11 @@ import type { Overpass } from "@/modules/util/cmrGranules";
 
 dayjs.extend(utc);
 
-const replay = useOverpassReplay();
-const { jump, stop } = replay;
+/** A replay started from a station's pass; a granule layer shown from its card or the Map panel has none. */
+const { replay: active, jump, stop } = useOverpassReplay();
 const { now, goLive } = useViewerClock();
 
-/** A replay started from a station's pass; a granule layer shown from its card or the Map panel follows the clock without one. */
-const active = computed(() => {
-  const on = replay.active.value;
-  return on?.station === undefined ? undefined : { ...on, station: on.station };
-});
-// A layer taken off ends its replay, so showing it again later is no replay.
-watch(
-  () => replay.active.value?.layer.token,
-  (token) => {
-    if (token === undefined) replay.forget();
-  },
-);
-
+/** How each of the station's overpasses is replayed. */
 const plan = (overpass: Overpass): ReplayPlan => stationReplay(overpass, active.value!.station.point);
 
 const place = computed(() => replayPlace(active.value?.station.overpasses ?? [], now.value.getTime(), plan));
@@ -61,15 +49,18 @@ const title = computed(() => {
   return on && `Replaying the granules ${on.satellite}'s ${on.instrument} sensed over ${on.station.name}`;
 });
 
+/** The step's tooltip: the overpass it goes to, or that there is none. */
 function stepTitle(which: "previous" | "next"): string {
   const overpass = place.value[which];
   return overpass ? `${which === "next" ? "Next" : "Previous"} overpass, ${overpassTime(overpass)}` : `No ${which} overpass listed`;
 }
 
+/** Replays `overpass`, at the speed the clock runs. */
 function step(overpass: Overpass | undefined): void {
   if (overpass !== undefined) jump(plan(overpass));
 }
 
+/** Takes the replay's layer off and goes back to live; the camera stays. */
 function exit(): void {
   stop();
   goLive();

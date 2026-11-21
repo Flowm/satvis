@@ -12,7 +12,7 @@
       <div class="card__preview">
         <img v-if="previews.get(imagery.key) && !failed.has(imagery.key)" :src="previews.get(imagery.key)" alt="" loading="lazy" @error="failed.add(imagery.key)" />
         <div v-else class="card__placeholder">
-          <template v-if="imagery.replay?.provider === 'cmr'">
+          <template v-if="imagery.granuleLayer?.provider === 'cmr'">
             <UIcon name="lucide:square-dashed" />
             <span>Outlines only</span>
           </template>
@@ -25,7 +25,7 @@
         <span v-if="imagery.preview?.end" class="card__badge card__badge--ended">Ended {{ imagery.preview.end }}</span>
       </div>
       <!-- A granule layer follows the clock: the swath fills in behind the satellite as it flies, hours behind live. -->
-      <div v-if="imagery.replay" class="card__body">
+      <div v-if="imagery.granuleLayer" class="card__body">
         <div class="card__title">{{ SENSED_SWATH }}</div>
         <div class="card__detail">{{ imagery.label }}, as the clock runs</div>
         <div class="card__actions">
@@ -84,7 +84,7 @@ import { useSelectedEntity } from "@/composables/useSelectedEntity";
 import { useViewerClock } from "@/composables/useViewerClock";
 import { imageryPreviewUrl, isGranuleLayer, SENSED_SWATH, PREVIEW_HEIGHT, PREVIEW_WIDTH, type PreviewCentre, previewBounds } from "@/config/instrumentImagery";
 import { geoMosaicPreview } from "@/modules/GeoMosaicImagery";
-import { granuleCentre, latestGranule } from "@/modules/overpassReplay";
+import { AFTER_OVERPASS_MS, granuleCentre, latestGranule, REPLAY_LEAD_MS } from "@/modules/overpassReplay";
 import type { Granule } from "@/modules/util/cmrGranules";
 import type { ImageryInfo } from "@/modules/util/entityInfo";
 import { formatFrame } from "@/modules/util/timeDomain";
@@ -102,8 +102,6 @@ const props = defineProps<{
   geostationary: boolean;
   /** The instrument whose first card is scrolled into view. */
   focus: string | undefined;
-  /** The satellite's name, which a replay turns on. */
-  satellite: string;
 }>();
 
 const cesiumStore = useCesiumStore();
@@ -156,19 +154,28 @@ onUnmounted(forgetPreviews);
  * its latest frame is a granule that may be by night, or one GIBS left out.
  */
 const latest = reactive(new Map<string, Granule>());
+/** How often the newest granule is asked again while the tab is open: CMR lists one every 6 minutes. */
+const LATEST_REFRESH_MS = 10 * 60 * 1000;
 watch(
   () => props.layers,
   (layers, _, onCleanup) => {
     latest.clear();
     const reading = new AbortController();
-    onCleanup(() => reading.abort());
-    for (const { imagery } of layers) {
-      const layer = imagery.replay;
-      if (!isGranuleLayer(layer)) continue;
-      void latestGranule(layer, reading.signal).then((granule) => {
-        if (granule !== undefined && !reading.signal.aborted) latest.set(imagery.key, granule);
-      });
-    }
+    const ask = () => {
+      for (const { imagery } of layers) {
+        const layer = imagery.granuleLayer;
+        if (!isGranuleLayer(layer)) continue;
+        void latestGranule(layer, reading.signal).then((granule) => {
+          if (granule !== undefined && !reading.signal.aborted) latest.set(imagery.key, granule);
+        });
+      }
+    };
+    ask();
+    const timer = layers.some(({ imagery }) => imagery.granuleLayer) ? setInterval(ask, LATEST_REFRESH_MS) : undefined;
+    onCleanup(() => {
+      reading.abort();
+      clearInterval(timer);
+    });
   },
   { immediate: true },
 );
@@ -180,13 +187,10 @@ const controller = useController();
 const { isTracked, toggleTrack } = useSelectedEntity(controller);
 const { now } = useViewerClock();
 
-/** How long after its end the clock still counts as at a granule: the fill's slack. */
-const AHEAD_SLACK_MS = 10 * 60 * 1000;
-
 /** The clock is past the newest granule the layer has, so it shows nothing new. */
 function aheadOfData(imagery: ImageryInfo): boolean {
   const granule = latest.get(imagery.key);
-  return granule !== undefined && now.value.getTime() > granule.end + AHEAD_SLACK_MS;
+  return granule !== undefined && now.value.getTime() > granule.end + AFTER_OVERPASS_MS;
 }
 
 /** "3 h 12 m". */
@@ -199,7 +203,7 @@ function behindLive(granule: Granule): string {
 function goToLatest(imagery: ImageryInfo): void {
   const granule = latest.get(imagery.key);
   if (granule === undefined) return;
-  const time = granule.start - 5 * 60 * 1000;
+  const time = granule.start - REPLAY_LEAD_MS;
   controller.setTime(time);
   cesiumStore.setTime(new Date(time).toISOString());
 }
@@ -218,7 +222,7 @@ const previews = computed(() => {
         const centre = { latitude, longitude: Math.max(-180 + GRANULE_HALF_WIDTH, Math.min(180 - GRANULE_HALF_WIDTH, longitude)) };
         return [[imagery.key, imageryPreviewUrl({ ...imagery.preview, at }, previewBounds(centre, GRANULE_HALF_WIDTH), now)] as const];
       }
-      if (!imagery.preview || where === undefined || imagery.replay) return [];
+      if (!imagery.preview || where === undefined || imagery.granuleLayer) return [];
       const url = isGeoring(imagery) ? madePreviews.get(imagery.key) : imageryPreviewUrl(imagery.preview, where, now);
       return url === undefined ? [] : [[imagery.key, url] as const];
     }),

@@ -151,8 +151,26 @@ export interface OutlineImagery {
 /** A layer the globe draws granule by granule: a GIBS layer of one granule a frame, or a `cmr` one of their outlines. */
 export type GranuleLayer = DrawnImagery & { granules: string[] };
 
+/** Whether the layer is one of granules, a frame each, which follows the clock (ADR 0023). */
 export function isGranuleLayer(drawn: DrawnImagery | undefined): drawn is GranuleLayer {
   return drawn?.granules !== undefined;
+}
+
+/**
+ * The record whose own granule layer `token` is, with the layer and its instrument; none for
+ * a composite's, which is no one satellite's, or a token of another layer.
+ */
+export function granuleLayerOwner<Entry extends { metadata: { imagery?: unknown } }>(
+  entries: readonly Entry[],
+  token: string,
+): { entry: Entry; layer: GranuleLayer; instrument: string } | undefined {
+  for (const entry of entries) {
+    const found = readImageryList(entry.metadata.imagery).find(({ drawn, merged }) => !merged && drawn?.token === token);
+    if (found !== undefined) {
+      return isGranuleLayer(found.drawn) ? { entry, layer: found.drawn, instrument: found.instrument } : undefined;
+    }
+  }
+  return undefined;
 }
 
 /** The types of tile the drawing providers send. */

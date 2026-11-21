@@ -45,8 +45,8 @@ export interface ImageryInfo {
   token?: string;
   /** What a picture of it needs; with `token`, as the provider draws any layer the globe can. */
   preview?: ImageryPreview;
-  /** What replaying its overpasses needs, for a layer of one granule a frame (ADR 0023). */
-  replay?: DrawnImagery;
+  /** The layer itself, where it is one of granules a frame: the swath as sensed (ADR 0023). */
+  granuleLayer?: DrawnImagery;
 }
 
 /** One record entry of `imagery`, read: what the tab shows of it, and the instrument it belongs under. */
@@ -121,7 +121,7 @@ function instrumentImagery({ instrument, provider, layer, label, detail, viewer,
           ...(drawn.provider !== "cmr" && {
             preview: { provider: drawn.provider, layer: drawn.layer, format: drawn.format, daily: drawn.daily, ...(end !== undefined && { end }) },
           }),
-          ...(drawn.granules !== undefined && { replay: drawn }),
+          ...(drawn.granules !== undefined && { granuleLayer: drawn }),
         };
   return {
     instrument,

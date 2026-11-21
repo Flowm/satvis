@@ -52,8 +52,9 @@ export interface GranuleFill {
   gone: boolean;
 }
 
-/** An outline with pixels inside it, or of a layer of outlines alone, and one whose pixels the provider does not have. */
+/** An outline with pixels inside it, or of a layer of outlines alone. */
 const OUTLINE_COLOR = Color.fromCssColorString("#ffd54a").withAlpha(0.9);
+/** An outline whose granule the provider has no pixels of. */
 const MISSING_COLOR = Color.fromCssColorString("#9e9e9e").withAlpha(0.7);
 
 /** A fill with no picture, of outlines alone or before its picture comes: the outlines' colour, faint, yet seen over land. */
@@ -139,7 +140,8 @@ czm_material czm_getMaterial(czm_materialInput materialInput) {
     discard;
   }
   vec4 colour = tint;
-  if (picture > 0.5) {
+  // Outside 3D the depth gives projected coordinates, not the Earth-fixed ones the picture is sampled by.
+  if (picture > 0.5 && czm_sceneMode == czm_sceneMode3D) {
     float longitude = atan(world.y, world.x);
     if (longitude < bounds.x) {
       longitude += czm_twoPi;
@@ -178,6 +180,7 @@ function globeShading(scene: Scene, shading: Cartesian4, vertexLighting: Cartesi
   fadeDistances.w = globe.nightFadeInDistance;
 }
 
+/** A granule's outline, drawn on the ground in `color`. */
 function outlinePrimitive(granule: Granule, color: Color): GroundPolylinePrimitive {
   return new GroundPolylinePrimitive({
     geometryInstances: new GeometryInstance({
@@ -362,6 +365,8 @@ function sensing(drawn: GranuleLayer, primitives: PrimitiveCollection, follow: G
       fill.gone = true;
       fills.delete(fill);
       primitives.remove(fill.primitive);
+      // A primitive leaves its appearance's material, and the picture's texture with it.
+      fill.material.destroy();
     },
   };
 }

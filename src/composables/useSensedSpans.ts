@@ -11,14 +11,14 @@ const BUCKET_MS = 6 * 60 * 60 * 1000;
  * timeline shades (ADR 0023): the clock outside them shows nothing new.
  */
 export function useSensedSpans(time: () => number): Ref<readonly { start: number; end: number }[]> {
-  const { active } = useOverpassReplay();
+  const { layerOn } = useOverpassReplay();
   const spans = shallowRef<readonly { start: number; end: number }[]>([]);
   const bucket = computed(() => Math.floor(time() / BUCKET_MS));
   watch(
-    [() => active.value?.layer.token, bucket],
+    [() => layerOn.value?.layer.token, bucket],
     ([token, at], _, onCleanup) => {
       spans.value = [];
-      const layer = active.value?.layer;
+      const layer = layerOn.value?.layer;
       if (token === undefined || layer === undefined) return;
       const asking = new AbortController();
       onCleanup(() => asking.abort());

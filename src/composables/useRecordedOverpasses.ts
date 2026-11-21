@@ -1,4 +1,4 @@
-import { computed, reactive, type Ref, shallowRef, watch } from "vue";
+import { computed, onScopeDispose, reactive, type Ref, shallowRef, watch } from "vue";
 
 import { useController } from "@/composables/useController";
 import { useOverpassReplay } from "@/composables/useOverpassReplay";
@@ -11,7 +11,7 @@ const MAX_PAIRS = 6;
 
 /**
  * The overpasses CMR lists of the passes in view (ADR 0023): for each satellite with a
- * granule layer and station among `passes`, the last 30 days over the station, which the
+ * granule layer and station among `passes`, the last STATION_DAYS over the station, which the
  * Passes table matches to its rows, with whether GIBS has their pixels and a replay of each.
  */
 export function useRecordedOverpasses(passes: Ref<readonly { name: string; groundStationName?: string }[]>) {
@@ -63,6 +63,7 @@ export function useRecordedOverpasses(passes: Ref<readonly { name: string; groun
     },
     { immediate: true },
   );
+  onScopeDispose(() => asking?.abort());
 
   /** What the overpass shows; asks GIBS the first time it is wanted. */
   function imageryOf(entry: RecordedOverpass): PassImagery {

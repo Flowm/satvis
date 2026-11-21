@@ -241,7 +241,7 @@
 
         <template #imagery>
           <div class="tab-body__pad">
-            <imagery-gallery :layers="imageryLayers" :centre="imageryCentre" :geostationary="orbitClass === 'GEO'" :focus="imageryFocus" :satellite="name" />
+            <imagery-gallery :layers="imageryLayers" :centre="imageryCentre" :geostationary="orbitClass === 'GEO'" :focus="imageryFocus" />
           </div>
         </template>
       </UTabs>
