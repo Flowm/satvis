@@ -94,7 +94,7 @@ describe("coneOrientation", () => {
   });
 });
 
-describe("swath fan", () => {
+describe("ground track fan", () => {
   const VIIRS = { starboardKm: 1565, portKm: 1565 };
   // NOAA 20's height, over the equator.
   const above = Cartesian3.fromDegrees(0, 0, 830_000);

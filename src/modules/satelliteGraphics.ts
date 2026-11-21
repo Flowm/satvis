@@ -82,7 +82,7 @@ export function nadirAngle(groundMeters: number, altitudeMeters: number, earthRa
   return Math.atan2(earthRadiusMeters * Math.sin(central), earthRadiusMeters + altitudeMeters - earthRadiusMeters * Math.cos(central));
 }
 
-/** A swath fan at one moment: a rectangular sensor, tilted toward starboard by `rollRad`. */
+/** A ground track fan at one moment: a rectangular sensor, tilted toward starboard by `rollRad`. */
 export interface FanShape {
   /** Half the angle across the track, from port edge to starboard edge. */
   xHalfAngleRad: number;
@@ -146,13 +146,13 @@ export function fanOrientation(position: Cartesian3 | undefined, next: Cartesian
   return frame && Quaternion.fromRotationMatrix(frame, result);
 }
 
-/** The plane the swath fan lies in: through the satellite, `ahead` its unit normal along the track. */
+/** The plane the ground track fan lies in: through the satellite, `ahead` its unit normal along the track. */
 export interface ScanPlane {
   point: Cartesian3;
   ahead: Cartesian3;
 }
 
-/** The swath fan's plane, which a granule is sensed behind (ADR 0023); undefined as `fanOrientation` is. */
+/** The ground track fan's plane, which a granule is sensed behind (ADR 0023); undefined as `fanOrientation` is. */
 export function scanPlane(position: Cartesian3 | undefined, next: Cartesian3 | undefined): ScanPlane | undefined {
   const frame = fanFrame(position, next, 0);
   return frame && { point: Cartesian3.clone(position!), ahead: Matrix3.getColumn(frame, 0, new Cartesian3()) };

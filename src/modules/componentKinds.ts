@@ -150,7 +150,7 @@ export const ORBIT_LINE_COLOR = Color.WHITE.withAlpha(0.225);
 export const ORBIT_TRACK_LINE_COLOR = Color.GOLD.withAlpha(0.225);
 
 /**
- * The swath fan's line on the ground, the ribbon's red brightened: it stands out on cloud
+ * The ground track fan's line on the ground, the ribbon's red brightened: it stands out on cloud
  * and on the basemap's yellow-green land, where the granule outlines' yellow did not.
  */
 const FAN_LINE_COLOR = Color.fromCssColorString("#ff4433").withAlpha(0.9);
@@ -621,7 +621,7 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
    * extents, the ground track's ribbon's at the satellite, whose line on the ground is the
    * edge a granule is sensed behind (ADR 0023).
    */
-  "Swath fan": {
+  "Ground track fan": {
     create: (host) => {
       if (!groundTrackSwath(host.props.orbitClass, host.props.swathExtents)) {
         return undefined;

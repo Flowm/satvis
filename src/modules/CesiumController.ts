@@ -40,7 +40,7 @@ import { gibsFrames } from "./GibsImagery";
 import { showGranuleImagery } from "./GranuleImagery";
 import { granuleLayer } from "./GranuleLayers";
 import { RenderPacer } from "./renderPacing";
-import type { SampledTrajectory } from "./SampledTrajectory";
+import type { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { cesiumSceneMode, type ScanPlane, scanPlane } from "./satelliteGraphics";
 import { SatelliteManager } from "./SatelliteManager";
 import type { Observer } from "./skyGeometry";
@@ -87,8 +87,11 @@ function sameDrawn(a: DrawnImagery, b: DrawnImagery): boolean {
   return [...keys].every((key) => String(a[key]) === String(b[key]));
 }
 
-/** Wall milliseconds between looks for the satellite a granule layer follows, while it is not drawn. */
+/** Wall milliseconds between looks for the satellite a granule layer follows. */
 const FOLLOW_LOOKUP_MS = 1000;
+
+/** What a granule layer draws its satellite with while it is on. */
+const SCAN_COMPONENT = "Ground track fan";
 
 /** Metres. A NOAA-20 swath, 3,000 km wide, fills the view from here without the limb in it. */
 const REPLAY_HEIGHT_M = 5_000_000;
@@ -376,7 +379,7 @@ export class CesiumController {
     const context = this.#imageryContext(lifetime.signal);
     let shown: Shown;
     if (isGranuleLayer(drawn)) {
-      const follow = { scan: this.#scanOf(drawn.token), clock: this.viewer.clock, scene: this.viewer.scene, signal: lifetime.signal };
+      const follow = { scan: this.#scanOf(drawn.token, lifetime.signal), clock: this.viewer.clock, scene: this.viewer.scene, signal: lifetime.signal };
       const { source, outlines } = granuleLayer(drawn, this.viewer.scene.groundPrimitives, follow);
       shown = showGranuleImagery(source, this.viewer.scene.imageryLayers, outlines, this.#over(below), context);
     } else {
@@ -416,18 +419,33 @@ export class CesiumController {
 
   /**
    * The scan plane of the satellite whose own layer `token` is, while it is drawn, which its
-   * granules fill in behind (ADR 0023). A composite's follows none.
+   * granules fill in behind (ADR 0023). A composite's follows none. Until `signal` aborts,
+   * that satellite has its ground track fan, the scan line's source, whether or not the
+   * component is on.
    */
-  #scanOf(token: string): (time: JulianDate) => ScanPlane | undefined {
-    let trajectory: SampledTrajectory | undefined;
+  #scanOf(token: string, signal: AbortSignal): (time: JulianDate) => ScanPlane | undefined {
+    let sat: SatelliteComponentCollection | undefined;
     let lookedAt = Number.NEGATIVE_INFINITY;
     const next = new JulianDate();
+    const release = (from: SatelliteComponentCollection | undefined) => {
+      if (from !== undefined && !this.sats.enabledComponents.includes(SCAN_COMPONENT)) {
+        from.disableComponent(SCAN_COMPONENT);
+      }
+    };
+    signal.addEventListener("abort", () => release(sat), { once: true });
     return (time) => {
-      if (Date.now() - lookedAt >= FOLLOW_LOOKUP_MS) {
+      if (Date.now() - lookedAt >= FOLLOW_LOOKUP_MS && !signal.aborted) {
         lookedAt = Date.now();
         const owner = this.sats.catalog.entries.find(({ metadata }) => readImageryList(metadata.imagery).some(({ drawn, merged }) => !merged && drawn?.token === token));
-        trajectory = owner && this.sats.getSatellite(owner.name)?.props.trajectory;
+        const found = owner && this.sats.getSatellite(owner.name);
+        if (found !== sat) {
+          release(sat);
+        }
+        sat = found;
+        // A no-op where it is drawn; brings it back to a satellite rebuilt, or after the component is switched off.
+        sat?.enableComponent(SCAN_COMPONENT);
       }
+      const trajectory = sat?.props.trajectory;
       return trajectory && scanPlane(trajectory.position(time), trajectory.position(JulianDate.addSeconds(time, 1, next)));
     };
   }

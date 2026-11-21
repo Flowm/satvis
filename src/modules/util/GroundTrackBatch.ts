@@ -47,7 +47,7 @@ const HIDDEN_BELOW_METERS = 2 * RIBBON_HEIGHT_METERS;
 /** The share of the reach the clock may cover before the next cut; the rest is for the build. */
 const RECUT_SHARE = 1 / 3;
 
-/** The corridor's colour before it, which the swath fan shares. */
+/** The corridor's colour before it, which the ground track fan shares. */
 export const RIBBON_COLOR = Color.DARKRED.withAlpha(0.25);
 
 /** Shaped like Cesium's PerInstanceFlatColorAppearanceVS, which `Primitive` rewrites for 2D and morphs. */

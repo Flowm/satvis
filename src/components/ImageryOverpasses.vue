@@ -2,33 +2,49 @@
   <section class="overpasses">
     <div class="overpasses__title">Imagery overpasses · last {{ STATION_DAYS }} days</div>
     <div v-if="layers.length === 0" class="overpasses__empty">
-      <template v-if="loadingCatalog">Looking for satellites with per-granule imagery…</template>
-      <template v-else>
-        No satellite with per-granule imagery is loaded.
-        <a class="link" @click="loadCatalog">Look in every group</a>
-      </template>
+      {{ loadingCatalog ? "Looking for satellites with per-granule imagery…" : "No satellite has per-granule imagery." }}
     </div>
     <div v-else-if="pending" class="overpasses__empty">Asking NASA CMR…</div>
     <div v-else-if="failed && rows.length === 0" class="overpasses__empty">NASA CMR did not answer</div>
     <div v-else-if="rows.length === 0" class="overpasses__empty">No overpass by day in the last {{ STATION_DAYS }} days</div>
-    <table v-else class="overpasses__table">
-      <thead>
-        <tr>
-          <th v-if="layers.length > 1">Satellite</th>
-          <th>Start (UTC)</th>
-          <th>Imagery</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.key" :title="`Replay ${row.satellite} over ${stationName}`" @click="replayRow(row)">
-          <td v-if="layers.length > 1">{{ row.satellite }}</td>
-          <td class="mono">{{ row.startLabel }}</td>
-          <td>
-            <span class="overpasses__pixels" :class="`overpasses__pixels--${pixels.get(row.key) ?? 'asking'}`">{{ PIXEL_LABELS[pixels.get(row.key) ?? "asking"] }}</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <template v-else>
+      <!-- Only where some rows have pictures and some outlines alone. -->
+      <div v-if="mixed" class="overpasses__filters" role="radiogroup" aria-label="Which overpasses">
+        <button
+          v-for="filter in FILTERS"
+          :key="filter.key"
+          type="button"
+          role="radio"
+          class="overpasses__filter"
+          :class="{ 'overpasses__filter--on': shownFilter === filter.key }"
+          :aria-checked="shownFilter === filter.key"
+          @click="chosenFilter = filter.key"
+        >
+          {{ filter.label }}
+        </button>
+      </div>
+      <table class="overpasses__table">
+        <thead>
+          <tr>
+            <th>Time (UTC)</th>
+            <th v-if="layers.length > 1">Satellite</th>
+            <th>Imagery</th>
+          </tr>
+        </thead>
+        <tbody v-for="day in days" :key="day.label">
+          <tr class="overpasses__day">
+            <th :colspan="layers.length > 1 ? 3 : 2">{{ day.label }}</th>
+          </tr>
+          <tr v-for="row in day.rows" :key="row.key" class="overpasses__row" :title="`Replay ${row.satellite} over ${stationName}`" @click="replayRow(row)">
+            <td class="mono">{{ row.timeLabel }}</td>
+            <td v-if="layers.length > 1">{{ row.satellite }}</td>
+            <td>
+              <span class="overpasses__pixels" :class="`overpasses__pixels--${pixels.get(row.key) ?? 'asking'}`">{{ PIXEL_LABELS[pixels.get(row.key) ?? "asking"] }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </template>
   </section>
 </template>
 
@@ -36,7 +52,7 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { storeToRefs } from "pinia";
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 
 import { useController } from "@/composables/useController";
 import { useOverpassReplay } from "@/composables/useOverpassReplay";
@@ -76,18 +92,24 @@ const layers = computed(() => {
   return [...found.values()];
 });
 
+/** Every group is being loaded: the satellites with granule layers may be in any. */
 const loadingCatalog = ref(false);
-function loadCatalog(): void {
-  loadingCatalog.value = true;
-  void sats.catalog.ensureAll().finally(() => (loadingCatalog.value = false));
-}
+onMounted(() => {
+  if (!sats.catalog.allLoaded) {
+    loadingCatalog.value = true;
+    void sats.catalog.ensureAll().finally(() => (loadingCatalog.value = false));
+  }
+});
 
 interface Row {
   key: string;
   satellite: string;
   layer: GranuleLayer;
   overpass: Overpass;
-  startLabel: string;
+  /** "Thu 11-20". */
+  dayLabel: string;
+  /** "11:42". */
+  timeLabel: string;
 }
 
 const rows = ref<Row[]>([]);
@@ -122,7 +144,8 @@ watch(
           satellite,
           layer,
           overpass,
-          startLabel: dayjs.utc(overpass.start).format("MM-DD HH:mm"),
+          dayLabel: dayjs.utc(overpass.start).format("ddd MM-DD"),
+          timeLabel: dayjs.utc(overpass.start).format("HH:mm"),
         }));
       }),
     ).then((lists) => {
@@ -141,8 +164,40 @@ watch(
   { immediate: true },
 );
 
+type Filter = "image" | "all";
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "image", label: "With image" },
+  { key: "all", label: "All" },
+];
+/** The filter chosen, or undefined for the default. */
+const chosenFilter = ref<Filter>();
+/** Some rows have pictures, and some outlines alone. */
+const mixed = computed(() => {
+  const answers = new Set(rows.value.map((row) => pixels.get(row.key)));
+  return answers.has("none") && (answers.has("all") || answers.has("some"));
+});
+const shownFilter = computed<Filter>(() => (mixed.value ? (chosenFilter.value ?? "image") : "all"));
+
+/** The rows shown, by day, newest first; a row still being asked about counts as having an image. */
+const days = computed(() => {
+  const groups: { label: string; rows: Row[] }[] = [];
+  for (const row of rows.value) {
+    if (shownFilter.value === "image" && pixels.get(row.key) === "none") continue;
+    const last = groups.at(-1);
+    if (last?.label === row.dayLabel) last.rows.push(row);
+    else groups.push({ label: row.dayLabel, rows: [row] });
+  }
+  return groups;
+});
+
 function replayRow(row: Row): void {
-  replay(row.layer, row.satellite, stationReplay(row.overpass, { latitude: props.latitude, longitude: props.longitude }));
+  const point = { latitude: props.latitude, longitude: props.longitude };
+  // The satellite's own overpasses over the station, which the replay bar steps through.
+  const overpasses = rows.value
+    .filter((other) => other.satellite === row.satellite && other.layer.token === row.layer.token)
+    .map((other) => other.overpass)
+    .toReversed();
+  replay.start(row.layer, row.satellite, stationReplay(row.overpass, point), { name: props.stationName, point, overpasses });
 }
 </script>
 
@@ -179,16 +234,43 @@ function replayRow(row: Row): void {
   font-weight: 600;
 }
 
-.overpasses__table tbody tr {
+.overpasses__row {
   cursor: pointer;
 }
 
-.overpasses__table tbody tr:nth-child(odd) {
+.overpasses__row:nth-child(even) {
   background: #ffffff08;
 }
 
-.overpasses__table tbody tr:hover {
+.overpasses__row:hover {
   background: #edffff1f;
+}
+
+.overpasses__day th {
+  padding-top: 8px;
+  color: var(--panel-muted);
+  font-size: var(--text-section);
+  font-weight: 600;
+}
+
+.overpasses__filters {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.overpasses__filter {
+  padding: 1px 9px;
+  border: 1px solid var(--panel-hairline);
+  border-radius: 999px;
+  color: var(--panel-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.overpasses__filter--on {
+  border-color: var(--panel-accent);
+  color: var(--panel-ink);
 }
 
 .overpasses__pixels--none,
@@ -202,10 +284,5 @@ function replayRow(row: Row): void {
 
 .mono {
   font-variant-numeric: tabular-nums;
-}
-
-.link {
-  cursor: pointer;
-  text-decoration: underline;
 }
 </style>

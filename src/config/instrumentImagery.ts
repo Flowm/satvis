@@ -434,8 +434,8 @@ export type ImageryLayer = SatelliteImageryLayer | CompositeImageryLayer;
  * Every layer the records carry that the globe can draw and that has not stopped, once per
  * satellite, provider and layer: the composites first, then by satellite name. A composite
  * is one layer, in its first satellite's group, which has frames from its earliest
- * satellite's start. A viewer link alone, or a layer that stopped, is the satellite's
- * Imagery tab's to offer.
+ * satellite's start. A viewer link alone, a layer that stopped, or a granule layer, which
+ * is on only for an overpass replay (ADR 0023), is the satellite's Imagery tab's to offer.
  */
 export function imageryLayers(entries: readonly { name: string; satnum: string; orbitClass: OrbitClass; metadata: { imagery?: unknown } }[]): ImageryLayer[] {
   const layers = new Map<string, SatelliteImageryLayer>();
@@ -445,7 +445,7 @@ export function imageryLayers(entries: readonly { name: string; satnum: string; 
     const group = orbitClass === "GEO" ? "geo" : "leo";
     for (const entry of readImageryList(metadata.imagery)) {
       const token = entry.drawn?.token;
-      if (token === undefined || entry.end !== undefined) continue;
+      if (token === undefined || entry.end !== undefined || isGranuleLayer(entry.drawn)) continue;
       if (entry.merged) {
         const composite = composites.get(token) ?? { entry, group, satellites: new Map<string, string>() };
         composite.satellites.set(satnum, name);

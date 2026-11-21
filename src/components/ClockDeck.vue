@@ -2,6 +2,7 @@
      The scale row shows the timeline or the ladder, never both, so the deck height stays fixed. -->
 <template>
   <div class="deck" :class="{ 'deck--folded': !open }" :style="surfaceStyle">
+    <replay-bar />
     <div ref="cluster" class="cluster">
       <button v-if="open" type="button" class="play" :aria-label="playing ? 'Pause' : 'Play'" @click="togglePlaying">
         <span class="play__circle">
@@ -103,6 +104,8 @@ import { useSelectedEntity } from "@/composables/useSelectedEntity";
 import { useViewerClock } from "@/composables/useViewerClock";
 import { arrowStep, CHIP_PX, clockLabel, dateLabel, LADDER, multiplierLabel, passMarks, rateLabel, REAL_TIME_RUNG } from "@/modules/util/clockDeck";
 import { DeviceDetect } from "@/modules/util/DeviceDetect";
+
+import ReplayBar from "./ReplayBar.vue";
 
 const clock = useViewerClock();
 const { now, playing, multiplier, rung, offPresent, togglePlaying, goLive } = clock;

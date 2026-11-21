@@ -1,7 +1,7 @@
 // Granule layers on the globe (ADR 0023): CMR lists the granules and their outlines, and
 // for a GIBS layer of one granule a frame, GIBS draws each one's pixels, transparent outside
 // it, as a layer of its own. A `cmr` layer has the outlines alone. Where its satellite is
-// drawn, the granule under it fills in behind its scan line, the swath fan's.
+// drawn, the granule under it fills in behind its scan line, the ground track fan's.
 
 import {
   Cartesian3,

@@ -83,3 +83,46 @@ export function latestReplay(granule: Granule): ReplayPlan {
 export function stationReplay(overpass: Overpass, station: GroundPoint): ReplayPlan {
   return { time: overpass.start - 5 * MINUTE, multiplier: 30, centre: station };
 }
+
+/** How far around the clock a satellite's own overpasses are listed for stepping: a day each way, about 14 orbits. */
+const ORBITS_AROUND_MS = DAY;
+
+/**
+ * The satellite's overpasses by day from a day before `around` to a day after it, or to
+ * `now`, oldest first: each its granules of one orbit's day side. Undefined where CMR does
+ * not answer.
+ */
+export async function orbitOverpasses(layer: GranuleLayer, around: number, signal: AbortSignal, now = Date.now()): Promise<Overpass[] | undefined> {
+  const granules = await fetchGranules({ collections: layer.granules, start: around - ORBITS_AROUND_MS, end: Math.min(now, around + ORBITS_AROUND_MS) }, signal);
+  return granules && groupOverpasses(granules.filter((granule) => granule.day));
+}
+
+/** One orbit's day side: the replay of its middle granule, as of the newest. */
+export function orbitReplay(overpass: Overpass): ReplayPlan {
+  return latestReplay(overpass.granules[Math.floor(overpass.granules.length / 2)]!);
+}
+
+/** How far before its replay's start the clock still counts as at an overpass: a step lands on it a moment early. */
+const STEP_SLACK_MS = MINUTE;
+
+/** How long after its end the clock still counts as at an overpass. */
+const AFTER_MS = 10 * MINUTE;
+
+/** Where the clock is among a list of replays. */
+export interface ReplayPlace<T> {
+  /** The one the clock is at, from its replay's start to a little after its end. */
+  current: T | undefined;
+  previous: T | undefined;
+  next: T | undefined;
+}
+
+/**
+ * Where `time` is among `items`, oldest first, each starting its replay at `plan(item).time`
+ * and ending at `item.end`: so a step from one replay goes to the one before or after it.
+ */
+export function replayPlace<T extends { end: number }>(items: readonly T[], time: number, plan: (item: T) => ReplayPlan): ReplayPlace<T> {
+  const begun = items.filter((item) => plan(item).time <= time + STEP_SLACK_MS).length;
+  const last = items[begun - 1];
+  const current = last !== undefined && time <= last.end + AFTER_MS ? last : undefined;
+  return { current, previous: items[current === undefined ? begun - 1 : begun - 2], next: items[begun] };
+}

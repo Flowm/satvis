@@ -4,7 +4,7 @@
       v-for="{ instrument, imagery } in layers"
       :key="imagery.key"
       class="card"
-      :class="{ 'card--drawable': imagery.token, 'card--shown': isShown(imagery) }"
+      :class="{ 'card--drawable': imagery.token && !imagery.replay, 'card--shown': isShown(imagery) }"
       :data-instrument="instrument"
       :aria-label="`${instrument} ${imagery.label}`"
       @click="toggle(imagery)"
@@ -23,18 +23,29 @@
         </div>
         <span class="card__badge">{{ instrument }}</span>
         <span v-if="imagery.preview?.end" class="card__badge card__badge--ended">Ended {{ imagery.preview.end }}</span>
+      </div>
+      <!-- A granule layer is on only for a replay, which the button starts and the replay bar ends. -->
+      <div v-if="imagery.replay" class="card__body">
+        <div class="card__title">Overpass replay</div>
+        <div class="card__detail">{{ imagery.label }}</div>
         <button
-          v-if="imagery.replay && latest.get(imagery.key)"
           type="button"
           class="card__replay"
-          :title="`Replay the overpass of ${granuleTime(latest.get(imagery.key)!)}, with its granules on the globe`"
+          :disabled="!latest.get(imagery.key)"
+          :title="latest.get(imagery.key) && `Replay the last overpass, of ${granuleTime(latest.get(imagery.key)!)}, with its granules on the globe`"
           @click.stop="replayLatest(imagery)"
         >
           <UIcon name="lucide:history" />
-          Replay {{ granuleTime(latest.get(imagery.key)!) }}
+          <template v-if="latest.get(imagery.key)">Replay {{ granuleTime(latest.get(imagery.key)!) }}</template>
+          <template v-else-if="asked.has(imagery.key)">No overpass in the last 12 hours</template>
+          <template v-else>Looking for the last overpass…</template>
         </button>
+        <a v-if="imagery.href" class="card__open card__open--below" :href="imagery.href" :title="`Open in ${imagery.viewer}`" target="_blank" rel="noopener" @click.stop>
+          {{ imagery.viewer }}
+          <UIcon name="lucide:external-link" />
+        </a>
       </div>
-      <div class="card__body">
+      <div v-else class="card__body">
         <div class="card__title">{{ imagery.label }}</div>
         <div v-if="imagery.detail" class="card__detail">{{ imagery.detail }}</div>
         <div class="card__actions">
@@ -75,7 +86,8 @@ import { useCesiumStore } from "@/stores/cesium";
 /**
  * The Imagery tab: a card for each layer that shows one of the satellite's instruments,
  * with a picture of its latest frame, a switch that shows it on the globe where the globe
- * can draw it, and a link to it in its provider's viewer.
+ * can draw it, and a link to it in its provider's viewer. A granule layer's card replays
+ * the satellite's newest overpass instead of a switch.
  */
 const props = defineProps<{
   layers: { instrument: string; imagery: ImageryInfo }[];
@@ -137,17 +149,22 @@ onUnmounted(forgetPreviews);
  * its latest frame is a granule that may be by night, or one GIBS left out.
  */
 const latest = reactive(new Map<string, Granule>());
+/** The cards whose newest granule has been looked for, found or not. */
+const asked = reactive(new Set<string>());
 watch(
   () => props.layers,
   (layers, _, onCleanup) => {
     latest.clear();
+    asked.clear();
     const reading = new AbortController();
     onCleanup(() => reading.abort());
     for (const { imagery } of layers) {
       const layer = imagery.replay;
       if (!isGranuleLayer(layer)) continue;
       void latestGranule(layer, reading.signal).then((granule) => {
-        if (granule !== undefined && !reading.signal.aborted) latest.set(imagery.key, granule);
+        if (reading.signal.aborted) return;
+        asked.add(imagery.key);
+        if (granule !== undefined) latest.set(imagery.key, granule);
       });
     }
   },
@@ -168,7 +185,7 @@ const replay = useOverpassReplay();
 function replayLatest(imagery: ImageryInfo): void {
   const granule = latest.get(imagery.key);
   if (granule !== undefined && isGranuleLayer(imagery.replay)) {
-    replay(imagery.replay, props.satellite, latestReplay(granule));
+    replay.start(imagery.replay, props.satellite, latestReplay(granule));
   }
 }
 
@@ -193,9 +210,9 @@ const previews = computed(() => {
   );
 });
 
-/** A press anywhere on a card the globe can draw shows it or takes it off; its switch is the keyboard's way. */
+/** A press anywhere on a card the globe can draw shows it or takes it off; its switch is the keyboard's way. A replay's is its button. */
 function toggle(imagery: ImageryInfo): void {
-  if (imagery.token !== undefined) {
+  if (imagery.token !== undefined && !imagery.replay) {
     cesiumStore.toggleInstrumentImagery(imagery.token, !isShown(imagery));
   }
 }
@@ -281,24 +298,29 @@ watch(() => props.focus, reveal);
 }
 
 .card__replay {
-  position: absolute;
-  right: 6px;
-  bottom: 6px;
-  display: inline-flex;
+  display: flex;
+  width: 100%;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #000000c0;
-  color: var(--panel-ink);
-  font-size: 11px;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--panel-accent);
+  color: #000;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.card__replay:hover {
-  background: var(--panel-accent);
-  color: #000;
+.card__replay:disabled {
+  background: #ffffff14;
+  color: var(--panel-muted);
+  cursor: default;
+}
+
+.card__replay:hover:not(:disabled) {
+  filter: brightness(1.1);
 }
 
 /* Amber: the app colour for "away from rest", as on the status chip. */
@@ -335,6 +357,11 @@ watch(() => props.focus, reveal);
   align-items: center;
   gap: 4px;
   color: var(--panel-muted);
+}
+
+.card__open--below {
+  margin-top: 6px;
+  font-size: 12px;
 }
 
 .card__open:hover {

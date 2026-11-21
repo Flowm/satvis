@@ -164,6 +164,11 @@ describe("imageryLayers", () => {
     ]);
     expect(layers.map((layer) => layer.key)).toEqual(["60133:gibs:GOES-East_ABI_GeoColor"]);
   });
+
+  test("leaves out a granule layer, which only a replay turns on", () => {
+    const granules = { ...daily, instrument: "VIIRS", layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule", period: "PT6M", granules: ["VJ103MOD_NRT"] };
+    expect(imageryLayers([{ name: "NOAA 20", satnum: "43013", orbitClass: "LEO", metadata: { imagery: [granules] } }])).toEqual([]);
+  });
 });
 
 describe("imageryLayers of composites", () => {

@@ -68,7 +68,7 @@ and is not drawn.
   7 came back 500, and each came on a second request.
 
 **Where the satellite is drawn, a granule fills in behind its scan line** (`GranuleLayers.ts`):
-the plane of the swath fan, a component of its own that reaches from the satellite across
+the plane of the ground track fan, a component of its own that reaches from the satellite across
 the track to its swath extents, the ground track ribbon's at the satellite. While the
 satellite drawn is over a granule, the granule is a ground primitive in its outline whose
 shader discards what lies ahead of that plane and shows, behind it, GIBS's WMS picture of
@@ -85,6 +85,16 @@ across the antimeridian or near a pole fills without a picture.
 its granule layer on, the clock set back and playing, and the camera looking straight
 down from 5,000 km, untracked (`CesiumController.replay`). The url already holds the
 first three (`sats`, `imagery`, `time`), so a replay is a link and needs no parameter.
+While its layer is on, the satellite has its ground track fan, whether or not the
+component is.
+
+**A replay is a mode, not a layer** (`useOverpassReplay.ts`): a granule layer is on only
+for a replay, one at a time, so the Map panel does not list it, and its card has a Replay
+button instead of a switch. At live time it showed nothing: CMR lists a granule about three
+hours after it is sensed. While one is on, a bar over the clock (`ReplayBar.vue`) names it
+and steps to the overpass before or after it, at the speed the clock runs: a station's, if
+it was started from one, or else one orbit's day side each, replayed from its middle
+granule. Exit takes the layer off and goes back to live; the camera stays.
 
 **Two places start one**:
 
@@ -94,8 +104,9 @@ first three (`sats`, `imagery`, `time`), so a replay is a link and needs no para
 - **A ground station's Imagery tab** lists the station's overpasses by day in the last
   30 days, newest first, from a CMR query on its point: whether GIBS has the image of
   each, part of it, or the outline only. A row plays from 5 minutes before the overpass
-  at 30×, the camera above the station. It lists every loaded satellite with a granule
-  layer, on or not, and offers to load every group where none is.
+  at 30×, the camera above the station. It loads every group, as the satellites with a
+  granule layer may be in any, and lists each of them, on or not, by day. Where some rows
+  have pictures and some outlines alone, it shows those with pictures first.
 
 ## Consequences
 
@@ -139,6 +150,10 @@ first three (`sats`, `imagery`, `time`), so a replay is a link and needs no para
   CMR, but on an old NOAA-20 overpass the fill's edge ran up to 125 km from the fan.
 - **The sensor cone as the fan.** It stays round, as other satellites' instruments are;
   the fan is a component beside it.
+- **The fan only with a replay, not a component.** It is the ground track's edge at the
+  satellite, of use without a granule layer too; a replay draws it for its satellite alone.
+- **A granule layer as an ordinary Map panel layer.** Shown at live time it is empty, and
+  taken off nowhere but where it was put on.
 - **Clipping the granule's tile layer as it fills.** Cesium clips the whole globe, not a
   layer, and a tile it has drawn is not drawn again.
 - **Tracking the satellite during a replay.** The camera follows the satellite's point,
