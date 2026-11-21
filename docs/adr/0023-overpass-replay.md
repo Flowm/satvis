@@ -101,12 +101,15 @@ granule. Exit takes the layer off and goes back to live; the camera stays.
 - **The granule layer's Imagery tab card** pictures the newest day granule GIBS has
   pixels of, from the last 12 hours, and its "Replay" button plays from 20 minutes before
   it at 60×, the camera above that granule, so the satellite comes up to it.
-- **A ground station's Imagery tab** lists the station's overpasses by day in the last
-  30 days, newest first, from a CMR query on its point: whether GIBS has the image of
-  each, part of it, or the outline only. A row plays from 5 minutes before the overpass
-  at 30×, the camera above the station. It loads every group, as the satellites with a
-  granule layer may be in any, and lists each of them, on or not, by day. Where some rows
-  have pictures and some outlines alone, it shows those with pictures first.
+- **The Passes table** (`passImagery.ts`), a station's or a satellite's: a past pass of a
+  satellite with a granule layer is the overpass CMR lists over the station in the last
+  30 days that overlaps it, within the fill's 2 minutes. Its Image column says whether
+  GIBS has the image of it, part of it, the outline only, or it was night, and replays it
+  from 5 minutes before at 30×, the camera above the station. With Past on, the recorded
+  overpasses by day the predictor no longer has, as it looks back a day and CMR a month,
+  are rows of their own, so what is to come is predicted and what is past is recorded.
+  The Imaged switch keeps the recorded passes alone. It asks CMR for the satellites drawn,
+  as the passes are theirs, and at most 6 satellite and station pairs.
 
 ## Consequences
 
@@ -152,6 +155,9 @@ granule. Exit takes the layer off and goes back to live; the camera stays.
   the fan is a component beside it.
 - **The fan only with a replay, not a component.** It is the ground track's edge at the
   satellite, of use without a granule layer too; a replay draws it for its satellite alone.
+- **A station Imagery tab beside its Passes**, listing CMR's overpasses alone. For a
+  satellite with a granule layer they are the same events as its swath passes, in two
+  lists with two clicks: one jumped the clock, the other replayed.
 - **A granule layer as an ordinary Map panel layer.** Shown at live time it is empty, and
   taken off nowhere but where it was put on.
 - **Clipping the granule's tile layer as it fills.** Cesium clips the whole globe, not a

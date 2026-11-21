@@ -43,12 +43,17 @@ export async function latestGranule(layer: GranuleLayer, signal: AbortSignal, no
 }
 
 /**
- * The overpasses by day over `point` in the last STATION_DAYS before `now`, newest first,
- * or undefined where CMR does not answer.
+ * The overpasses over `point` in the last STATION_DAYS before `now`, by day and by night,
+ * oldest first, or undefined where CMR does not answer.
  */
 export async function stationOverpasses(layer: GranuleLayer, point: GroundPoint, signal: AbortSignal, now = Date.now()): Promise<Overpass[] | undefined> {
   const granules = await fetchGranules({ collections: layer.granules, start: now - STATION_DAYS * DAY, end: now, point }, signal);
-  return granules && groupOverpasses(granules.filter((granule) => granule.day)).toReversed();
+  return granules && groupOverpasses(granules);
+}
+
+/** Some of it sensed by day: a true colour picture has something of it. */
+export function isDayOverpass(overpass: Overpass): boolean {
+  return overpass.granules.some((granule) => granule.day);
 }
 
 /** Where a granule is, roughly: the mean of its outline's corners, across the antimeridian too. */
@@ -79,8 +84,8 @@ export function latestReplay(granule: Granule): ReplayPlan {
   return { time: granule.start - 20 * MINUTE, multiplier: 60, centre: granuleCentre(granule) };
 }
 
-/** An overpass over a station: from five minutes before its first granule, at 30×, above the station. */
-export function stationReplay(overpass: Overpass, station: GroundPoint): ReplayPlan {
+/** A pass or an overpass over a station: from five minutes before it starts, at 30×, above the station. */
+export function stationReplay(overpass: Pick<Overpass, "start">, station: GroundPoint): ReplayPlan {
   return { time: overpass.start - 5 * MINUTE, multiplier: 30, centre: station };
 }
 

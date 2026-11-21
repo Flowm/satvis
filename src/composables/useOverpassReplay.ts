@@ -64,9 +64,9 @@ export function useOverpassReplay() {
     cc.replay(plan);
   }
 
-  /** Moves the replay on to `plan`, at the speed the clock runs. */
-  function jump(plan: ReplayPlan): void {
-    cc.replay({ ...plan, multiplier: cc.viewer.clock.multiplier });
+  /** Moves the clock and camera to `plan`, at the speed the clock runs unless `keepSpeed` is false. */
+  function jump(plan: ReplayPlan, keepSpeed = true): void {
+    cc.replay(keepSpeed ? { ...plan, multiplier: cc.viewer.clock.multiplier } : plan);
   }
 
   /** Takes the replay's layer off; the clock is the caller's to put back. */

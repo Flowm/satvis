@@ -97,7 +97,7 @@ discussion; sharpen them here when they drift.
 - **Overpass replay**: the clock set back to an overpass a granule layer has and playing,
   with the layer on and the camera above it, so the swath builds up behind the satellite.
   Started from the layer's Imagery tab card (the newest overpass GIBS has pixels of) or a
-  ground station's Imagery tab (its overpasses by day in the last 30 days); the replay bar
+  Passes table's Image column (a past pass, as the overpass CMR recorded in it); the replay bar
   over the clock steps to the overpass before or after and exits. Nothing of it but the
   station it was started from is its own state: a replay is a link with `imagery` and
   `time`.
@@ -228,7 +228,9 @@ discussion; sharpen them here when they drift.
 - **Pass**: a time range in which a satellite serves a ground station, by
   line-of-sight elevation ("elevation" mode) or sensor footprint overlap ("swath"
   mode). In swath mode the side of the ground track the station is on matters,
-  because a tilted sensor reaches further on one side.
+  because a tilted sensor reaches further on one side. A pass is predicted; a past one of
+  a satellite with a granule layer is also the overpass CMR recorded in it, which says
+  whether it was imaged (`passImagery.ts`).
 - **Overpass mode**: how passes are computed: "elevation" or "swath".
 - **Pass predictor**: the single owner of pass prediction for one satellite:
   ground stations, overpass mode, the recompute window guard, the pass list and
