@@ -89,7 +89,9 @@ discussion; sharpen them here when they drift.
 - **Granule layer**: instrument imagery of one granule a frame, whose entry names the CMR
   collections that list its granules (`granules`). The globe shows it as the granules
   behind the clock, not one frame: each appears, outline and pixels, once the clock passes
-  its start, and goes 50 minutes later (`GranuleImagery.ts`, ADR 0023). A `cmr` entry,
+  its start, and goes 50 minutes later (`GranuleImagery.ts`, ADR 0023). Where the
+  satellite is drawn, the granule under it fills in behind the swath fan instead, and
+  gets its outline and layer once the satellite has passed it. A `cmr` entry,
   of kind `outline`, is one with the outlines alone, for a satellite whose granules no
   provider pictures.
 - **Overpass replay**: the clock set back to an overpass a granule layer has and playing,
@@ -179,8 +181,12 @@ discussion; sharpen them here when they drift.
 - **Swath extent**: the cross-track distance from the ground track to the edge of
   a sensor footprint, per side (starboard = velocity bearing + 90°). A swath is a
   pair of extents, not a halved width: the sides differ when a sensor is tilted.
+- **Swath fan**: the component of an instrument's scan line, a thin fan from the
+  satellite across the track to its swath extents, so its line on the ground is the
+  ground track ribbon's edge at the satellite. Not the sensor cone, which stays round. A
+  granule fills in behind its plane (ADR 0023).
 - **Component**: one visual part of a satellite that can be switched on on its
-  own: point, label, orbit, orbit track, ground track, sensor cone, 3D model,
+  own: point, label, orbit, orbit track, ground track, sensor cone, swath fan, 3D model,
   ground station link (`src/config/components.ts`). Component names must not
   contain a comma. How each kind is drawn, kept current and re-cut is its own module
   (`COMPONENT_KINDS` in `src/modules/componentKinds.ts`).

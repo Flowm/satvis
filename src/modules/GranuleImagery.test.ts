@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { Granule } from "@/modules/util/cmrGranules";
 
-import { type GranuleSource, showGranuleImagery, TRAIL_MS } from "./GranuleImagery";
+import { type GranuleSensing, type GranuleSource, SENSING_SLACK_MS, showGranuleImagery, TRAIL_MS } from "./GranuleImagery";
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -16,6 +16,10 @@ interface Outline {
   start: number;
   missing: boolean;
 }
+interface Sensing {
+  start: number;
+  passed: boolean;
+}
 
 /** A day granule `minutes` after START, six minutes long. */
 function granule(minutes: number, day = true): Granule {
@@ -27,7 +31,15 @@ function granule(minutes: number, day = true): Granule {
  * A layer stack over a basemap, the outlines drawn, and a clock; `granules` what CMR lists
  * for any window, `missing` the starts GIBS has no pixels for, null for a CMR that cannot be reached.
  */
-function shown(granules: Granule[] | null, missing: number[] | "outlines only" = [], answerAfterMs: (minutes: number) => number = () => 0) {
+function shown(
+  granules: Granule[] | null,
+  missing: number[] | "outlines only" = [],
+  answerAfterMs: (minutes: number) => number = () => 0,
+  /** Whether the satellite followed has passed a granule at a time, both in minutes after START; no satellite where absent. */
+  passedAt?: (granule: number, time: number) => boolean | undefined,
+) {
+  const fills = new Set<Sensing>();
+  let tilesLoaded = true;
   const stack: (Layer | "basemap")[] = ["basemap"];
   const layers = {
     add: (layer: Layer, index = stack.length) => void stack.splice(index, 0, layer),
@@ -46,22 +58,36 @@ function shown(granules: Granule[] | null, missing: number[] | "outlines only" =
     },
   };
   const fetchGranules = vi.fn((_signal: AbortSignal, _start: number, _end: number) => Promise.resolve(granules ?? undefined));
-  const source: GranuleSource<Layer, Outline> = {
+  const source: GranuleSource<Layer, Outline, Sensing> = {
     name: "TrueColor_Granule",
     fetchGranules,
     outline: ({ start }) => ({ start, missing: false }),
     ...(missing !== "outlines only" && {
       pixels: {
         has: ({ start }) => new Promise((resolve) => setTimeout(() => resolve(!missing.includes((start - START) / MINUTE)), answerAfterMs((start - START) / MINUTE))),
-        layer: ({ start }) => ({ start }),
+        layer: ({ start }) => ({ layer: { start }, loaded: () => tilesLoaded }),
         markMissing: (outline) => {
           outline.missing = true;
         },
       },
     }),
+    ...(passedAt !== undefined && {
+      sensing: {
+        passed: ({ start }, time) => passedAt((start - START) / MINUTE, (time - START) / MINUTE),
+        show: ({ start }) => {
+          const fill = { start, passed: false };
+          fills.add(fill);
+          return fill;
+        },
+        setPassed: (fill, passed) => {
+          fill.passed = passed;
+        },
+        hide: (fill) => void fills.delete(fill),
+      } satisfies GranuleSensing<Sensing>,
+    }),
   };
   const lifetime = new AbortController();
-  const context = { clock, requestRender: () => {}, signal: lifetime.signal } as unknown as Parameters<typeof showGranuleImagery>[4];
+  const context = { clock, requestRender: () => {}, signal: lifetime.signal } as unknown as Parameters<typeof showGranuleImagery<Layer, Outline, Sensing>>[4];
   const imagery = showGranuleImagery(source, layers, { add: (outline) => drawn.add(outline), remove: (outline) => drawn.delete(outline) }, () => 1, context);
   const minutes = (start: number) => (start - START) / MINUTE;
   return {
@@ -77,6 +103,11 @@ function shown(granules: Granule[] | null, missing: number[] | "outlines only" =
       ticks.forEach((listener) => listener());
     },
     listeners: () => ticks.length,
+    /** The granules filling in, as minutes after START, a passed one marked. */
+    fills: () => [...fills].map((fill) => `${minutes(fill.start)}${fill.passed ? "!" : ""}`).toSorted(),
+    setTilesLoaded: (loaded: boolean) => {
+      tilesLoaded = loaded;
+    },
   };
 }
 
@@ -119,6 +150,84 @@ describe("showGranuleImagery", () => {
     expect(layers()).toEqual([]);
     expect(outlines()).toEqual(["0", "6"]);
     expect(imagery.top).toBeUndefined();
+  });
+
+  describe("following the satellite", () => {
+    // It passes a granule five minutes after its start, as today's elements may place it.
+    const behind = (start: number, time: number) => time >= start + 5;
+
+    test("fills the granule it is over, and gives it its outline and layer once past it", async () => {
+      const { layers, outlines, fills, setClock } = shown([granule(0), granule(6)], [], undefined, behind);
+      setClock(3);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fills()).toEqual(["0"]);
+      expect(outlines()).toEqual([]);
+      expect(layers()).toEqual([]);
+      setClock(6);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(outlines()).toEqual(["0"]);
+      expect(layers()).toEqual([0]);
+      // The next one fills; the passed one's fill went with its layer's tiles.
+      expect(fills()).toEqual(["6"]);
+    });
+
+    test("keeps a passed granule's fill until its layer has its tiles", async () => {
+      const { fills, setClock, setTilesLoaded } = shown([granule(0)], [], undefined, behind);
+      setClock(3);
+      await vi.advanceTimersByTimeAsync(0);
+      setTilesLoaded(false);
+      setClock(6);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fills()).toEqual(["0"]);
+      setTilesLoaded(true);
+      setClock(6.1);
+      expect(fills()).toEqual([]);
+    });
+
+    test("keeps the fill of a layer of outlines, passed, and drops a fill whose pixels the provider lacks", async () => {
+      const outlinesOnly = shown([granule(0)], "outlines only", undefined, behind);
+      outlinesOnly.setClock(6);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(outlinesOnly.fills()).toEqual(["0!"]);
+      expect(outlinesOnly.outlines()).toEqual(["0"]);
+      const missing = shown([granule(0)], [0], undefined, behind);
+      missing.setClock(6);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(missing.fills()).toEqual([]);
+      expect(missing.outlines()).toEqual(["0?"]);
+    });
+
+    test("fills a granule again when the clock goes back over it", async () => {
+      const { layers, outlines, fills, setClock } = shown([granule(0)], [], undefined, behind);
+      setClock(6);
+      await vi.advanceTimersByTimeAsync(0);
+      setClock(2);
+      expect(layers()).toEqual([]);
+      expect(outlines()).toEqual([]);
+      expect(fills()).toEqual(["0"]);
+    });
+
+    test("fills a granule the satellite drawn reaches before its start, and counts one long past as passed", async () => {
+      const early = shown([granule(10)], [], undefined, () => false);
+      early.setClock(10 - SENSING_SLACK_MS / MINUTE / 2);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(early.fills()).toEqual(["10"]);
+      early.setClock(16 + SENSING_SLACK_MS / MINUTE + 1);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(early.outlines()).toEqual(["10"]);
+    });
+
+    test("shows the granule whole at its start where the satellite is not drawn, and nothing before", async () => {
+      const { outlines, fills, setClock } = shown([granule(0)], [], undefined, () => undefined);
+      setClock(-1);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(outlines()).toEqual([]);
+      expect(fills()).toEqual([]);
+      setClock(1);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(outlines()).toEqual(["0"]);
+      expect(fills()).toEqual([]);
+    });
   });
 
   test("lays an older granule under a newer one whichever answers first", async () => {

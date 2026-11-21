@@ -21,7 +21,7 @@ import utc from "dayjs/plugin/utc";
 
 import { usePostHog } from "@/composables/usePostHog";
 import { defaultViewDistance } from "@/config/defaultView";
-import { type DrawnImagery, isGranuleLayer, type TiledImagery } from "@/config/instrumentImagery";
+import { type DrawnImagery, isGranuleLayer, readImageryList, type TiledImagery } from "@/config/instrumentImagery";
 import { parseLayer } from "@/config/layers";
 import { TOUCH_HOLD_MS } from "@/config/layout";
 import { type FrameRate, frameIntervalFor, msaaSamplesFor, resolutionScaleFor } from "@/config/rendering";
@@ -40,7 +40,8 @@ import { gibsFrames } from "./GibsImagery";
 import { showGranuleImagery } from "./GranuleImagery";
 import { granuleLayer } from "./GranuleLayers";
 import { RenderPacer } from "./renderPacing";
-import { cesiumSceneMode } from "./satelliteGraphics";
+import type { SampledTrajectory } from "./SampledTrajectory";
+import { cesiumSceneMode, type ScanPlane, scanPlane } from "./satelliteGraphics";
 import { SatelliteManager } from "./SatelliteManager";
 import type { Observer } from "./skyGeometry";
 import { SkyInteraction } from "./SkyInteraction";
@@ -85,6 +86,9 @@ function sameDrawn(a: DrawnImagery, b: DrawnImagery): boolean {
   // `granules` is a list, read afresh from each record.
   return [...keys].every((key) => String(a[key]) === String(b[key]));
 }
+
+/** Wall milliseconds between looks for the satellite a granule layer follows, while it is not drawn. */
+const FOLLOW_LOOKUP_MS = 1000;
 
 /** Metres. A NOAA-20 swath, 3,000 km wide, fills the view from here without the limb in it. */
 const REPLAY_HEIGHT_M = 5_000_000;
@@ -372,7 +376,8 @@ export class CesiumController {
     const context = this.#imageryContext(lifetime.signal);
     let shown: Shown;
     if (isGranuleLayer(drawn)) {
-      const { source, outlines } = granuleLayer(drawn, this.viewer.scene.groundPrimitives);
+      const follow = { scan: this.#scanOf(drawn.token), clock: this.viewer.clock, scene: this.viewer.scene, signal: lifetime.signal };
+      const { source, outlines } = granuleLayer(drawn, this.viewer.scene.groundPrimitives, follow);
       shown = showGranuleImagery(source, this.viewer.scene.imageryLayers, outlines, this.#over(below), context);
     } else {
       shown = showFramedImagery(layerFrames(FRAMES[drawn.provider](drawn)), this.viewer.scene.imageryLayers, this.#over(below), context);
@@ -406,6 +411,24 @@ export class CesiumController {
     return () => {
       const under = below().findLast((shown) => shown.top !== undefined);
       return under ? this.viewer.scene.imageryLayers.indexOf(under.top!) + 1 : 0;
+    };
+  }
+
+  /**
+   * The scan plane of the satellite whose own layer `token` is, while it is drawn, which its
+   * granules fill in behind (ADR 0023). A composite's follows none.
+   */
+  #scanOf(token: string): (time: JulianDate) => ScanPlane | undefined {
+    let trajectory: SampledTrajectory | undefined;
+    let lookedAt = Number.NEGATIVE_INFINITY;
+    const next = new JulianDate();
+    return (time) => {
+      if (Date.now() - lookedAt >= FOLLOW_LOOKUP_MS) {
+        lookedAt = Date.now();
+        const owner = this.sats.catalog.entries.find(({ metadata }) => readImageryList(metadata.imagery).some(({ drawn, merged }) => !merged && drawn?.token === token));
+        trajectory = owner && this.sats.getSatellite(owner.name)?.props.trajectory;
+      }
+      return trajectory && scanPlane(trajectory.position(time), trajectory.position(JulianDate.addSeconds(time, 1, next)));
     };
   }
 

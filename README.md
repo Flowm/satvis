@@ -13,7 +13,7 @@ Point your phone up to see the satellites in that direction.
 ## Features
 
 - Visualize satellites on a 3D globe in real time, propagated in the browser with SGP4 from CelesTrak GP element sets (OMM/TLE)
-- Show points, labels, orbits, orbit tracks, ground tracks, sensor cones, 3D models and ground station links per satellite, colored by orbit class (LEO, MEO, GEO, HEO)
+- Show points, labels, orbits, orbit tracks, ground tracks, sensor cones, swath fans, 3D models and ground station links per satellite, colored by orbit class (LEO, MEO, GEO, HEO)
 - Switch catalog groups on and off (Starlink, GNSS, weather, Earth observation, crewed stations), or search for a single satellite
 - Browse the whole catalog in linked charts: filter by launch year, orbit shape, sun-sync crossing time, constellation, country, operator and more, then show the matches on the globe
 - Select a satellite to see its orbit, its next passes over your locations and its spacecraft details: country, operator, manufacturer, bus, mass and size

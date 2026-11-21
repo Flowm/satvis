@@ -1,7 +1,9 @@
 // A layer of one granule a frame, replayed behind the clock (ADR 0023): every granule
 // sensed by day in the last TRAIL_MS before the simulation time is on the globe at once,
 // its outline and, where a provider has them, its pixels, so the swath builds up behind
-// the satellite as the clock runs and falls away behind it.
+// the satellite as the clock runs and falls away behind it. Where the satellite can be
+// followed, the granule it is over fills in behind its scan line, and gets its outline and
+// layer once the satellite has passed it.
 //
 // Not FramedImagery.ts, which shows one frame: a granule is a few minutes of one swath,
 // and a frame of it alone would show a strip that jumps ahead every few minutes.
@@ -11,10 +13,13 @@ import { JulianDate } from "@cesium/core";
 
 import type { Granule } from "@/modules/util/cmrGranules";
 
-import type { FrameLayers, ImageryContext } from "./FramedImagery";
+import type { Frame, FrameLayers, ImageryContext } from "./FramedImagery";
 
-/** What a granule layer needs of its services. `Layer` draws a granule's pixels, `Outline` its outline. */
-export interface GranuleSource<Layer, Outline> {
+/**
+ * What a granule layer needs of its services. `Layer` draws a granule's pixels, `Outline`
+ * its outline, `Sensing` it filling in as it is sensed.
+ */
+export interface GranuleSource<Layer, Outline, Sensing = never> {
   /** Names the layer in the warning when its granules cannot be listed. */
   name: string;
   /** The granules sensed from `start` to `end` (epoch ms), or undefined when they cannot be listed. */
@@ -23,13 +28,26 @@ export interface GranuleSource<Layer, Outline> {
   outline: (granule: Granule) => Outline;
   /** The provider of the granules' pixels; absent for a layer of outlines alone. */
   pixels?: GranulePixels<Layer, Outline>;
+  /** The satellite the granules are sensed by; absent where it cannot be followed. */
+  sensing?: GranuleSensing<Sensing>;
+}
+
+/** A granule filling in behind the satellite's scan line, as the satellite drawn passes over it. */
+export interface GranuleSensing<Sensing> {
+  /** Whether the satellite drawn has passed all of the granule at `time` (epoch ms); undefined where it is not drawn then. */
+  passed: (granule: Granule, time: number) => boolean | undefined;
+  /** Drawn at once, filled behind the scan line. */
+  show: (granule: Granule) => Sensing;
+  /** Filled whole, as the satellite has passed it, or behind the scan line again. */
+  setPassed: (sensing: Sensing, passed: boolean) => void;
+  hide: (sensing: Sensing) => void;
 }
 
 /** A provider of granules' pixels, which may lack some. */
 export interface GranulePixels<Layer, Outline> {
   /** Whether it has the granule's pixels. */
   has: (granule: Granule) => Promise<boolean>;
-  layer: (granule: Granule) => Layer;
+  layer: (granule: Granule) => Frame<Layer>;
   /** Marks an outline drawn as one whose granule it has no pixels for. */
   markMissing: (outline: Outline) => void;
 }
@@ -66,9 +84,16 @@ const FILLING_MS = 4 * HOUR_MS;
 /** How soon a list CMR did not answer is asked again. */
 const RETRY_MS = 60 * 1000;
 
-/** The day granules whose trail covers `time`, sorted by start. */
-export function trailAt(granules: readonly Granule[], time: number): Granule[] {
-  return granules.filter((granule) => granule.day && granule.start <= time && granule.start > time - TRAIL_MS);
+/**
+ * How far from a granule's times the satellite drawn may sense it: today's element set
+ * places NOAA 20 up to 17 s off its granules of 30 days ago (ADR 0023). Past it, a granule
+ * counts as passed, as its scan line, a plane through the Earth, turns back toward it.
+ */
+export const SENSING_SLACK_MS = 2 * 60 * 1000;
+
+/** The day granules whose trail covers `time`, sorted by start, and with `early` those starting that soon. */
+export function trailAt(granules: readonly Granule[], time: number, early = 0): Granule[] {
+  return granules.filter((granule) => granule.day && granule.start <= time + early && granule.start > time - TRAIL_MS);
 }
 
 /**
@@ -76,8 +101,8 @@ export function trailAt(granules: readonly Granule[], time: number): Granule[] {
  * from `position()` up, oldest at the bottom, so a newer granule's pixels lie over the
  * edge it shares with the one before.
  */
-export function showGranuleImagery<Layer, Outline>(
-  source: GranuleSource<Layer, Outline>,
+export function showGranuleImagery<Layer, Outline, Sensing = never>(
+  source: GranuleSource<Layer, Outline, Sensing>,
   layers: FrameLayers<Layer>,
   outlines: GranuleOutlines<Outline>,
   position: () => number,
@@ -85,8 +110,12 @@ export function showGranuleImagery<Layer, Outline>(
 ): GranuleImagery<Layer> {
   interface Shown {
     granule: Granule;
-    outline: Outline;
-    layer?: Layer;
+    /** Drawn once the satellite has passed the granule. */
+    outline?: Outline;
+    layer?: Frame<Layer>;
+    /** Whether the provider has its pixels, once it has said. */
+    pixels?: boolean;
+    sensing?: Sensing;
   }
   /** By start. */
   const shown = new Map<number, Shown>();
@@ -124,39 +153,109 @@ export function showGranuleImagery<Layer, Outline>(
     let belowStart = Number.NEGATIVE_INFINITY;
     for (const entry of shown.values()) {
       if (entry.layer !== undefined && entry.granule.start < granule.start && entry.granule.start > belowStart) {
-        below = entry.layer;
+        below = entry.layer.layer;
         belowStart = entry.granule.start;
       }
     }
     return below === undefined ? position() : layers.indexOf(below) + 1;
   };
 
-  const add = (granule: Granule) => {
-    const entry: Shown = { granule, outline: source.outline(granule) };
-    outlines.add(entry.outline);
-    shown.set(granule.start, entry);
-    const { pixels } = source;
-    if (pixels === undefined) {
-      return;
+  /** Where the satellite is: past the granule, over it, or before it; without one to follow, past it once it has begun. */
+  const stage = ({ granule }: Shown, time: number): "before" | "over" | "past" => {
+    const past = source.sensing === undefined || time > granule.end + SENSING_SLACK_MS ? undefined : source.sensing.passed(granule, time);
+    if (past === undefined) {
+      return time >= granule.start ? "past" : "before";
     }
-    void pixels.has(granule).then((has) => {
+    return past ? "past" : "over";
+  };
+
+  /** Draws what the granule needs at `time`: passed, its outline and pixels; under the satellite, its fill alone. */
+  const settle = (entry: Shown, time: number): boolean => {
+    const { sensing, pixels } = source;
+    const where = stage(entry, time);
+    let changed = false;
+    if (where !== "past") {
+      if (entry.outline !== undefined) {
+        outlines.remove(entry.outline);
+        entry.outline = undefined;
+        changed = true;
+      }
+      if (entry.layer !== undefined) {
+        layers.remove(entry.layer.layer);
+        entry.layer = undefined;
+        changed = true;
+      }
+      if (sensing !== undefined && entry.sensing !== undefined && where === "before") {
+        sensing.hide(entry.sensing);
+        entry.sensing = undefined;
+        changed = true;
+      }
+      if (sensing !== undefined && entry.sensing === undefined && where === "over") {
+        entry.sensing = sensing.show(entry.granule);
+        changed = true;
+      }
+      if (sensing !== undefined && entry.sensing !== undefined) {
+        sensing.setPassed(entry.sensing, false);
+      }
+      return changed;
+    }
+    if (entry.outline === undefined) {
+      entry.outline = source.outline(entry.granule);
+      outlines.add(entry.outline);
+      if (entry.pixels === false) {
+        pixels?.markMissing(entry.outline);
+      }
+      changed = true;
+    }
+    if (pixels !== undefined && entry.pixels === true && entry.layer === undefined) {
+      entry.layer = pixels.layer(entry.granule);
+      layers.add(entry.layer.layer, indexFor(entry.granule));
+      changed = true;
+    }
+    // A layer of outlines keeps the fill, the swath behind the satellite, even after a jump past it.
+    if (sensing !== undefined && pixels === undefined && entry.sensing === undefined) {
+      entry.sensing = sensing.show(entry.granule);
+      changed = true;
+    }
+    if (sensing !== undefined && entry.sensing !== undefined) {
+      // A picture's fill goes once its own layer has its tiles, or has none.
+      if (pixels === undefined) {
+        sensing.setPassed(entry.sensing, true);
+      } else if (entry.pixels === false || entry.layer?.loaded()) {
+        sensing.hide(entry.sensing);
+        entry.sensing = undefined;
+        changed = true;
+      }
+    }
+    return changed;
+  };
+
+  const add = (granule: Granule, time: number) => {
+    const entry: Shown = { granule };
+    shown.set(granule.start, entry);
+    settle(entry, time);
+    void source.pixels?.has(granule).then((has) => {
       if (signal.aborted || shown.get(granule.start) !== entry) {
         return;
       }
-      if (!has) {
-        pixels.markMissing(entry.outline);
-      } else {
-        entry.layer = pixels.layer(granule);
-        layers.add(entry.layer, indexFor(granule));
+      entry.pixels = has;
+      if (!has && entry.outline !== undefined) {
+        source.pixels?.markMissing(entry.outline);
       }
+      settle(entry, JulianDate.toDate(clock.currentTime).getTime());
       requestRender();
     });
   };
 
   const drop = (entry: Shown) => {
-    outlines.remove(entry.outline);
+    if (entry.outline !== undefined) {
+      outlines.remove(entry.outline);
+    }
     if (entry.layer !== undefined) {
-      layers.remove(entry.layer);
+      layers.remove(entry.layer.layer);
+    }
+    if (entry.sensing !== undefined) {
+      source.sensing?.hide(entry.sensing);
     }
     shown.delete(entry.granule.start);
   };
@@ -173,18 +272,20 @@ export function showGranuleImagery<Layer, Outline>(
     if (listing === undefined) {
       return;
     }
-    const trail = trailAt(listing.granules, time);
+    const trail = trailAt(listing.granules, time, source.sensing === undefined ? 0 : SENSING_SLACK_MS);
     const wanted = new Set(trail.map((granule) => granule.start));
     let changed = false;
     for (const entry of shown.values()) {
       if (!wanted.has(entry.granule.start)) {
         drop(entry);
         changed = true;
+      } else {
+        changed = settle(entry, time) || changed;
       }
     }
     for (const granule of trail) {
       if (!shown.has(granule.start)) {
-        add(granule);
+        add(granule, time);
         changed = true;
       }
     }
@@ -212,7 +313,7 @@ export function showGranuleImagery<Layer, Outline>(
       let topStart = Number.NEGATIVE_INFINITY;
       for (const entry of shown.values()) {
         if (entry.layer !== undefined && entry.granule.start > topStart) {
-          top = entry.layer;
+          top = entry.layer.layer;
           topStart = entry.granule.start;
         }
       }

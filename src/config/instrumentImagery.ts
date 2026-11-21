@@ -283,6 +283,28 @@ export function imageryPreviewUrl(preview: ImageryPreview, bounds: PreviewBounds
 }
 
 /**
+ * A GIBS layer's frame `at` (as GIBS names it) over `bounds`, as one WMS picture `width`
+ * pixels across, stretched to the bounds' shape in plate carrée. JPEG: a tenth of PNG's
+ * size for a granule, black where it has no pixels.
+ */
+export function gibsPictureUrl(layer: string, at: string, bounds: PreviewBounds, width: number, height: number): string {
+  const query = new URLSearchParams({
+    SERVICE: "WMS",
+    REQUEST: "GetMap",
+    VERSION: "1.1.1",
+    SRS: "EPSG:4326",
+    STYLES: "",
+    LAYERS: layer,
+    WIDTH: String(width),
+    HEIGHT: String(height),
+    BBOX: [bounds.west, bounds.south, bounds.east, bounds.north].map((value) => value.toFixed(3)).join(","),
+    FORMAT: "image/jpeg",
+    TIME: at,
+  });
+  return `${GIBS_WMS}?${query}`;
+}
+
+/**
  * A record's `imagery` entry, read as the native app's `SatelliteDetails.imagery` reads it:
  * what the catalog, the Map panel and the Imagery tab each take of it.
  */

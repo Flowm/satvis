@@ -29,6 +29,17 @@ export interface Granule {
   outline: GroundPoint[];
 }
 
+/**
+ * A granule's extent in degrees, its longitudes unwrapped from its first corner's, so one
+ * across the antimeridian has an `east` past 180 or a `west` before -180.
+ */
+export function granuleExtent(granule: Granule): { west: number; south: number; east: number; north: number } {
+  const first = granule.outline[0]?.longitude ?? 0;
+  const longitudes = granule.outline.map(({ longitude }) => longitude + 360 * Math.round((first - longitude) / 360));
+  const latitudes = granule.outline.map(({ latitude }) => latitude);
+  return { west: Math.min(...longitudes), south: Math.min(...latitudes), east: Math.max(...longitudes), north: Math.max(...latitudes) };
+}
+
 /** The granules from `start` to `end` (epoch ms), or only those covering `point`. */
 export interface GranuleQuery {
   collections: readonly string[];

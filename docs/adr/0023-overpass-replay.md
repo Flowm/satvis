@@ -25,6 +25,11 @@ Measured on 2026-11-20 and 21, from this app's origin:
   `Client-Id`, which its CORS allows. The standard collection (`VJ103MOD`) ran 4 days
   behind; the near-real-time one (`VJ103MOD_NRT`) holds the last week, about 3 hours
   behind.
+- **Today's element set places the satellite on its granules, less so the older they
+  are.** At a granule's start the satellite drawn lay off its start edge along the track by
+  about 10 km a day back, 30 km a week back, 50 km 15 days back and 125 km 30 days back
+  for NOAA-20, and within 12 km over 30 days for NOAA-21; across the track within 17 km.
+  A granule's scan line reached 1,505 to 1,562 km either side, the ribbon's 1,565.
 - **NOAA-21's granules are in CMR and not in GIBS.** `VJ203MOD_NRT` listed 240 granules
   of 2026-11-20 and `VJ203MOD` goes back to 2023-02-10, but GIBS lists no NOAA-21
   granule layer in either projection and answers 400 for the name NOAA-20's has.
@@ -62,6 +67,20 @@ and is not drawn.
 - A tile GIBS fails is asked for twice more. Of 461 granule tile requests in one replay,
   7 came back 500, and each came on a second request.
 
+**Where the satellite is drawn, a granule fills in behind its scan line** (`GranuleLayers.ts`):
+the plane of the swath fan, a component of its own that reaches from the satellite across
+the track to its swath extents, the ground track ribbon's at the satellite. While the
+satellite drawn is over a granule, the granule is a ground primitive in its outline whose
+shader discards what lies ahead of that plane and shows, behind it, GIBS's WMS picture of
+the granule (2,048 pixels across as JPEG, 577 KB for one over Europe; PNG was 5 MB), or
+for a `cmr` layer a faint fill, which it keeps. Once the satellite has passed every corner,
+the granule gets its outline and tile layer, and the picture's fill goes when the layer's
+tiles have come. The fill, the fan and the ribbon so meet at the satellite drawn, wherever
+an old element set puts it: an old NOAA-20 granule fills up to 17 s early or late, not
+with its edge apart from the fan. A granule more than two minutes past its end counts as
+passed, as the plane, through the Earth, turns back toward it half an orbit later; one
+across the antimeridian or near a pole fills without a picture.
+
 **A replay is the layer, the clock and the camera, and nothing else**: the satellite on,
 its granule layer on, the clock set back and playing, and the camera looking straight
 down from 5,000 km, untracked (`CesiumController.replay`). The url already holds the
@@ -88,10 +107,9 @@ first three (`sats`, `imagery`, `time`), so a replay is a link and needs no para
   Which it leaves out is not published.
 - **The browser's console shows a 404 for each granule GIBS lacks**: the level-0 probe.
   Caught, never thrown.
-- **The satellite is drawn from today's element set** at the replayed time. Over the 90
-  days GIBS keeps that is a few km along the track for NOAA-20 (the proposal), well
-  inside a 3,000 km swath: on 2026-11-20 the satellite drawn at 23:27 lay inside the
-  23:24 granule.
+- **The satellite is drawn from today's element set** at the replayed time, up to 125 km
+  along the track from where NOAA-20 was 30 days back, not the few km the proposal
+  expected. The granules fill in behind it, so they keep to it.
 - **A replay costs a CMR query an hour of clock time**, a probe per granule, and the
   tiles of up to nine granule layers at once.
 - **The native app draws no granule layer.** It reads the entry as GIBS imagery with a
@@ -117,6 +135,12 @@ first three (`sats`, `imagery`, `time`), so a replay is a link and needs no para
   it already; Cesium clips the whole globe, not one layer.
 - **A `replay` url parameter** for the overpass. The clock, the layer and the satellite
   say it; a second name for it could disagree with them.
+- **Filling a granule by its own times**, from its start edge to its end edge. True to
+  CMR, but on an old NOAA-20 overpass the fill's edge ran up to 125 km from the fan.
+- **The sensor cone as the fan.** It stays round, as other satellites' instruments are;
+  the fan is a component beside it.
+- **Clipping the granule's tile layer as it fills.** Cesium clips the whole globe, not a
+  layer, and a tile it has drawn is not drawn again.
 - **Tracking the satellite during a replay.** The camera follows the satellite's point,
   so the swath slides under it; looking down on the granule or the station lets it pass.
 

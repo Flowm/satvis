@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { fetchGranules, granuleSearchUrl, groupOverpasses, parseGranule } from "./cmrGranules";
+import { fetchGranules, granuleExtent, granuleSearchUrl, groupOverpasses, parseGranule } from "./cmrGranules";
 
 const MINUTE = 60 * 1000;
 
@@ -38,6 +38,18 @@ describe("parseGranule", () => {
     [null],
   ])("leaves out an entry without times or a polygon: %#", (raw) => {
     expect(parseGranule(raw)).toBeUndefined();
+  });
+});
+
+describe("granuleExtent", () => {
+  const ring = (...points: [number, number][]) => ({ start: 0, end: 0, day: true, outline: points.map(([latitude, longitude]) => ({ latitude, longitude })) });
+
+  test("bounds a granule's corners", () => {
+    expect(granuleExtent(ring([33, -8], [36, 30], [60, 32], [57, -5], [33, -8]))).toEqual({ west: -8, south: 33, east: 32, north: 60 });
+  });
+
+  test("unwraps a granule across the antimeridian from its first corner", () => {
+    expect(granuleExtent(ring([10, 170], [12, -170], [30, -165], [28, 172], [10, 170]))).toEqual({ west: 170, south: 10, east: 195, north: 30 });
   });
 });
 
