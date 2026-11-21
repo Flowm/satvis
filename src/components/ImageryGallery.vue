@@ -12,11 +12,27 @@
       <div class="card__preview">
         <img v-if="previews.get(imagery.key) && !failed.has(imagery.key)" :src="previews.get(imagery.key)" alt="" loading="lazy" @error="failed.add(imagery.key)" />
         <div v-else class="card__placeholder">
-          <UIcon name="lucide:image-off" />
-          <span>No preview</span>
+          <template v-if="imagery.replay?.provider === 'cmr'">
+            <UIcon name="lucide:square-dashed" />
+            <span>Outlines only</span>
+          </template>
+          <template v-else>
+            <UIcon name="lucide:image-off" />
+            <span>No preview</span>
+          </template>
         </div>
         <span class="card__badge">{{ instrument }}</span>
         <span v-if="imagery.preview?.end" class="card__badge card__badge--ended">Ended {{ imagery.preview.end }}</span>
+        <button
+          v-if="imagery.replay && latest.get(imagery.key)"
+          type="button"
+          class="card__replay"
+          :title="`Replay the overpass of ${granuleTime(latest.get(imagery.key)!)}, with its granules on the globe`"
+          @click.stop="replayLatest(imagery)"
+        >
+          <UIcon name="lucide:history" />
+          Replay {{ granuleTime(latest.get(imagery.key)!) }}
+        </button>
       </div>
       <div class="card__body">
         <div class="card__title">{{ imagery.label }}</div>
@@ -43,11 +59,17 @@
 </template>
 
 <script setup lang="ts">
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import { computed, nextTick, onMounted, onUnmounted, reactive, useTemplateRef, watch } from "vue";
 
-import { imageryPreviewUrl, PREVIEW_HEIGHT, PREVIEW_WIDTH, type PreviewCentre, previewBounds } from "@/config/instrumentImagery";
+import { useOverpassReplay } from "@/composables/useOverpassReplay";
+import { imageryPreviewUrl, isGranuleLayer, PREVIEW_HEIGHT, PREVIEW_WIDTH, type PreviewCentre, previewBounds } from "@/config/instrumentImagery";
 import { geoMosaicPreview } from "@/modules/GeoMosaicImagery";
+import { granuleCentre, latestGranule, latestReplay } from "@/modules/overpassReplay";
+import type { Granule } from "@/modules/util/cmrGranules";
 import type { ImageryInfo } from "@/modules/util/entityInfo";
+import { formatFrame } from "@/modules/util/timeDomain";
 import { useCesiumStore } from "@/stores/cesium";
 
 /**
@@ -61,6 +83,8 @@ const props = defineProps<{
   geostationary: boolean;
   /** The instrument whose first card is scrolled into view. */
   focus: string | undefined;
+  /** The satellite's name, which a replay turns on. */
+  satellite: string;
 }>();
 
 const cesiumStore = useCesiumStore();
@@ -108,13 +132,61 @@ watch(
 );
 onUnmounted(forgetPreviews);
 
+/**
+ * A granule layer's newest day granule with pixels, by card, which it pictures and replays:
+ * its latest frame is a granule that may be by night, or one GIBS left out.
+ */
+const latest = reactive(new Map<string, Granule>());
+watch(
+  () => props.layers,
+  (layers, _, onCleanup) => {
+    latest.clear();
+    const reading = new AbortController();
+    onCleanup(() => reading.abort());
+    for (const { imagery } of layers) {
+      const layer = imagery.replay;
+      if (!isGranuleLayer(layer)) continue;
+      void latestGranule(layer, reading.signal).then((granule) => {
+        if (granule !== undefined && !reading.signal.aborted) latest.set(imagery.key, granule);
+      });
+    }
+  },
+  { immediate: true },
+);
+
+dayjs.extend(utc);
+
+/** "11-20 11:42 UTC". */
+function granuleTime(granule: Granule): string {
+  return `${dayjs.utc(granule.start).format("MM-DD HH:mm")} UTC`;
+}
+
+/** Degrees either side of a granule's centre in its picture: a NOAA-20 granule is about 3,000 km across. */
+const GRANULE_HALF_WIDTH = 20;
+
+const replay = useOverpassReplay();
+function replayLatest(imagery: ImageryInfo): void {
+  const granule = latest.get(imagery.key);
+  if (granule !== undefined && isGranuleLayer(imagery.replay)) {
+    replay(imagery.replay, props.satellite, latestReplay(granule));
+  }
+}
+
 /** Each card's picture by card: a provider's WMS answer, or one made here. */
 const previews = computed(() => {
   const where = bounds.value;
   const now = new Date();
   return new Map(
     props.layers.flatMap(({ imagery }) => {
-      if (!imagery.preview || where === undefined) return [];
+      const granule = latest.get(imagery.key);
+      if (imagery.preview && granule !== undefined) {
+        const at = formatFrame(granule.start, false);
+        // Held off the antimeridian, where GIBS's WMS draws nothing for a box that crosses it.
+        const { latitude, longitude } = granuleCentre(granule);
+        const centre = { latitude, longitude: Math.max(-180 + GRANULE_HALF_WIDTH, Math.min(180 - GRANULE_HALF_WIDTH, longitude)) };
+        return [[imagery.key, imageryPreviewUrl({ ...imagery.preview, at }, previewBounds(centre, GRANULE_HALF_WIDTH), now)] as const];
+      }
+      if (!imagery.preview || where === undefined || imagery.replay) return [];
       const url = isGeoring(imagery) ? madePreviews.get(imagery.key) : imageryPreviewUrl(imagery.preview, where, now);
       return url === undefined ? [] : [[imagery.key, url] as const];
     }),
@@ -206,6 +278,27 @@ watch(() => props.focus, reveal);
   background: #000000b0;
   font-size: 11px;
   font-weight: 600;
+}
+
+.card__replay {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #000000c0;
+  color: var(--panel-ink);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.card__replay:hover {
+  background: var(--panel-accent);
+  color: #000;
 }
 
 /* Amber: the app colour for "away from rest", as on the status chip. */

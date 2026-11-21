@@ -104,3 +104,64 @@ export function gibsFrames(options: GibsOptions): FrameSource<WebMapTileServiceI
       }),
   };
 }
+
+/** Whether GIBS has a granule's pixels, by layer and start: a granule's answer does not change. */
+const granulePixels = new Map<string, Promise<boolean>>();
+
+/**
+ * Opaque pixels a granule's level-0 tile has at least where GIBS drew it. A 6-minute VIIRS
+ * granule covered 294 to 770 of the tile's 65,536 on 2026-11-20; the one that crossed the
+ * antimeridian at 23:30Z, 1, and GIBS's WMS drew nothing of it.
+ */
+const MIN_OPAQUE_PIXELS = 50;
+
+/** The opaque pixels of a tile, or undefined where it cannot be decoded here. */
+async function opaquePixels(tile: Blob): Promise<number | undefined> {
+  if (typeof createImageBitmap !== "function" || typeof OffscreenCanvas !== "function") {
+    return undefined;
+  }
+  const bitmap = await createImageBitmap(tile);
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+  const context = canvas.getContext("2d");
+  if (context === null) {
+    return undefined;
+  }
+  context.drawImage(bitmap, 0, 0);
+  const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+  let count = 0;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i]! > 0) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/**
+ * Whether GIBS has the pixels of a granule layer's frame at `start`: its one tile at level 0,
+ * a 404 where GIBS left the granule out, as it does about two in five of NOAA-20's daytime
+ * ones, and nearly empty where it drew little of it. A frame it lacks would otherwise ask
+ * for every tile in view and be refused each. False, and asked again later, where GIBS
+ * cannot be reached.
+ */
+export function gibsHasGranule(options: Pick<GibsOptions, "layer" | "maximumLevel" | "format">, start: number): Promise<boolean> {
+  const key = `${options.layer}/${start}`;
+  let answer = granulePixels.get(key);
+  if (answer === undefined) {
+    const url = `${GIBS}/${options.layer}/default/${formatFrame(start, false)}/GoogleMapsCompatible_Level${options.maximumLevel}/0/0/0.${options.format}`;
+    answer = fetch(url)
+      .then(async (response) => {
+        if (!response.ok) {
+          return false;
+        }
+        const opaque = await opaquePixels(await response.blob()).catch(() => undefined);
+        return opaque === undefined || opaque >= MIN_OPAQUE_PIXELS;
+      })
+      .catch(() => {
+        granulePixels.delete(key);
+        return false;
+      });
+    granulePixels.set(key, answer);
+  }
+  return answer;
+}

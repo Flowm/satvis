@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { gcatCategoryLabel, gcatClassLabel } from "@/config/gcatCodes";
-import { type ImageryEntry, type ImageryPreview, readImageryList } from "@/config/instrumentImagery";
+import { type DrawnImagery, type ImageryEntry, type ImageryPreview, readImageryList } from "@/config/instrumentImagery";
 import type { OrbitClass } from "@/config/orbitClass";
 import { satcatLabel, SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, SATCAT_ORBIT_TYPE } from "@/config/satcatCodes";
 import { swathExtentsOf, type SatelliteInstrument, type SatelliteMetadata } from "@/config/satelliteMetadata";
@@ -45,6 +45,8 @@ export interface ImageryInfo {
   token?: string;
   /** What a picture of it needs; with `token`, as the provider draws any layer the globe can. */
   preview?: ImageryPreview;
+  /** What replaying its overpasses needs, for a layer of one granule a frame (ADR 0023). */
+  replay?: DrawnImagery;
 }
 
 /** One record entry of `imagery`, read: what the tab shows of it, and the instrument it belongs under. */
@@ -114,7 +116,13 @@ function instrumentImagery({ instrument, provider, layer, label, detail, viewer,
   const drawing =
     drawn === undefined
       ? {}
-      : { token: drawn.token, preview: { provider: drawn.provider, layer: drawn.layer, format: drawn.format, daily: drawn.daily, ...(end !== undefined && { end }) } };
+      : {
+          token: drawn.token,
+          ...(drawn.provider !== "cmr" && {
+            preview: { provider: drawn.provider, layer: drawn.layer, format: drawn.format, daily: drawn.daily, ...(end !== undefined && { end }) },
+          }),
+          ...(drawn.granules !== undefined && { replay: drawn }),
+        };
   return {
     instrument,
     imagery: { key: `${provider}:${layer}`, label, ...(detail !== undefined && { detail }), ...(href !== undefined && { viewer, href }), ...drawing },

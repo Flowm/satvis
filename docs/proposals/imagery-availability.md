@@ -346,7 +346,8 @@ reflectance, nowCOAST's mosaics and the single-band world mosaics of NSMC and DW
 
 ## Overpass replay: what it needs
 
-Deferred by decision 7 to the catalogue step. The findings stand:
+Deferred by decision 7 to the catalogue step, then built for NOAA-20's VIIRS on
+2026-11-21, footprints and granule pixels together (ADR 0023). The findings stand:
 
 |                       | What is shown                                                   | Needs                                | Honest when                                                                                                   |
 | --------------------- | --------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
@@ -361,7 +362,7 @@ Who provides the first two, with no key, to a page on another origin:
 | ------------------------ | ----------------------------------- | ---------------------------------------- |
 | VIIRS (NOAA-20)          | CMR, 6-minute granules, **checked** | GIBS granule layers, 90 days, with holes |
 | VIIRS (Suomi NPP)        | the same, until 2026-11-02          | the same, ageing out                     |
-| VIIRS (NOAA-21)          | CMR; JSTAR Mapper's GeoJSON         | none documented                          |
+| VIIRS (NOAA-21)          | CMR, **checked**: outlines replayed | none: no GIBS granule layer (2026-11-21) |
 | MODIS (Terra, Aqua)      | CMR, 5-minute granules              | none                                     |
 | MSI (Sentinel-2)         | Earth Search, per tile              | Earth Search preview and true-colour COG |
 | OLCI, SLSTR (Sentinel-3) | Copernicus STAC, EUMETSAT search    | quicklooks, unprojected                  |
@@ -427,7 +428,8 @@ only.
 **Later, in this order:** the three merged products; Geoscience Australia's Sentinel-2
 layers; the geostationary mosaic when `georing-mosaic` reaches its last milestone, its
 plan unchanged; then the catalogue sources: Sentinel-2 scenes from Earth Search, and
-replay, footprints first.
+replay, footprints first. Replay came first of these, footprints and pixels together, for
+NOAA-20's VIIRS (ADR 0023).
 
 **Beside the slices:**
 

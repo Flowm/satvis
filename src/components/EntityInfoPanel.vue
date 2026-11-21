@@ -225,7 +225,13 @@
 
         <template #imagery>
           <div class="tab-body__pad">
-            <imagery-gallery :layers="imageryLayers" :centre="imageryCentre" :geostationary="orbitClass === 'GEO'" :focus="imageryFocus" />
+            <imagery-overpasses
+              v-if="selection?.kind === 'groundstation'"
+              :latitude="selection.gs.position.latitude"
+              :longitude="selection.gs.position.longitude"
+              :station-name="name"
+            />
+            <imagery-gallery v-else :layers="imageryLayers" :centre="imageryCentre" :geostationary="orbitClass === 'GEO'" :focus="imageryFocus" :satellite="name" />
           </div>
         </template>
       </UTabs>
@@ -250,6 +256,7 @@ import { useCesiumStore } from "@/stores/cesium";
 import { useSatStore } from "@/stores/sat";
 
 import ImageryGallery from "./ImageryGallery.vue";
+import ImageryOverpasses from "./ImageryOverpasses.vue";
 import InstrumentList from "./InstrumentList.vue";
 import PassTimeline from "./PassTimeline.vue";
 import SatelliteModelView from "./SatelliteModelView.vue";
@@ -346,6 +353,10 @@ const tabs = computed(() => {
     items.push({ label: "Imagery", slot: "imagery", value: "imagery", badge: imageryLayers.value.length });
   }
   items.push({ label: "Passes", slot: "passes", value: "passes", ...(passRows.value.length > 0 ? { badge: passRows.value.length } : {}) });
+  // A station's past overpasses that a granule layer replays (ADR 0023), after its passes so it opens on those.
+  if (selection.value?.kind === "groundstation") {
+    items.push({ label: "Imagery", slot: "imagery", value: "imagery" });
+  }
   // After Passes, so a station opens on it: a preferred tab the selection lacks falls back to the first.
   if (locationRows.value.length > 0) {
     items.push({ label: "Location", slot: "location", value: "location" });

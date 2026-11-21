@@ -17,6 +17,12 @@
 # under the satellite, measured from a tile on 2026-11-12. An entry without them is a
 # link only.
 #
+# `granules` names the NASA CMR collections that list a GIBS layer's granules, the
+# near-real-time one first: a layer of one granule a frame, which the web app replays
+# behind the clock, each granule in its outline (ADR 0023). A `cmr` entry, `kind: outline`,
+# names a satellite's collections where no provider has its granules' pixels: the outlines
+# alone, with no tiles.
+#
 # Layer ids, periods, first frames and tile sets were read from each provider's
 # capabilities on 2026-11-11. Re-check an entry there before copying it: a layer that stops keeps its
 # place in the capabilities, so nothing there says it has ended.
@@ -87,6 +93,17 @@ satellites:
           format: jpeg
           period: P1D
           start: 2018-01-05
+        # One frame a 6-minute granule, transparent outside it; read 2026-11-21. GIBS
+        # leaves out about two in five of the daytime ones, which keep their outline.
+        - provider: gibs
+          layer: VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule
+          label: True colour granules
+          kind: rgb
+          maxLevel: 9
+          format: png
+          period: PT6M
+          window: P90D
+          granules: [VJ103MOD_NRT, VJ103MOD]
 
   - noradId: 54234
     name: NOAA 21 (JPSS-2)
@@ -100,6 +117,15 @@ satellites:
           format: jpeg
           period: P1D
           start: 2023-02-10
+        # GIBS has no NOAA-21 granule layer (read 2026-11-21): CMR's outlines alone,
+        # until it has one.
+        - provider: cmr
+          layer: VJ203MOD
+          label: Granule outlines
+          kind: outline
+          period: PT6M
+          start: 2023-02-10
+          granules: [VJ203MOD_NRT, VJ203MOD]
 
   - noradId: 58928
     name: PACE

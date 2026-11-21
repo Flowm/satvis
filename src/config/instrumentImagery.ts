@@ -15,7 +15,7 @@ export interface SatelliteImagery {
   layer: string;
   /** What the picture is: "True colour". */
   label: string;
-  /** "rgb" is the only one so far. */
+  /** "rgb", or "outline": a `cmr` layer's granule outlines, with no picture. */
   kind: string;
   /** ISO 8601 duration between frames: "P1D", "PT10M". */
   period?: string;
@@ -31,6 +31,8 @@ export interface SatelliteImagery {
   maxLevel?: number;
   /** The type of its tiles, one of TILE_FORMATS. */
   format?: string;
+  /** The NASA CMR collections that list its granules, the near-real-time one first: a layer of one granule a frame, or a `cmr` layer of their outlines (ADR 0023). */
+  granules?: string[];
 }
 
 /**
@@ -57,6 +59,8 @@ export const IMAGERY_PROVIDERS: Readonly<Record<string, InstrumentImageryProvide
   "copernicus-browser": { viewer: "Copernicus Browser", link: "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId={layer}" },
   // The georing-mosaic project's bucket (ADR 0022).
   georing: {},
+  // NASA's CMR: a satellite's granule outlines, where no provider has their pixels (ADR 0023).
+  cmr: {},
 };
 
 /** A layer in its provider's viewer. The colon of EUMETView's `workspace:layer` stays, as its own links write it. */
@@ -113,7 +117,10 @@ export function imageryDetail(entry: Pick<SatelliteImagery, "period" | "start" |
 }
 
 /** A layer the globe draws, named in the url by `token` (ADR 0020). */
-export interface DrawnImagery {
+export type DrawnImagery = TiledImagery | OutlineImagery;
+
+/** A layer the globe draws from a provider's tiles. */
+export interface TiledImagery {
   /** `provider:layer`, which names it in the store and the url. */
   token: string;
   /** The service that draws it. */
@@ -123,6 +130,29 @@ export interface DrawnImagery {
   format: TileFormat;
   /** A GIBS layer with a frame a day, which GIBS names by its date; any other's it names to the second. */
   daily: boolean;
+  /**
+   * The CMR collections that list a GIBS layer's granules, where it has one frame a
+   * granule: the globe then shows the granules behind the clock, each in its outline,
+   * rather than one frame (ADR 0023).
+   */
+  granules?: string[];
+}
+
+/** A satellite's granules as their outlines alone, from CMR, where no provider has their pixels (ADR 0023). */
+export interface OutlineImagery {
+  token: string;
+  provider: "cmr";
+  /** CMR's short name of the collection. */
+  layer: string;
+  /** The CMR collections that list the granules, the near-real-time one first. */
+  granules: string[];
+}
+
+/** A layer the globe draws granule by granule: a GIBS layer of one granule a frame, or a `cmr` one of their outlines. */
+export type GranuleLayer = DrawnImagery & { granules: string[] };
+
+export function isGranuleLayer(drawn: DrawnImagery | undefined): drawn is GranuleLayer {
+  return drawn?.granules !== undefined;
 }
 
 /** The types of tile the drawing providers send. */
@@ -140,16 +170,25 @@ function imageryToken(provider: string, layer: string): string {
   return `${provider}:${layer}`;
 }
 
+/** An entry's CMR collections, the empty ones left out. */
+function collections(granules: unknown): string[] {
+  return Array.isArray(granules) ? granules.filter((name): name is string => typeof name === "string" && name !== "") : [];
+}
+
 /**
  * What the globe needs to draw a record's entry, or undefined where it cannot: another
- * provider's, one without `maxLevel` and `format`, or a GIBS layer whose period does
- * not say how its frames are named.
+ * provider's, one without `maxLevel` and `format`, a GIBS layer whose period does not say
+ * how its frames are named, or a `cmr` one without collections.
  */
 export function drawnImagery(entry: unknown): DrawnImagery | undefined {
   if (typeof entry !== "object" || entry === null) {
     return undefined;
   }
-  const { provider, layer, maxLevel, format, period } = entry as Record<keyof SatelliteImagery, unknown>;
+  const { provider, layer, maxLevel, format, period, granules } = entry as Record<keyof SatelliteImagery, unknown>;
+  if (provider === "cmr") {
+    const listed = collections(granules);
+    return typeof layer === "string" && listed.length > 0 ? { token: imageryToken(provider, layer), provider, layer, granules: listed } : undefined;
+  }
   const drawing = DRAWING_PROVIDERS.find((name) => name === provider);
   const tiles = TILE_FORMATS.find((type) => type === format);
   if (drawing === undefined || tiles === undefined || typeof layer !== "string" || !Number.isInteger(maxLevel)) {
@@ -159,13 +198,24 @@ export function drawnImagery(entry: unknown): DrawnImagery | undefined {
   if (drawing === "gibs" && !daily && !(typeof period === "string" && period.startsWith("PT"))) {
     return undefined;
   }
-  return { token: imageryToken(drawing, layer), provider: drawing, layer, maxLevel: maxLevel as number, format: tiles, daily };
+  const listed = drawing === "gibs" && !daily ? collections(granules) : [];
+  return {
+    token: imageryToken(drawing, layer),
+    provider: drawing,
+    layer,
+    maxLevel: maxLevel as number,
+    format: tiles,
+    daily,
+    ...(listed.length > 0 && { granules: listed }),
+  };
 }
 
 /** What an Imagery tab card needs to ask the provider for a picture of a layer the globe can draw. */
-export interface ImageryPreview extends Pick<DrawnImagery, "provider" | "layer" | "format" | "daily"> {
+export interface ImageryPreview extends Pick<TiledImagery, "provider" | "layer" | "format" | "daily"> {
   /** The last frame's date, of a layer that stopped. */
   end?: string;
+  /** The frame to picture where it is not the latest, as GIBS names it: a granule's start. */
+  at?: string;
 }
 
 /** The point a preview is centred on, in degrees. */
@@ -225,7 +275,7 @@ export function imageryPreviewUrl(preview: ImageryPreview, bounds: PreviewBounds
     return `${EUMETVIEW_WMS}?${query}`;
   }
   query.set("FORMAT", `image/${preview.format}`);
-  const time = preview.end ?? (preview.daily ? new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10) : undefined);
+  const time = preview.at ?? preview.end ?? (preview.daily ? new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10) : undefined);
   if (time !== undefined) {
     query.set("TIME", time);
   }

@@ -53,7 +53,8 @@ file and not where models are served:
 ]
 ```
 
-- `label` says what the picture is. `kind` is `rgb`, the only one so far.
+- `label` says what the picture is. `kind` is `rgb`, or `outline` for a `cmr` entry's
+  granule outlines, which have no picture (ADR 0023).
 - `period` is the step between frames, `start` the satellite's first frame, `end` the
   last frame of a layer that stopped, `window` a rolling history: GIBS keeps a
   geostationary layer 90 days, whatever its time domain lists. A later slice that draws
@@ -62,7 +63,8 @@ file and not where models are served:
   layer that covers less than the instrument sees says so in its label: "Natural colour,
   Europe"; a composite's label names what it covers: "Natural colour, GeoRing".
 - An instrument's first entry is its default.
-- `maxLevel` and `format` came later, with drawing the layer (ADR 0020).
+- `maxLevel` and `format` came later, with drawing the layer (ADR 0020), and
+  `granules` later still, with overpass replay (ADR 0023).
 
 **`imagery` is curated only, and stands beside `instruments`**, not inside it, so
 CEOS stays the one owner of that list (ADR 0008). A row of a config may not give it:

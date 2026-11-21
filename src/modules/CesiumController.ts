@@ -21,7 +21,7 @@ import utc from "dayjs/plugin/utc";
 
 import { usePostHog } from "@/composables/usePostHog";
 import { defaultViewDistance } from "@/config/defaultView";
-import type { DrawnImagery } from "@/config/instrumentImagery";
+import { type DrawnImagery, isGranuleLayer, type TiledImagery } from "@/config/instrumentImagery";
 import { parseLayer } from "@/config/layers";
 import { TOUCH_HOLD_MS } from "@/config/layout";
 import { type FrameRate, frameIntervalFor, msaaSamplesFor, resolutionScaleFor } from "@/config/rendering";
@@ -37,6 +37,8 @@ import { eumetViewFrames } from "./EumetViewImagery";
 import { type Frame, type FramedImagery, type FrameSource, type ImageryContext, showFramedImagery, trackRequests } from "./FramedImagery";
 import { geoMosaicFrames } from "./GeoMosaicImagery";
 import { gibsFrames } from "./GibsImagery";
+import { showGranuleImagery } from "./GranuleImagery";
+import { granuleLayer } from "./GranuleLayers";
 import { RenderPacer } from "./renderPacing";
 import { cesiumSceneMode } from "./satelliteGraphics";
 import { SatelliteManager } from "./SatelliteManager";
@@ -60,7 +62,7 @@ type Shown = Pick<FramedImagery<ImageryLayer>, "top">;
 type Instrument = Shown & { drawn: DrawnImagery; lifetime: AbortController };
 
 /** A layer of each imagery provider the globe draws, frame by frame. */
-const FRAMES: Record<DrawnImagery["provider"], (imagery: DrawnImagery) => FrameSource<ImageryProvider>> = {
+const FRAMES: Record<TiledImagery["provider"], (imagery: TiledImagery) => FrameSource<ImageryProvider>> = {
   gibs: ({ layer, maxLevel, format, daily }) => gibsFrames({ layer, maximumLevel: maxLevel, format, daily }),
   eumetview: ({ layer, maxLevel, format }) => eumetViewFrames({ layer, maximumLevel: maxLevel, format }),
   // The georing mosaic has one layer, and its file says how deep it goes.
@@ -79,8 +81,13 @@ function layerFrames(source: FrameSource<ImageryProvider>): FrameSource<Frame<Im
 }
 
 function sameDrawn(a: DrawnImagery, b: DrawnImagery): boolean {
-  return (Object.keys(a) as (keyof DrawnImagery)[]).every((key) => a[key] === b[key]);
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)] as (keyof DrawnImagery)[]);
+  // `granules` is a list, read afresh from each record.
+  return [...keys].every((key) => String(a[key]) === String(b[key]));
 }
+
+/** Metres. A NOAA-20 swath, 3,000 km wide, fills the view from here without the limb in it. */
+const REPLAY_HEIGHT_M = 5_000_000;
 
 /**
  * Degrees. A little north, so Europe clears the limb without cutting off the southern hemisphere.
@@ -345,7 +352,10 @@ export class CesiumController {
     this.viewer.scene.requestRender();
   }
 
-  /** Each is a layer a frame (FramedImagery.ts), so its layers come and go as the clock moves. */
+  /**
+   * Each is a layer a frame (FramedImagery.ts), or a layer of one granule a frame, a layer a
+   * granule behind the clock (GranuleImagery.ts), so its layers come and go as the clock moves.
+   */
   #showInstrument(drawn: DrawnImagery): Instrument {
     const lifetime = new AbortController();
     // Its place among the others by the time it has a layer: they come and go meanwhile.
@@ -359,7 +369,14 @@ export class CesiumController {
         ),
       ),
     ];
-    const shown = showFramedImagery(layerFrames(FRAMES[drawn.provider](drawn)), this.viewer.scene.imageryLayers, this.#over(below), this.#imageryContext(lifetime.signal));
+    const context = this.#imageryContext(lifetime.signal);
+    let shown: Shown;
+    if (isGranuleLayer(drawn)) {
+      const { source, outlines } = granuleLayer(drawn, this.viewer.scene.groundPrimitives);
+      shown = showGranuleImagery(source, this.viewer.scene.imageryLayers, outlines, this.#over(below), context);
+    } else {
+      shown = showFramedImagery(layerFrames(FRAMES[drawn.provider](drawn)), this.viewer.scene.imageryLayers, this.#over(below), context);
+    }
     return {
       drawn,
       lifetime,
@@ -568,6 +585,22 @@ export class CesiumController {
     this.viewer.clock.startTime = JulianDate.fromIso8601(dayjs.utc(current).subtract(12, "hour").toISOString());
     this.viewer.clock.stopTime = JulianDate.fromIso8601(dayjs.utc(current).add(7, "day").toISOString());
     this.viewer.clock.currentTime = JulianDate.fromIso8601(dayjs.utc(current).toISOString());
+  }
+
+  /**
+   * Plays from `time` (epoch ms) at `multiplier`, looking straight down on `centre` from
+   * REPLAY_HEIGHT_M, untracked: an overpass replay (ADR 0023). The sky view keeps its camera.
+   */
+  replay({ time, multiplier, centre }: { time: number; multiplier: number; centre: { latitude: number; longitude: number } }): void {
+    this.setTime(time);
+    this.viewer.clockViewModel.multiplier = multiplier;
+    this.viewer.clockViewModel.shouldAnimate = true;
+    if (!this.skyView.active) {
+      this.viewer.trackedEntity = undefined;
+      const duration = DeviceDetect.prefersReducedMotion() ? 0 : undefined;
+      this.viewer.camera.flyTo({ destination: Cartesian3.fromDegrees(centre.longitude, centre.latitude, REPLAY_HEIGHT_M), duration, easingFunction: smootherstep });
+    }
+    this.viewer.scene.requestRender();
   }
 
   /**

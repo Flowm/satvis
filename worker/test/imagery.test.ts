@@ -6,9 +6,21 @@ const trueColour = { provider: "gibs", layer: "TrueColor", label: "True colour",
 
 const satellite = (noradId: number, instruments: unknown) => ({ noradId, instruments });
 
+/** A satellite's granule outlines, where no provider has their pixels (ADR 0023). */
+const outlines = { provider: "cmr", layer: "VJ203MOD", label: "Granule outlines", kind: "outline", period: "PT6M", granules: ["VJ203MOD_NRT", "VJ203MOD"] };
+
 describe("imageryBySatellite", () => {
   it("gives each satellite its instruments' entries in manifest order", () => {
-    const granule = { ...trueColour, layer: "TrueColor_Granule", label: "True colour, per granule", period: "PT6M", window: "P90D", maxLevel: 9, format: "jpeg" };
+    const granule = {
+      ...trueColour,
+      layer: "TrueColor_Granule",
+      label: "True colour granules",
+      period: "PT6M",
+      window: "P90D",
+      maxLevel: 9,
+      format: "png",
+      granules: ["VJ103MOD_NRT", "VJ103MOD"],
+    };
     const imagery = imageryBySatellite(
       {
         satellites: [
@@ -96,6 +108,12 @@ describe("imageryBySatellite", () => {
     );
   });
 
+  it("reads a cmr layer of granule outlines, without tiles", () => {
+    const imagery = imageryBySatellite({ satellites: [satellite(54234, { VIIRS: [outlines] })] }, "core");
+
+    expect(imagery.get(54234)).toEqual([{ instrument: "VIIRS", ...outlines }]);
+  });
+
   it.each([
     [{ ...trueColour, kind: undefined }, '"kind" must be one of rgb'],
     [{ ...trueColour, kind: "band" }, '"kind" must be one of rgb'],
@@ -112,6 +130,16 @@ describe("imageryBySatellite", () => {
     [{ ...trueColour, maxLevel: 9 }, '"maxLevel" and "format" go together'],
     [{ ...trueColour, maxLevel: 9.5, format: "jpeg" }, '"maxLevel" must be a tile level'],
     [{ ...trueColour, maxLevel: 9, format: "gif" }, '"format" must be one of png, jpeg, webp'],
+    [{ ...trueColour, period: "PT6M", maxLevel: 9, format: "png", granules: [] }, '"granules" must list the CMR collections'],
+    [{ ...trueColour, period: "PT6M", maxLevel: 9, format: "png", granules: "VJ103MOD" }, '"granules" must list the CMR collections'],
+    [{ ...trueColour, period: "P1D", maxLevel: 9, format: "png", granules: ["VJ103MOD"] }, '"granules" is for a GIBS layer'],
+    [{ ...trueColour, provider: "eumetview", period: "PT6M", maxLevel: 9, format: "png", granules: ["VJ103MOD"] }, '"granules" is for a GIBS layer'],
+    [{ ...trueColour, period: "PT6M", granules: ["VJ103MOD"] }, '"granules" is for a GIBS layer'],
+    [{ ...outlines, kind: "rgb" }, '"kind" outline and "provider" cmr go together'],
+    [{ ...trueColour, kind: "outline" }, '"kind" outline and "provider" cmr go together'],
+    [{ ...outlines, granules: undefined }, "a cmr layer is a satellite's granule outlines"],
+    [{ ...outlines, period: "P1D" }, "a cmr layer is a satellite's granule outlines"],
+    [{ ...outlines, maxLevel: 9, format: "png" }, "a cmr layer is a satellite's granule outlines"],
     ["TrueColor", "must be an object"],
   ])("fails on an entry it cannot read: %#", (entry, message) => {
     expect(() => imageryBySatellite({ satellites: [satellite(43013, { VIIRS: [entry] })] }, "core")).toThrow(message);

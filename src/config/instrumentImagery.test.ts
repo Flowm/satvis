@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { COMPOSITE, drawnImagery, imageryDetail, imageryLayers, imageryPreviewUrl, previewBounds, shortImageryLabel } from "./instrumentImagery";
+import { COMPOSITE, drawnImagery, imageryDetail, imageryLayers, imageryPreviewUrl, previewBounds, readImagery, shortImageryLabel } from "./instrumentImagery";
 
 describe("imageryDetail", () => {
   test.each([
@@ -46,6 +46,31 @@ describe("drawnImagery", () => {
       daily: true,
     });
     expect(drawnImagery({ ...trueColour, period: "PT10M", format: "png" })).toMatchObject({ format: "png", daily: false });
+  });
+
+  test("reads the CMR collections of a GIBS layer of one granule a frame, and of no other", () => {
+    const granule = { ...trueColour, layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule", period: "PT6M", format: "png", granules: ["VJ103MOD_NRT", "VJ103MOD"] };
+    expect(drawnImagery(granule)).toMatchObject({ daily: false, granules: ["VJ103MOD_NRT", "VJ103MOD"] });
+    expect(drawnImagery({ ...granule, period: "P1D" })).not.toHaveProperty("granules");
+    expect(drawnImagery({ ...granule, granules: [] })).not.toHaveProperty("granules");
+    expect(drawnImagery({ ...granule, granules: "VJ103MOD" })).not.toHaveProperty("granules");
+    expect(drawnImagery({ ...geoColour, granules: ["VJ103MOD"] })).not.toHaveProperty("granules");
+  });
+
+  test("reads a cmr layer as its granule outlines, without tiles", () => {
+    const outlines = {
+      instrument: "VIIRS",
+      provider: "cmr",
+      layer: "VJ203MOD",
+      label: "Granule outlines",
+      kind: "outline",
+      period: "PT6M",
+      granules: ["VJ203MOD_NRT", "VJ203MOD"],
+    };
+    expect(drawnImagery(outlines)).toEqual({ token: "cmr:VJ203MOD", provider: "cmr", layer: "VJ203MOD", granules: ["VJ203MOD_NRT", "VJ203MOD"] });
+    expect(drawnImagery({ ...outlines, granules: [] })).toBeUndefined();
+    expect(readImagery(outlines)).toMatchObject({ detail: "every 6 min", drawn: { token: "cmr:VJ203MOD" } });
+    expect(readImagery(outlines)).not.toHaveProperty("href");
   });
 
   test("reads a EUMETView entry, whose service names its own frames, with or without a period", () => {

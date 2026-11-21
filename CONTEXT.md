@@ -83,6 +83,20 @@ discussion; sharpen them here when they drift.
   named for a service ("GOES-East") is the imagery of whichever satellite provides it
   now, from the day it took over. Not a
   **basemap** or an **overlay**, which the Map panel draws on the globe.
+- **Granule**: a few minutes of one instrument's swath as its provider files it: six
+  minutes for VIIRS, with its start, whether it was sensed by day, and the ground it
+  covers, as NASA's CMR lists it (`Granule` in `src/modules/util/cmrGranules.ts`).
+- **Granule layer**: instrument imagery of one granule a frame, whose entry names the CMR
+  collections that list its granules (`granules`). The globe shows it as the granules
+  behind the clock, not one frame: each appears, outline and pixels, once the clock passes
+  its start, and goes 50 minutes later (`GranuleImagery.ts`, ADR 0023). A `cmr` entry,
+  of kind `outline`, is one with the outlines alone, for a satellite whose granules no
+  provider pictures.
+- **Overpass replay**: the clock set back to an overpass a granule layer has and playing,
+  with the layer on and the camera above it, so the swath builds up behind the satellite.
+  Started from the layer's Imagery tab card (the newest overpass GIBS has pixels of) or a
+  ground station's Imagery tab (its overpasses by day in the last 30 days). Nothing of it
+  is its own state: a replay is a link with `imagery` and `time`.
 - **Data availability**: what satvis has for a satellite: instrument imagery (as a map
   layer the globe draws, or as a viewer link only), CEOS instruments, a 3D model. A
   catalog facet whose picks are all-of (`docs/adr/0021-finding-imagery.md`).

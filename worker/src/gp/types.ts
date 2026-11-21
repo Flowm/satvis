@@ -234,13 +234,19 @@ export interface SatelliteInstrument {
 export interface SatelliteImagery {
   /** The CEOS short name of the instrument it shows, one of the record's `instruments`. */
   instrument: string;
-  /** The service that holds it: "gibs". An app leaves out the entries of one it does not know. */
+  /**
+   * The service that holds it: "gibs", or "cmr" for granule outlines with no pixels. An app
+   * leaves out the entries of one it does not know.
+   */
   provider: string;
   /** The provider's own id for the layer or dataset: never a url. */
   layer: string;
   /** What the picture is: "True colour". */
   label: string;
-  /** "rgb", a colour picture composed from the instrument's bands, is the only one so far. */
+  /**
+   * "rgb", a colour picture composed from the instrument's bands, or "outline", a `cmr`
+   * layer's granule outlines with no picture in them (ADR 0023).
+   */
   kind: string;
   /** ISO 8601 duration between frames. Absent where there is none to state: one swath an orbit. */
   period?: string;
@@ -264,6 +270,13 @@ export interface SatelliteImagery {
   maxLevel?: number;
   /** The type of its tiles. */
   format?: TileFormat;
+  /**
+   * The NASA CMR collections that list the layer's granules and their outlines, by short
+   * name, the near-real-time one first: a GIBS layer of one granule a frame, which an app
+   * replays granule by granule along the satellite's track, or a `cmr` layer, which has
+   * the outlines alone (ADR 0023).
+   */
+  granules?: string[];
 }
 
 /** The types of tile an app can draw (src/config/instrumentImagery.ts, TILE_FORMATS). */
