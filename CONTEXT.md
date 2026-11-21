@@ -93,14 +93,14 @@ discussion; sharpen them here when they drift.
   satellite is drawn, the granule under it fills in behind the ground track fan instead, and
   gets its outline and layer once the satellite has passed it. A `cmr` entry,
   of kind `outline`, is one with the outlines alone, for a satellite whose granules no
-  provider pictures.
-- **Overpass replay**: the clock set back to an overpass a granule layer has and playing,
-  with the layer on and the camera above it, so the swath builds up behind the satellite.
-  Started from the layer's Imagery tab card (the newest overpass GIBS has pixels of) or a
-  Passes table's Image column (a past pass, as the overpass CMR recorded in it); the replay bar
-  over the clock steps to the overpass before or after and exits. Nothing of it but the
-  station it was started from is its own state: a replay is a link with `imagery` and
-  `time`.
+  provider pictures. Called the "swath as sensed" where its label is not enough
+  (`SENSED_SWATH`); the timeline shades where it has granules.
+- **Overpass replay**: the clock set back to a pass over a station and playing, with the
+  camera above the station and, where CMR recorded the pass by day, its granule layer on,
+  so the swath builds up behind the satellite. Started from a pass in the Passes table; the
+  replay bar over the clock steps to the station's overpass before or after and exits.
+  Nothing of it but the station is its own state: a replay is a link with `imagery` and
+  `time`. Not the swath as sensed, a layer that follows the clock wherever it is.
 - **Data availability**: what satvis has for a satellite: instrument imagery (as a map
   layer the globe draws, or as a viewer link only), CEOS instruments, a 3D model. A
   catalog facet whose picks are all-of (`docs/adr/0021-finding-imagery.md`).

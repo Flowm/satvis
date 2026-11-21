@@ -382,6 +382,12 @@ export function shortImageryLabel(label: string): string {
   return short === "" ? label : short;
 }
 
+/**
+ * What a granule layer is called where its label is not enough: the swath filling in behind
+ * the satellite as the clock runs (ADR 0023), the picture's or the outlines'.
+ */
+export const SENSED_SWATH = "Swath as sensed";
+
 /** A composite's Map panel row stands for no one satellite: it is named by its label's qualifier, "GeoRing", or this. */
 export const COMPOSITE = "Composite";
 
@@ -434,8 +440,8 @@ export type ImageryLayer = SatelliteImageryLayer | CompositeImageryLayer;
  * Every layer the records carry that the globe can draw and that has not stopped, once per
  * satellite, provider and layer: the composites first, then by satellite name. A composite
  * is one layer, in its first satellite's group, which has frames from its earliest
- * satellite's start. A viewer link alone, a layer that stopped, or a granule layer, which
- * is on only for an overpass replay (ADR 0023), is the satellite's Imagery tab's to offer.
+ * satellite's start. A viewer link alone, or a layer that stopped, is the satellite's
+ * Imagery tab's to offer. A granule layer is named for what it shows, SENSED_SWATH.
  */
 export function imageryLayers(entries: readonly { name: string; satnum: string; orbitClass: OrbitClass; metadata: { imagery?: unknown } }[]): ImageryLayer[] {
   const layers = new Map<string, SatelliteImageryLayer>();
@@ -445,7 +451,7 @@ export function imageryLayers(entries: readonly { name: string; satnum: string; 
     const group = orbitClass === "GEO" ? "geo" : "leo";
     for (const entry of readImageryList(metadata.imagery)) {
       const token = entry.drawn?.token;
-      if (token === undefined || entry.end !== undefined || isGranuleLayer(entry.drawn)) continue;
+      if (token === undefined || entry.end !== undefined) continue;
       if (entry.merged) {
         const composite = composites.get(token) ?? { entry, group, satellites: new Map<string, string>() };
         composite.satellites.set(satnum, name);
@@ -458,7 +464,8 @@ export function imageryLayers(entries: readonly { name: string; satnum: string; 
       const key = `${satnum}:${token}`;
       if (layers.has(key)) continue;
       const { instrument, label, detail } = entry;
-      layers.set(key, { kind: "satellite", key, token, group, satellite: name, instrument, label, product: shortImageryLabel(label), detail });
+      const product = isGranuleLayer(entry.drawn) ? SENSED_SWATH : shortImageryLabel(label);
+      layers.set(key, { kind: "satellite", key, token, group, satellite: name, instrument, label, product, detail });
     }
   }
   const byName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });

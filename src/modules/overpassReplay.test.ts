@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { orbitReplay, replayPlace, stationReplay } from "./overpassReplay";
+import { replayPlace, stationReplay } from "./overpassReplay";
 import type { Granule, Overpass } from "./util/cmrGranules";
 
 const MINUTE = 60 * 1000;
@@ -32,12 +32,5 @@ describe("replayPlace", () => {
   test("before the first and after the last", () => {
     expect(at(10)).toEqual({ current: undefined, previous: undefined, next: overpasses[0] });
     expect(at(400)).toEqual({ current: undefined, previous: overpasses[2], next: undefined });
-  });
-});
-
-describe("orbitReplay", () => {
-  test("replays an orbit's day side from its middle granule", () => {
-    const orbit = overpass(100, 5);
-    expect(orbitReplay(orbit).time).toBe(orbit.granules[2]!.start - 20 * MINUTE);
   });
 });

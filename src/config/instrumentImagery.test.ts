@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { COMPOSITE, drawnImagery, imageryDetail, imageryLayers, imageryPreviewUrl, previewBounds, readImagery, shortImageryLabel } from "./instrumentImagery";
+import { COMPOSITE, drawnImagery, imageryDetail, imageryLayers, imageryPreviewUrl, previewBounds, readImagery, SENSED_SWATH, shortImageryLabel } from "./instrumentImagery";
 
 describe("imageryDetail", () => {
   test.each([
@@ -165,9 +165,17 @@ describe("imageryLayers", () => {
     expect(layers.map((layer) => layer.key)).toEqual(["60133:gibs:GOES-East_ABI_GeoColor"]);
   });
 
-  test("leaves out a granule layer, which only a replay turns on", () => {
-    const granules = { ...daily, instrument: "VIIRS", layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule", period: "PT6M", granules: ["VJ103MOD_NRT"] };
-    expect(imageryLayers([{ name: "NOAA 20", satnum: "43013", orbitClass: "LEO", metadata: { imagery: [granules] } }])).toEqual([]);
+  test("lists a granule layer in its satellite's group, named for the swath it shows", () => {
+    const granules = {
+      ...daily,
+      instrument: "VIIRS",
+      layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+      label: "True colour granules",
+      period: "PT6M",
+      granules: ["VJ103MOD_NRT"],
+    };
+    const [layer] = imageryLayers([{ name: "NOAA 20", satnum: "43013", orbitClass: "LEO", metadata: { imagery: [granules] } }]);
+    expect(layer).toMatchObject({ group: "leo", product: SENSED_SWATH, label: "True colour granules" });
   });
 });
 

@@ -4,7 +4,7 @@
       v-for="{ instrument, imagery } in layers"
       :key="imagery.key"
       class="card"
-      :class="{ 'card--drawable': imagery.token && !imagery.replay, 'card--shown': isShown(imagery) }"
+      :class="{ 'card--drawable': imagery.token, 'card--shown': isShown(imagery) }"
       :data-instrument="instrument"
       :aria-label="`${instrument} ${imagery.label}`"
       @click="toggle(imagery)"
@@ -24,22 +24,29 @@
         <span class="card__badge">{{ instrument }}</span>
         <span v-if="imagery.preview?.end" class="card__badge card__badge--ended">Ended {{ imagery.preview.end }}</span>
       </div>
-      <!-- A granule layer is on only for a replay, which the button starts and the replay bar ends. -->
+      <!-- A granule layer follows the clock: the swath fills in behind the satellite as it flies, hours behind live. -->
       <div v-if="imagery.replay" class="card__body">
-        <div class="card__title">Overpass replay</div>
-        <div class="card__detail">{{ imagery.label }}</div>
-        <button
-          type="button"
-          class="card__replay"
-          :disabled="!latest.get(imagery.key)"
-          :title="latest.get(imagery.key) && `Replay the last overpass, of ${granuleTime(latest.get(imagery.key)!)}, with its granules on the globe`"
-          @click.stop="replayLatest(imagery)"
-        >
-          <UIcon name="lucide:history" />
-          <template v-if="latest.get(imagery.key)">Replay {{ granuleTime(latest.get(imagery.key)!) }}</template>
-          <template v-else-if="asked.has(imagery.key)">No overpass in the last 12 hours</template>
-          <template v-else>Looking for the last overpass…</template>
-        </button>
+        <div class="card__title">{{ SENSED_SWATH }}</div>
+        <div class="card__detail">{{ imagery.label }}, as the clock runs</div>
+        <div class="card__actions">
+          <USwitch
+            :model-value="isShown(imagery)"
+            label="Show"
+            size="sm"
+            :aria-label="`Show ${imagery.label} as a map layer`"
+            @update:model-value="cesiumStore.toggleInstrumentImagery(imagery.token!, $event)"
+            @click.stop
+          />
+          <UTooltip :text="isTracked ? 'Stop tracking' : 'Track the satellite'">
+            <UButton icon="i-lucide-video" variant="ghost" :color="isTracked ? 'primary' : 'neutral'" size="xs" aria-label="Track the satellite" @click.stop="toggleTrack" />
+          </UTooltip>
+        </div>
+        <!-- NASA lists a granule about 3 hours after it is sensed: nearer live there is nothing to show. -->
+        <div v-if="isShown(imagery) && aheadOfData(imagery)" class="card__hint" @click.stop>
+          <UIcon name="lucide:clock-alert" class="card__hint-icon" />
+          <span>Nothing sensed yet at this time. The latest is {{ behindLive(latest.get(imagery.key)!) }} behind live.</span>
+          <button type="button" class="card__hint-action" @click="goToLatest(imagery)">Go to latest</button>
+        </div>
         <a v-if="imagery.href" class="card__open card__open--below" :href="imagery.href" :title="`Open in ${imagery.viewer}`" target="_blank" rel="noopener" @click.stop>
           {{ imagery.viewer }}
           <UIcon name="lucide:external-link" />
@@ -70,14 +77,14 @@
 </template>
 
 <script setup lang="ts">
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
 import { computed, nextTick, onMounted, onUnmounted, reactive, useTemplateRef, watch } from "vue";
 
-import { useOverpassReplay } from "@/composables/useOverpassReplay";
-import { imageryPreviewUrl, isGranuleLayer, PREVIEW_HEIGHT, PREVIEW_WIDTH, type PreviewCentre, previewBounds } from "@/config/instrumentImagery";
+import { useController } from "@/composables/useController";
+import { useSelectedEntity } from "@/composables/useSelectedEntity";
+import { useViewerClock } from "@/composables/useViewerClock";
+import { imageryPreviewUrl, isGranuleLayer, SENSED_SWATH, PREVIEW_HEIGHT, PREVIEW_WIDTH, type PreviewCentre, previewBounds } from "@/config/instrumentImagery";
 import { geoMosaicPreview } from "@/modules/GeoMosaicImagery";
-import { granuleCentre, latestGranule, latestReplay } from "@/modules/overpassReplay";
+import { granuleCentre, latestGranule } from "@/modules/overpassReplay";
 import type { Granule } from "@/modules/util/cmrGranules";
 import type { ImageryInfo } from "@/modules/util/entityInfo";
 import { formatFrame } from "@/modules/util/timeDomain";
@@ -86,8 +93,8 @@ import { useCesiumStore } from "@/stores/cesium";
 /**
  * The Imagery tab: a card for each layer that shows one of the satellite's instruments,
  * with a picture of its latest frame, a switch that shows it on the globe where the globe
- * can draw it, and a link to it in its provider's viewer. A granule layer's card replays
- * the satellite's newest overpass instead of a switch.
+ * can draw it, and a link to it in its provider's viewer. A granule layer's card can also
+ * track the satellite, and sends the clock to its newest granule where it is past it.
  */
 const props = defineProps<{
   layers: { instrument: string; imagery: ImageryInfo }[];
@@ -145,48 +152,56 @@ watch(
 onUnmounted(forgetPreviews);
 
 /**
- * A granule layer's newest day granule with pixels, by card, which it pictures and replays:
+ * A granule layer's newest day granule with pixels, by card, which it pictures and goes to:
  * its latest frame is a granule that may be by night, or one GIBS left out.
  */
 const latest = reactive(new Map<string, Granule>());
-/** The cards whose newest granule has been looked for, found or not. */
-const asked = reactive(new Set<string>());
 watch(
   () => props.layers,
   (layers, _, onCleanup) => {
     latest.clear();
-    asked.clear();
     const reading = new AbortController();
     onCleanup(() => reading.abort());
     for (const { imagery } of layers) {
       const layer = imagery.replay;
       if (!isGranuleLayer(layer)) continue;
       void latestGranule(layer, reading.signal).then((granule) => {
-        if (reading.signal.aborted) return;
-        asked.add(imagery.key);
-        if (granule !== undefined) latest.set(imagery.key, granule);
+        if (granule !== undefined && !reading.signal.aborted) latest.set(imagery.key, granule);
       });
     }
   },
   { immediate: true },
 );
 
-dayjs.extend(utc);
-
-/** "11-20 11:42 UTC". */
-function granuleTime(granule: Granule): string {
-  return `${dayjs.utc(granule.start).format("MM-DD HH:mm")} UTC`;
-}
-
 /** Degrees either side of a granule's centre in its picture: a NOAA-20 granule is about 3,000 km across. */
 const GRANULE_HALF_WIDTH = 20;
 
-const replay = useOverpassReplay();
-function replayLatest(imagery: ImageryInfo): void {
+const controller = useController();
+const { isTracked, toggleTrack } = useSelectedEntity(controller);
+const { now } = useViewerClock();
+
+/** How long after its end the clock still counts as at a granule: the fill's slack. */
+const AHEAD_SLACK_MS = 10 * 60 * 1000;
+
+/** The clock is past the newest granule the layer has, so it shows nothing new. */
+function aheadOfData(imagery: ImageryInfo): boolean {
   const granule = latest.get(imagery.key);
-  if (granule !== undefined && isGranuleLayer(imagery.replay)) {
-    replay.start(imagery.replay, props.satellite, latestReplay(granule));
-  }
+  return granule !== undefined && now.value.getTime() > granule.end + AHEAD_SLACK_MS;
+}
+
+/** "3 h 12 m". */
+function behindLive(granule: Granule): string {
+  const minutes = Math.max(0, Math.round((Date.now() - granule.start) / 60_000));
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
+/** The clock to a few minutes before the newest granule, so the satellite flies onto it; pinned in the url. */
+function goToLatest(imagery: ImageryInfo): void {
+  const granule = latest.get(imagery.key);
+  if (granule === undefined) return;
+  const time = granule.start - 5 * 60 * 1000;
+  controller.setTime(time);
+  cesiumStore.setTime(new Date(time).toISOString());
 }
 
 /** Each card's picture by card: a provider's WMS answer, or one made here. */
@@ -210,9 +225,9 @@ const previews = computed(() => {
   );
 });
 
-/** A press anywhere on a card the globe can draw shows it or takes it off; its switch is the keyboard's way. A replay's is its button. */
+/** A press anywhere on a card the globe can draw shows it or takes it off; its switch is the keyboard's way. */
 function toggle(imagery: ImageryInfo): void {
-  if (imagery.token !== undefined && !imagery.replay) {
+  if (imagery.token !== undefined) {
     cesiumStore.toggleInstrumentImagery(imagery.token, !isShown(imagery));
   }
 }
@@ -297,30 +312,30 @@ watch(() => props.focus, reveal);
   font-weight: 600;
 }
 
-.card__replay {
+/* The clock past the newest granule: amber, as the clock deck's reset. */
+.card__hint {
   display: flex;
-  width: 100%;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
+  gap: 4px 6px;
   margin-top: 8px;
-  padding: 5px 8px;
+  padding: 6px 8px;
   border-radius: 6px;
-  background: var(--panel-accent);
-  color: #000;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.card__replay:disabled {
-  background: #ffffff14;
-  color: var(--panel-muted);
+  background: #ffb02e1a;
+  color: var(--panel-amber);
+  font-size: 11.5px;
+  line-height: 1.35;
   cursor: default;
 }
 
-.card__replay:hover:not(:disabled) {
-  filter: brightness(1.1);
+.card__hint-icon {
+  flex: none;
+}
+
+.card__hint-action {
+  color: var(--panel-accent);
+  font-weight: 600;
+  cursor: pointer;
 }
 
 /* Amber: the app colour for "away from rest", as on the status chip. */

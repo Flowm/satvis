@@ -88,19 +88,22 @@ first three (`sats`, `imagery`, `time`), so a replay is a link and needs no para
 While its layer is on, the satellite has its ground track fan, whether or not the
 component is.
 
-**A replay is a mode, not a layer** (`useOverpassReplay.ts`): a granule layer is on only
-for a replay, one at a time, so the Map panel does not list it, and its card has a Replay
-button instead of a switch. At live time it showed nothing: CMR lists a granule about three
-hours after it is sensed. While one is on, a bar over the clock (`ReplayBar.vue`) names it
-and steps to the overpass before or after it, at the speed the clock runs: a station's, if
-it was started from one, or else one orbit's day side each, replayed from its middle
-granule. Exit takes the layer off and goes back to live; the camera stays.
+**Two ways to watch the granules**, as there are two questions: what a station saw, and
+what a satellite records as it flies.
 
-**Two places start one**:
+- **The swath as sensed is a layer, not a mode.** The satellite's Imagery tab card ("Swath
+  as sensed") and the Map panel's LEO group show it like any layer: it follows the clock,
+  wherever the clock is. The card can track the satellite, as the info panel's camera
+  button does. CMR lists a granule about three hours after it is sensed, so nearer live
+  it has nothing: the timeline shades where the layer has granules by day, a day either
+  side of the clock (`useSensedSpans.ts`), and where the clock is past the newest, the card
+  says how far behind live that is and goes to it, keeping the speed and the tracking.
+- **A station's overpass is a replay** (`useOverpassReplay.ts`), started from a pass in the
+  Passes table. While one is on, a bar over the clock (`ReplayBar.vue`) names it and steps
+  to the station's overpass before or after, at the speed the clock runs. Exit takes the
+  layer off and goes back to live; the camera stays. Taking the layer off elsewhere ends
+  the replay too.
 
-- **The granule layer's Imagery tab card** pictures the newest day granule GIBS has
-  pixels of, from the last 12 hours, and its "Replay" button plays from 20 minutes before
-  it at 60×, the camera above that granule, so the satellite comes up to it.
 - **The Passes table** (`passImagery.ts`), a station's or a satellite's: a past pass of a
   satellite with a granule layer is the overpass CMR lists over the station in the last
   30 days that overlaps it, within the fill's 2 minutes. Its Image column says whether
@@ -158,8 +161,10 @@ granule. Exit takes the layer off and goes back to live; the camera stays.
 - **A station Imagery tab beside its Passes**, listing CMR's overpasses alone. For a
   satellite with a granule layer they are the same events as its swath passes, in two
   lists with two clicks: one jumped the clock, the other replayed.
-- **A granule layer as an ordinary Map panel layer.** Shown at live time it is empty, and
-  taken off nowhere but where it was put on.
+- **Following the satellite as a mode**, a button that tracks it from its latest recorded
+  orbit with a bar to step orbits, or a list of recorded orbits to pick from (prototyped on
+  the branch `prototype/follow-sensing`). Both named a time to start from, which the clock
+  already holds; the layer with the timeline's shading asks nothing new of the user.
 - **Clipping the granule's tile layer as it fills.** Cesium clips the whole globe, not a
   layer, and a tile it has drawn is not drawn again.
 - **Tracking the satellite during a replay.** The camera follows the satellite's point,

@@ -30,7 +30,8 @@ const started = shallowRef<{ token: string; satellite: string; station: ReplaySt
 /**
  * Overpass replay (ADR 0023): the satellite on, its granule layer on, and the clock and
  * camera as a plan says. All of it but the station is in the url, so a replay is a link.
- * One replay is on at a time: the newest granule layer on the globe.
+ * The newest granule layer on the globe is the one replayed; a replay has a station when
+ * it was started from a pass over one.
  */
 export function useOverpassReplay() {
   const cc = useController();
@@ -78,5 +79,10 @@ export function useOverpassReplay() {
     started.value = undefined;
   }
 
-  return { active, start, jump, stop };
+  /** Forgets the station a replay was started from, its layer being off. */
+  function forget(): void {
+    started.value = undefined;
+  }
+
+  return { active, start, jump, stop, forget };
 }

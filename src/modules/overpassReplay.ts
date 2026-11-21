@@ -76,20 +76,12 @@ export interface ReplayPlan {
   centre: GroundPoint;
 }
 
-/**
- * The satellite's last overpass that GIBS has pixels of: the clock 20 minutes before its
- * granule, so the satellite comes over the horizon of the camera above the granule, at 60×.
- */
-export function latestReplay(granule: Granule): ReplayPlan {
-  return { time: granule.start - 20 * MINUTE, multiplier: 60, centre: granuleCentre(granule) };
-}
-
 /** A pass or an overpass over a station: from five minutes before it starts, at 30×, above the station. */
 export function stationReplay(overpass: Pick<Overpass, "start">, station: GroundPoint): ReplayPlan {
   return { time: overpass.start - 5 * MINUTE, multiplier: 30, centre: station };
 }
 
-/** How far around the clock a satellite's own overpasses are listed for stepping: a day each way, about 14 orbits. */
+/** How far around the clock a satellite's own overpasses are listed for the timeline: a day each way, about 14 orbits. */
 const ORBITS_AROUND_MS = DAY;
 
 /**
@@ -100,11 +92,6 @@ const ORBITS_AROUND_MS = DAY;
 export async function orbitOverpasses(layer: GranuleLayer, around: number, signal: AbortSignal, now = Date.now()): Promise<Overpass[] | undefined> {
   const granules = await fetchGranules({ collections: layer.granules, start: around - ORBITS_AROUND_MS, end: Math.min(now, around + ORBITS_AROUND_MS) }, signal);
   return granules && groupOverpasses(granules.filter((granule) => granule.day));
-}
-
-/** One orbit's day side: the replay of its middle granule, as of the newest. */
-export function orbitReplay(overpass: Overpass): ReplayPlan {
-  return latestReplay(overpass.granules[Math.floor(overpass.granules.length / 2)]!);
 }
 
 /** How far before its replay's start the clock still counts as at an overpass: a step lands on it a moment early. */
