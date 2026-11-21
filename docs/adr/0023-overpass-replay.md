@@ -79,7 +79,16 @@ tiles have come. The fill, the fan and the ribbon so meet at the satellite drawn
 an old element set puts it: an old NOAA-20 granule fills up to 17 s early or late, not
 with its edge apart from the fan. A granule more than two minutes past its end counts as
 passed, as the plane, through the Earth, turns back toward it half an orbit later; one
-across the antimeridian or near a pole fills without a picture.
+across the antimeridian or near a pole fills without a picture, and one GIBS has no
+pixels of fills grey, as its outline will be.
+
+**The fill is shaded as the globe shades its tiles.** A ground primitive gets none of the
+globe's shading, so unshaded a granule filling in over Siberia at noon in November read
+30% brighter than its tiles once passed (mean 179 against 138). Its shader does what
+Cesium's `GlobeFS.glsl` does to imagery, from the globe's settings as uniforms: linear
+colour under HDR, the sun's diffuse light, and the ground atmosphere per fragment. The
+same spot then reads 137.8 against 137.9. It copies @cesium/engine 26.5's shader, and is
+to be checked against it when Cesium is upgraded.
 
 **A replay is the layer, the clock and the camera, and nothing else**: the satellite on,
 its granule layer on, the clock set back and playing, and the camera looking straight

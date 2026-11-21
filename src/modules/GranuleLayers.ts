@@ -25,6 +25,7 @@ import {
   PolylineColorAppearance,
   type PrimitiveCollection,
   type Scene,
+  SceneMode,
   type TileProviderError,
 } from "@cesium/engine";
 
@@ -55,8 +56,11 @@ export interface GranuleFill {
 const OUTLINE_COLOR = Color.fromCssColorString("#ffd54a").withAlpha(0.9);
 const MISSING_COLOR = Color.fromCssColorString("#9e9e9e").withAlpha(0.7);
 
-/** A fill where it has no picture: the outlines' colour, faint, yet seen over land. */
+/** A fill with no picture, of outlines alone or before its picture comes: the outlines' colour, faint, yet seen over land. */
 const FILL_TINT = Color.fromCssColorString("#ffd54a").withAlpha(0.35);
+
+/** A fill whose picture the provider does not have: grey, as its outline will be once passed. */
+const MISSING_FILL_TINT = MISSING_COLOR.withAlpha(0.35);
 
 /** Pixels. */
 const OUTLINE_WIDTH = 2;
@@ -77,11 +81,54 @@ const PICTURE_MARGIN = 0.5;
 const POLAR_RATIO_SQUARED = (Ellipsoid.WGS84.radii.z / Ellipsoid.WGS84.radii.x) ** 2;
 
 /**
- * Discards what lies ahead of the scan line until the granule is passed; inside the swath,
- * its picture, sampled by latitude and longitude, over the tint. GIBS's JPEG is black where
- * the granule has no pixels: that is no picture.
+ * Discards what lies ahead of the scan line until the granule is passed. Behind it, the
+ * tint until the picture has come, then the picture, sampled by latitude and longitude and
+ * shaded as the globe shades its tiles, so the fill looks as the granule will once passed:
+ * unshaded, a granule over Siberia at noon in November read 30% brighter than its tiles.
  */
 const FILL_SHADER = `
+// The globe's own shading of imagery (GlobeFS.glsl, @cesium/engine 26.5), so a granule
+// filling in looks as its tiles will once it has passed: linear colour under HDR, the
+// sun's diffuse light, and the ground atmosphere computed per fragment. The globe's
+// settings come as uniforms, as its defines do not reach a primitive.
+vec3 globeShaded(vec3 colour, vec3 world) {
+  colour = czm_gammaCorrect(colour);
+  float cameraDistance = length(czm_view[3]);
+  float fade = clamp((cameraDistance - fadeDistances.x) / (fadeDistances.y - fadeDistances.x), 0.0, 1.0);
+  vec3 normalEC = czm_normal3D * czm_geodeticSurfaceNormal(world, vec3(0.0), vec3(1.0));
+  bool lighting = shading.x > 0.5;
+  if (lighting && vertexLighting.x > 0.5) {
+    colour *= czm_lightColor * clamp(czm_getLambertDiffuse(czm_lightDirectionEC, normalEC) * vertexLighting.y + vertexLighting.z, 0.0, 1.0);
+  } else if (lighting) {
+    float diffuse = clamp(czm_getLambertDiffuse(czm_lightDirectionEC, normalEC) * 5.0 + 0.3, 0.0, 1.0);
+    colour *= czm_lightColor * mix(1.0, diffuse, fade);
+  }
+  if (shading.y > 0.5) {
+    bool dynamicLighting = lighting && shading.z > 0.5;
+    vec3 light = shading.w > 0.5 ? czm_sunDirectionWC : czm_lightDirectionWC;
+    vec3 lightDirection = dynamicLighting ? light : normalize(world);
+    vec3 rayleigh;
+    vec3 mie;
+    float opacity;
+    czm_computeGroundAtmosphereScattering(world, lightDirection, rayleigh, mie, opacity);
+    vec4 atmosphere = czm_computeAtmosphereColor(world, lightDirection, rayleigh, mie, opacity);
+    vec3 hazed = colour + atmosphere.rgb * (0.5 + clamp(1.0 - atmosphere.a, 0.0, 1.0));
+    if (dynamicLighting) {
+      // GlobeFS's own reading: from the night fade-in distance out to the fade-out one.
+      float sunlit = clamp((cameraDistance - fadeDistances.w) / (fadeDistances.z - fadeDistances.w), 0.05, 1.0);
+      float darken = clamp(dot(normalize(world), light), 0.0, 1.0);
+      hazed = mix(mix(atmosphere.rgb, hazed, darken), hazed, sunlit);
+    }
+#ifdef HDR
+    hazed = czm_saturation(hazed, 1.6);
+#else
+    hazed = vec3(1.0) - exp(-2.0 * hazed);
+#endif
+    colour = mix(colour, hazed, fade);
+  }
+  return colour;
+}
+
 czm_material czm_getMaterial(czm_materialInput materialInput) {
   czm_material material = czm_getDefaultMaterial(materialInput);
   // As ShadowVolumeAppearanceFS finds it: its positionToEyeEC is scaled by 1/depth under log depth.
@@ -99,15 +146,37 @@ czm_material czm_getMaterial(czm_materialInput materialInput) {
     }
     float latitude = atan(world.z, ${POLAR_RATIO_SQUARED.toFixed(9)} * length(world.xy));
     vec4 texel = texture(image, (vec2(longitude, latitude) - bounds.xy) / (bounds.zw - bounds.xy));
-    if (max(texel.r, max(texel.g, texel.b)) > 0.02) {
-      colour = vec4(texel.rgb, 1.0);
+    // The JPEG's black is where the granule has no pixels: clear, as its tile layer leaves it.
+    if (max(texel.r, max(texel.g, texel.b)) <= 0.02) {
+      discard;
     }
+    colour = vec4(globeShaded(texel.rgb, world), 1.0);
   }
   material.diffuse = colour.rgb;
   material.alpha = colour.a;
   return material;
 }
 `;
+
+/**
+ * The globe's shading settings as the fill shader's uniforms: whether it lights imagery,
+ * hazes it with the ground atmosphere (in 3D only), lights the atmosphere by the sun and
+ * from it; its terrain's vertex lighting; its lighting and night fade distances.
+ */
+function globeShading(scene: Scene, shading: Cartesian4, vertexLighting: Cartesian3, fadeDistances: Cartesian4): void {
+  const { globe } = scene;
+  shading.x = globe.enableLighting ? 1 : 0;
+  shading.y = globe.showGroundAtmosphere && scene.mode === SceneMode.SCENE3D ? 1 : 0;
+  shading.z = globe.dynamicAtmosphereLighting ? 1 : 0;
+  shading.w = globe.dynamicAtmosphereLightingFromSun ? 1 : 0;
+  vertexLighting.x = globe.terrainProvider.hasVertexNormals ? 1 : 0;
+  vertexLighting.y = globe.lambertDiffuseMultiplier;
+  vertexLighting.z = globe.vertexShadowDarkness;
+  fadeDistances.x = globe.lightingFadeOutDistance;
+  fadeDistances.y = globe.lightingFadeInDistance;
+  fadeDistances.z = globe.nightFadeOutDistance;
+  fadeDistances.w = globe.nightFadeInDistance;
+}
 
 function outlinePrimitive(granule: Granule, color: Color): GroundPolylinePrimitive {
   return new GroundPolylinePrimitive({
@@ -158,15 +227,20 @@ export interface GranuleFollow {
   signal: AbortSignal;
 }
 
-/** The granule's picture while it fills, where GIBS has its pixels and it is not near a pole. */
+/** The granule's picture while it fills, where GIBS has its pixels and it is not near a pole; grey where GIBS has none. */
 async function loadPicture(drawn: TiledImagery, granule: Granule, fill: GranuleFill): Promise<void> {
+  const has = await gibsHasGranule({ layer: drawn.layer, maximumLevel: drawn.maxLevel, format: drawn.format }, granule.start);
+  if (fill.gone) {
+    return;
+  }
+  if (!has) {
+    fill.material.uniforms.tint = MISSING_FILL_TINT;
+    return;
+  }
   const extent = granuleExtent(granule);
   const span = extent.east - extent.west;
   // GIBS's WMS draws nothing for a box across the antimeridian.
   if (span > PICTURE_MAX_SPAN || extent.west < -180 || extent.east > 180) {
-    return;
-  }
-  if (!(await gibsHasGranule({ layer: drawn.layer, maximumLevel: drawn.maxLevel, format: drawn.format }, granule.start)) || fill.gone) {
     return;
   }
   const bounds = {
@@ -218,14 +292,20 @@ function sensing(drawn: GranuleLayer, primitives: PrimitiveCollection, follow: G
   };
   const offset = new Cartesian3();
 
+  const shading = new Cartesian4();
+  const vertexLighting = new Cartesian3();
+  const fadeDistances = new Cartesian4();
   const removeListener = follow.scene.preRender.addEventListener(() => {
+    globeShading(follow.scene, shading, vertexLighting, fadeDistances);
     const plane = scanFor(JulianDate.toDate(follow.clock.currentTime).getTime());
-    if (plane === undefined) {
-      return;
-    }
     for (const { material } of fills) {
-      material.uniforms.scanPoint = plane.point;
-      material.uniforms.scanAhead = plane.ahead;
+      material.uniforms.shading = shading;
+      material.uniforms.vertexLighting = vertexLighting;
+      material.uniforms.fadeDistances = fadeDistances;
+      if (plane !== undefined) {
+        material.uniforms.scanPoint = plane.point;
+        material.uniforms.scanAhead = plane.ahead;
+      }
     }
   });
   follow.signal.addEventListener("abort", removeListener, { once: true });
@@ -246,6 +326,9 @@ function sensing(drawn: GranuleLayer, primitives: PrimitiveCollection, follow: G
             tint: FILL_TINT,
             passed: 0,
             picture: 0,
+            shading: new Cartesian4(),
+            vertexLighting: new Cartesian3(),
+            fadeDistances: new Cartesian4(),
           },
           source: FILL_SHADER,
         },
