@@ -28,6 +28,15 @@ final class GPUFaults: @unchecked Sendable {
         var reported: Set<Int> = []
     }
 
+    /// Records `commands` should the GPU fail it.
+    func watch(_ commands: MTLCommandBuffer) {
+        commands.addCompletedHandler { [self] buffer in
+            if buffer.status == .error {
+                record(buffer.error)
+            }
+        }
+    }
+
     /// From a command buffer's completed handler, on Metal's thread.
     func record(_ error: (any Error)?) {
         let nsError = error as NSError?

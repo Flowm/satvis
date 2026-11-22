@@ -155,10 +155,9 @@ struct BenchmarkScenesTab: View {
     /// Everything the row does not show, the app's own figures last.
     private func details(_ result: BenchmarkResult) -> some View {
         let summary = result.summary
-        let percent = { (value: Double?) in value.map { "\(Formats.fixed($0, 0)) %" } ?? "–" }
         var items: [(String, String)] = [
             ("p95 CPU", "\(BenchmarkFormat.number(summary.cpuP95, 1)) ms"), ("p95 GPU", "\(BenchmarkFormat.number(summary.gpuP95, 1)) ms"),
-            ("over budget", percent(summary.overBudget)), ("total CPU", percent(summary.cpuTotal)),
+            ("over budget", BenchmarkFormat.percent(summary.overBudget)), ("total CPU", BenchmarkFormat.percent(summary.cpuTotal)),
             ("frames", "\(summary.frames)"), ("load time", "\(BenchmarkFormat.number(result.loadSeconds, 1)) s"),
         ]
         for (key, value) in result.metrics.sorted(by: { $0.key < $1.key }) where key.hasPrefix("x_") {

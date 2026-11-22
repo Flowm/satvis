@@ -20,9 +20,9 @@ public struct SatelliteComponents: OptionSet, Sendable, Hashable {
     /// once, on the crossing (`COMPONENT_BUDGETS`): labels stop being readable,
     /// every link is a line, and every model is drawn alone. Only a satellite with
     /// a model file counts against the models' budget.
-    public static let labelBudget = 200
-    public static let linkBudget = 500
-    public static let modelBudget = 200
+    static let labelBudget = 200
+    static let linkBudget = 500
+    static let modelBudget = 200
     public static let budgets: [(component: SatelliteComponents, limit: Int)] = [(.label, labelBudget), (.groundStationLink, linkBudget), (.model, modelBudget)]
 
     /// The web app's names, as its `elements` url parameter and presets use them.

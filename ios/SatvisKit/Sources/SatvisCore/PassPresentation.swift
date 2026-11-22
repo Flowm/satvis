@@ -22,7 +22,7 @@ public struct PassWindow: Sendable, Hashable {
 extension Pass {
     /// How good a pass is, 0 to 1: the maximum elevation over 90°, or how near the
     /// centre of the swath the station falls.
-    public var quality: Double {
+    var quality: Double {
         switch measure {
         case .elevation(let maxElevation, _, _, _, _):
             min(1, max(0, maxElevation / 90))

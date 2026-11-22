@@ -138,7 +138,7 @@ public actor PassStore {
         let swath = SwathExtents(metadata: entry.record.metadata) ?? .default
         for station in stations {
             byStation[station] = finder.passes(
-                satellite: entry.id, name: entry.name, over: [station], mode: mode, swath: swath, from: window.start, to: window.predictionEnd)
+                satellite: entry.id, name: entry.name, over: station, mode: mode, swath: swath, from: window.start, to: window.predictionEnd)
         }
         return byStation
     }

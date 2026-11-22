@@ -60,22 +60,6 @@ public struct FrameRecording: Sendable, Equatable {
     /// out of the budget and load.
     public var idle = false
 
-    public init(
-        intervals: [Double] = [], cpu: [Double] = [], bufferWait: [Double] = [], drawableWait: [Double] = [], gpu: [Double] = [], skippedCPU: [Double] = [],
-        duration: Double? = nil, gpuActive: Double? = nil, totalCPU: Double? = nil, idle: Bool = false
-    ) {
-        self.intervals = intervals
-        self.cpu = cpu
-        self.bufferWait = bufferWait
-        self.drawableWait = drawableWait
-        self.gpu = gpu
-        self.skippedCPU = skippedCPU
-        self.duration = duration
-        self.gpuActive = gpuActive
-        self.totalCPU = totalCPU
-        self.idle = idle
-    }
-
     public var framesPerSecond: Double? {
         let total = intervals.reduce(0, +)
         return total > 0 ? Double(intervals.count) / total * 1000 : nil

@@ -171,12 +171,6 @@ enum RenderPacing {
         return fastest * pixelsPerRadian
     }
 
-    /// `sample` turned `angle` radians about the Earth's axis, as an orbit's node
-    /// is turned with the Earth.
-    static func turned(_ sample: SIMD3<Double>, by angle: Double) -> SIMD3<Double> {
-        SIMD3(cos(angle) * sample.x - sin(angle) * sample.y, sin(angle) * sample.x + cos(angle) * sample.y, sample.z)
-    }
-
     /// An orbit's line's nodes now: the first sample `start` seconds from now, the
     /// rest `step` apart. An orbit (`turned`) is held still in inertial space, each
     /// sample turned with the Earth to now as Shaders/Lines.msl turns it; an orbit

@@ -32,12 +32,12 @@ public actor GroupRepository {
 
     /// The group index as last kept, or the snapshot's, without asking the worker: what
     /// to show while it is asked.
-    public func keptIndex() -> GroupIndex? {
+    func keptIndex() -> GroupIndex? {
         kept(.index) { data, _ in try JSONDecoder().decode(GroupIndex.self, from: data) }
     }
 
     /// A group as last kept, or the snapshot's, without asking the worker.
-    public func keptRecords(of group: String) -> [GPRecord]? {
+    func keptRecords(of group: String) -> [GPRecord]? {
         kept(.group(group), decode: decoder(of: group))
     }
 

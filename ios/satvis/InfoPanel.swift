@@ -104,7 +104,7 @@ struct InfoPanel: View {
                 .toolbarTitleDisplayMode(.inline)
                 .toolbar {
                     // Drawn here: a navigationSubtitle shows one line, and drops the chips' second.
-                    ToolbarItem(placement: .barTitle) {
+                    ToolbarItem(placement: .title) {
                         title(propagator)
                     }
                     ToolbarItem(placement: .primaryAction) {
@@ -475,7 +475,7 @@ struct StationPanel: View {
                 .navigationTitle(station.displayName)
                 .toolbarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .barTitle) {
+                    ToolbarItem(placement: .title) {
                         title
                     }
                     // By what they do: the station itself, where to look from, and away.

@@ -79,9 +79,10 @@ struct CameraRig {
     private(set) var fadesProjection = false
     /// The free camera over the map; nil until 2D is first drawn.
     private(set) var mapCamera: MapCamera?
-    /// How the map frames what it follows, kept apart from the free map camera
-    /// as the 3D tracking camera is from the free one.
-    private var trackingMap: TrackedMap?
+    /// How the map frames what it follows, by its span and heading alone, kept
+    /// apart from the free map camera as the 3D tracking camera is from the free
+    /// one.
+    private var trackingMap: MapCamera?
     /// The flight on the map, home or into or out of tracking, while one is under way.
     private var mapFlight: MapFlight?
     /// What the free camera holds still in. Tracking keeps the satellite's own
@@ -146,8 +147,9 @@ struct CameraRig {
             if let orbitCamera {
                 mapCamera = MapCamera.matching(orbitCamera, aspectRatio: aspectRatio)
             }
-            if tracking, let mapCamera {
-                trackingMap = TrackedMap(span: MapCamera.span(atAltitude: trackingCamera.range), heading: mapCamera.heading)
+            if tracking, var held = mapCamera {
+                held.span = MapCamera.span(atAltitude: trackingCamera.range)
+                trackingMap = held
             }
         case .threeD:
             if cameraMode != .sky, skyFlight == nil, let mapCamera {
@@ -245,7 +247,7 @@ struct CameraRig {
         cameraMode = .tracking(id)
         trackingCamera = TrackingCamera()
         // On the map, at the scale on screen; on the globe, set when 2D is chosen.
-        trackingMap = drawnProjection == .twoD ? lastPose?.mapCamera.map(TrackedMap.init) : nil
+        trackingMap = drawnProjection == .twoD ? lastPose?.mapCamera : nil
         framingModel = id
         frameModel(model)
     }
@@ -381,7 +383,7 @@ struct CameraRig {
         case .tracking:
             if !movesCentre, var map = lastPose?.mapCamera {
                 change(&map)
-                trackingMap = TrackedMap(map)
+                trackingMap = map
             }
         case .sky:
             return false
@@ -413,10 +415,10 @@ struct CameraRig {
         mapCamera = map
         if case .tracking(let id) = cameraMode, let position = target(id, now) {
             let place = geodeticPosition(position)
-            let held = trackingMap ?? TrackedMap(map)
+            let held = trackingMap ?? map
             map = MapCamera(latitude: place.latitude, longitude: place.longitude, span: held.span, heading: held.heading)
             map.clamp(aspectRatio: aspectRatio)
-            trackingMap = TrackedMap(map)
+            trackingMap = map
         }
         if let flight = mapFlight {
             if let partway = flight.camera(towards: map, at: uptime) {
@@ -567,21 +569,6 @@ struct CameraRig {
         if cameraMode == .sky {
             landOnGlobe()
         }
-    }
-}
-
-/// How the map frames what it follows: as wide and as turned as this.
-private struct TrackedMap {
-    /// Metres across the view's longer side, as `MapCamera.span`.
-    var span: Double
-    /// Radians, as `MapCamera.heading`.
-    var heading: Double
-}
-
-extension TrackedMap {
-    /// As `map` frames its centre.
-    init(_ map: MapCamera) {
-        self.init(span: map.span, heading: map.heading)
     }
 }
 

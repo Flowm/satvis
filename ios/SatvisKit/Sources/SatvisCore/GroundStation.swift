@@ -50,7 +50,7 @@ public enum GroundStations {
     /// Coordinates rounded to four decimals, about 11 m; names a link can carry
     /// back; no station twice, by place and name, the first keeping its id.
     public static func normalized(_ stations: [GroundStation]) -> [GroundStation] {
-        var seen = Set<Place>()
+        var seen = Set<LinkStation>()
         return stations.compactMap { station in
             // A link's coordinates are only known to be numbers: none past a
             // pole, and a longitude however many turns around brought back.
@@ -60,21 +60,7 @@ public enum GroundStations {
             let normalized = GroundStation(
                 latitude: rounded(station.latitude), longitude: rounded(wrappedLongitude(station.longitude)), name: wireSafe(station.name),
                 id: station.id)
-            return seen.insert(Place(normalized)).inserted ? normalized : nil
-        }
-    }
-
-    /// Where a station is and what it is called: what makes two stations the
-    /// same one, whatever their ids.
-    public struct Place: Hashable {
-        var latitude: Double
-        var longitude: Double
-        var name: String?
-
-        public init(_ station: GroundStation) {
-            latitude = station.latitude
-            longitude = station.longitude
-            name = station.name
+            return seen.insert(LinkStation(normalized)).inserted ? normalized : nil
         }
     }
 

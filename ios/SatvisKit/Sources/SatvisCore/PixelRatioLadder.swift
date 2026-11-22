@@ -7,7 +7,7 @@ public enum PixelRatioLadder {
     public static let range = 1.0...4.0
 
     /// Below it the halfway rung saves too little to offer, as on the web.
-    public static let midFrom = 2.0
+    static let midFrom = 2.0
 
     /// Halfway from 1 to the screen's scale, to a quarter so its label stays short:
     /// 1.5 at 2, 2 at 3.

@@ -22,11 +22,11 @@ public enum Visibility: String, Sendable, Equatable {
 
     /// Kilometres: beyond this a bright satellite is past the naked-eye limit. A
     /// stand-in until a predicted magnitude replaces it.
-    public static let maximumRange = 5000.0
+    static let maximumRange = 5000.0
 
     /// Metres. The shadow is a cylinder of the mean radius: the penumbra and the
     /// flattening move shadow entry in LEO by a few seconds.
-    public static let shadowRadius = 6_371_000.0
+    static let shadowRadius = 6_371_000.0
 
     /// A bright sky hides a satellite whether it is lit or not, so daylight comes
     /// first; a far one stays unseen in sunlight, so distance comes before the

@@ -169,13 +169,13 @@ public struct SweepRun: Sendable, Equatable, Codable {
 /// by a parity fixture: change both together.
 public enum SweepReport {
     /// Main-thread drift, in percent, past which a repeat check reads `drifted`.
-    public static let maximumTrustworthyDriftPercent = 10.0
+    static let maximumTrustworthyDriftPercent = 10.0
     /// At 0 satellites main-thread time is under 2 ms, so 10 % alone is noise.
-    public static let minimumMeaningfulDriftMilliseconds = 1.0
+    static let minimumMeaningfulDriftMilliseconds = 1.0
     /// A linear series measured 0.999, one broken by a mid-series GC 0.002.
-    public static let minimumTrustworthyMemoryR2 = 0.9
+    static let minimumTrustworthyMemoryR2 = 0.9
     /// Two points always give r² 1.
-    public static let minimumMemoryFitPoints = 3
+    static let minimumMemoryFitPoints = 3
     /// Fewer frames make a row noise (`thinRows`).
     public static let minimumTrustworthyFrames = 20
     /// Milliseconds a frame at 60 fps.

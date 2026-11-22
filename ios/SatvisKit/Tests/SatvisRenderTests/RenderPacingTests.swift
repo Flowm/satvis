@@ -256,8 +256,9 @@ import simd
         let (start, step) = ((trajectory.startMilliseconds - time) / 1000, trajectory.stepMilliseconds / 1000)
         // The line as drawn: its nodes turned to the instant, and the chords between them.
         func line(after seconds: Double) -> [SIMD3<Double>] {
-            let nodes = trajectory.positions.enumerated().map {
-                RenderPacing.turned($1, by: OrbitMotion.earthRotationRate * (start + Double($0) * step - seconds))
+            let nodes = trajectory.positions.enumerated().map { index, sample in
+                let angle = OrbitMotion.earthRotationRate * (start + Double(index) * step - seconds)
+                return SIMD3(cos(angle) * sample.x - sin(angle) * sample.y, sin(angle) * sample.x + cos(angle) * sample.y, sample.z)
             }
             return zip(nodes, nodes.dropFirst()).flatMap { a, b in [0, 0.25, 0.5, 0.75].map { a + $0 * (b - a) } }
         }

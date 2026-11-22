@@ -63,8 +63,6 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
     /// One turn a minute, the way a drag to the right turns it, as Cesium's
     /// `rotateLeft` turns the web app's.
     private static let turnRadiansPerSecond = -2 * Double.pi / 60
-    /// Cesium's default, which the web app keeps: across the view's wider side.
-    private static let fieldOfView = Double.pi / 3
     /// The web app's studio light, of intensity 2.5 under its ACES tonemap.
     private static let exposure: Float = 2.5
     /// The view's, which `make` sets it up with.
@@ -114,14 +112,8 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
             descriptor.isDepthWriteEnabled = write
             return device.makeDepthStencilState(descriptor: descriptor)
         }
-        let samplerDescriptor = MTLSamplerDescriptor()
-        samplerDescriptor.minFilter = .linear
-        samplerDescriptor.magFilter = .linear
-        samplerDescriptor.mipFilter = .linear
-        samplerDescriptor.sAddressMode = .repeat
-        samplerDescriptor.tAddressMode = .repeat
         guard let depthWrite = depthState(write: true), let depthTest = depthState(write: false),
-            let sampler = device.makeSamplerState(descriptor: samplerDescriptor)
+            let sampler = device.makeLinearSampler(mipmapped: true, s: .repeat, t: .repeat)
         else {
             throw RendererError.noDevice
         }
@@ -187,15 +179,9 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
 
     /// Far enough for the bounding sphere to fill the narrower of the two fields of view.
     private func fittingDistance(aspect: Double) -> Double {
-        let vertical = Self.verticalFieldOfView(aspect: aspect)
+        let vertical = OrbitCamera.verticalFieldOfView(aspectRatio: aspect)
         let horizontal = 2 * atan(tan(vertical / 2) * aspect)
         return Double(max(model?.radius ?? 1, 0.01)) / sin(min(vertical, horizontal) / 2)
-    }
-
-    /// The vertical field of view for a view `aspect` wide per unit of height, as
-    /// Cesium's `PerspectiveFrustum` derives it from `fieldOfView`.
-    private static func verticalFieldOfView(aspect: Double) -> Double {
-        aspect > 1 ? 2 * atan(tan(fieldOfView / 2) / aspect) : fieldOfView
     }
 
     /// Frames on the display's clock while the model turns; otherwise one frame per change.
@@ -232,12 +218,7 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
         else {
             return
         }
-        let faults = faults
-        commands.addCompletedHandler { buffer in
-            if buffer.status == .error {
-                faults.record(buffer.error)
-            }
-        }
+        faults.watch(commands)
         // With no model the pass only clears, so a load does not leave the last one standing.
         if let model {
             encode(model, size: view.drawableSize, encoder: encoder)
@@ -262,7 +243,7 @@ public final class ModelCloseUp: NSObject, MTKViewDelegate {
         let radius = Double(model.radius)
         let near = max(distance - 2 * radius, distance * 0.01)
         let far = distance + 2 * radius
-        let projection = Self.perspective(fovy: Self.verticalFieldOfView(aspect: aspect), aspect: aspect, near: near, far: far)
+        let projection = Self.perspective(fovy: OrbitCamera.verticalFieldOfView(aspectRatio: aspect), aspect: aspect, near: near, far: far)
         let toEye = simd_double4x4(columns: (SIMD4(1, 0, 0, 0), SIMD4(0, 1, 0, 0), SIMD4(0, 0, 1, 0), SIMD4(-eye, 1)))
         let base = ModelInstance(
             modelViewProjection: float4x4(projection * viewMatrix), rotation: matrix_identity_float3x3, modelToEye: float4x4(toEye), baseColor: .one,

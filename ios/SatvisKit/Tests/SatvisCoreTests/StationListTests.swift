@@ -60,8 +60,6 @@ import Testing
         list.setVisiting([GroundStation(latitude: 48.1351, longitude: 11.582, name: "Munich"), berlin])
         #expect(list.visiting.map(\.id) == [berlin.id])
         #expect(list.shown.map(\.id) == [munich.id, berlin.id])
-        #expect(list.isVisiting(berlin.id))
-        #expect(!list.isVisiting(munich.id))
     }
 
     @Test func savesAVisitUnderItsId() {
@@ -73,7 +71,6 @@ import Testing
         #expect(list.visiting.isEmpty)
         #expect(list.saved.map(\.id) == [munich.id, berlin.id])
         #expect(storage.stations().map(\.id) == [munich.id, berlin.id])
-        #expect(!list.isVisiting(berlin.id))
     }
 
     @Test func removesASavedStationOrALinks() {
@@ -94,7 +91,7 @@ import Testing
         #expect(list.add(latitude: 48.135_149, longitude: 11.582, name: "Munich") == munich.id)
         #expect(list.saved.count == 1)
         let added = list.add(latitude: 52.52, longitude: 13.405)
-        #expect(added != nil && list.station(added!) != nil)
+        #expect(added != nil && list.shown.contains { $0.id == added })
         #expect(list.add(latitude: 91, longitude: 0) == nil)
     }
 

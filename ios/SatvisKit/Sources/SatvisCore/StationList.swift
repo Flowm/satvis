@@ -68,7 +68,7 @@ public struct StationList {
     public private(set) var visiting: [GroundStation] = []
     /// Every station shown: the saved ones, then the visiting ones that are not
     /// among them.
-    public private(set) var shown: [GroundStation]
+    public var shown: [GroundStation] { saved + visiting }
     /// Where every edit is kept as it is made.
     private let storage: StationStorage
 
@@ -79,22 +79,11 @@ public struct StationList {
     public init(storage: StationStorage) {
         self.storage = storage
         saved = storage.stations()
-        shown = saved
         // Stations read without ids are saved back with the ids they were
         // given, so that an id read once stays theirs.
         if let data = storage.stationData(), !String(decoding: data, as: UTF8.self).contains("\"id\"") {
             storage.saveStations(saved)
         }
-    }
-
-    /// A shown station, saved or visiting, by its id.
-    public func station(_ id: UUID) -> GroundStation? {
-        shown.first { $0.id == id }
-    }
-
-    /// Whether a station is shown only because a link brought it.
-    public func isVisiting(_ id: UUID) -> Bool {
-        visiting.contains { $0.id == id } && !saved.contains { $0.id == id }
     }
 
     /// Replaces the saved stations.
@@ -113,11 +102,11 @@ public struct StationList {
     @discardableResult
     public mutating func add(latitude: Double, longitude: Double, name: String? = nil) -> UUID? {
         let added = GroundStation(latitude: latitude, longitude: longitude, name: name)
-        guard let place = GroundStations.normalized([added]).first.map(GroundStations.Place.init) else {
+        guard let place = GroundStations.normalized([added]).first.map(LinkStation.init) else {
             return nil
         }
         setSaved(saved + [added])
-        return saved.first { GroundStations.Place($0) == place }?.id
+        return saved.first { LinkStation($0) == place }?.id
     }
 
     /// The device's position as the one saved station named "Geolocation", first in
@@ -163,7 +152,6 @@ public struct StationList {
     public mutating func remove(_ id: UUID) {
         visiting.removeAll { $0.id == id }
         setSaved(saved.filter { $0.id != id })
-        combine()
     }
 
     /// Shows a link's stations with this view, without saving them.
@@ -182,15 +170,13 @@ public struct StationList {
         setSaved(saved + [station])
     }
 
-    /// Shows the saved stations, then the visiting ones that are not in the place of
-    /// a saved one.
+    /// Drops the visiting stations in the place of a saved one.
     private mutating func combine() {
-        let places = Set(saved.map(GroundStations.Place.init))
+        let places = Set(saved.map(LinkStation.init))
         // A link's station in the place of a saved one is that one, not a visit:
         // kept as a visit, it would ride along in every link from then on, the
         // view kept at a background included, which is how a sky view on a saved
         // station would come back on the next launch.
-        visiting.removeAll { places.contains(GroundStations.Place($0)) }
-        shown = saved + visiting
+        visiting.removeAll { places.contains(LinkStation($0)) }
     }
 }

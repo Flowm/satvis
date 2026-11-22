@@ -199,16 +199,16 @@ public enum SatelliteDetails {
 }
 
 /// What the web app derives from an initialised element set (orbitFacts.ts).
-public struct OrbitFacts: Sendable {
-    public var isSunSynchronous: Bool
-    public var rows: [(String, String)]
+struct OrbitFacts: Sendable {
+    var isSunSynchronous: Bool
+    var rows: [(String, String)]
 
     /// WGS-72, as satellite.js's constants.
     private static let earthRadiusKm = 6378.135
     private static let j2 = 0.001082616
     private static let sunDegreesPerDay = 360 / 365.2422
 
-    public init(_ propagator: SGP4Propagator) {
+    init(_ propagator: SGP4Propagator) {
         let shape = propagator.shape
         let elements = propagator.elements
         let degrees = 180 / Double.pi

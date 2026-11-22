@@ -128,22 +128,8 @@ struct ScenePipelines {
         noDepth = depthState(compare: .always, write: false)
         depthEmpty = depthState(compare: .greaterEqual, write: false)
 
-        let samplerDescriptor = MTLSamplerDescriptor()
-        samplerDescriptor.minFilter = .linear
-        samplerDescriptor.magFilter = .linear
-        samplerDescriptor.mipFilter = .linear
-        samplerDescriptor.maxAnisotropy = 8
-        samplerDescriptor.sAddressMode = .repeat
-        samplerDescriptor.tAddressMode = .clampToEdge
-        linearSampler = device.makeSamplerState(descriptor: samplerDescriptor)!
-        let tileSamplerDescriptor = MTLSamplerDescriptor()
-        tileSamplerDescriptor.minFilter = .linear
-        tileSamplerDescriptor.magFilter = .linear
-        tileSamplerDescriptor.mipFilter = .linear
-        tileSamplerDescriptor.maxAnisotropy = 8
-        tileSamplerDescriptor.sAddressMode = .clampToEdge
-        tileSamplerDescriptor.tAddressMode = .clampToEdge
-        tileSampler = device.makeSamplerState(descriptor: tileSamplerDescriptor)!
+        linearSampler = device.makeLinearSampler(mipmapped: true, anisotropy: 8, s: .repeat, t: .clampToEdge)!
+        tileSampler = device.makeLinearSampler(mipmapped: true, anisotropy: 8, s: .clampToEdge, t: .clampToEdge)!
 
         let shell = Meshes.skyShell()
         skyShell = (device.makeBuffer(copying: shell.vertices)!, device.makeBuffer(copying: shell.indices)!, shell.indices.count)

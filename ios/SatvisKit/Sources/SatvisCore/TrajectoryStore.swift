@@ -100,7 +100,7 @@ public actor TrajectoryStore {
     /// Resamples every window that no longer covers the instant, and with them
     /// those about to stop (`batchMilliseconds`). Returns the whole set when
     /// anything changed, nil when nothing did.
-    public func refresh(at epochMilliseconds: Double) -> [Entry]? {
+    func refresh(at epochMilliseconds: Double) -> [Entry]? {
         var changed = changedSinceRefresh
         changedSinceRefresh = false
         var stale = slots.indices.filter { slots[$0].isStale(at: epochMilliseconds) }

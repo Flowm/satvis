@@ -193,12 +193,7 @@ final class Surface {
         let grid = SurfaceMesh.indices()
         indexBuffer = device.makeBuffer(copying: grid)!
         indexCount = grid.count
-        let samplerDescriptor = MTLSamplerDescriptor()
-        samplerDescriptor.minFilter = .linear
-        samplerDescriptor.magFilter = .linear
-        samplerDescriptor.sAddressMode = .clampToEdge
-        samplerDescriptor.tAddressMode = .clampToEdge
-        sampler = device.makeSamplerState(descriptor: samplerDescriptor)!
+        sampler = device.makeLinearSampler(mipmapped: false, s: .clampToEdge, t: .clampToEdge)!
         terrain.onChange = { [weak self] in self?.revision += 1 }
     }
 
@@ -610,25 +605,19 @@ final class Surface {
             if let range = sources.source.range, range(key) == nil {
                 continue
             }
-            if case .ready(let texture, _) = sources.tiles[key] {
-                sources.tiles[key] = .ready(texture, lastUsed: frame)
-                draw(texture, projection.bounds(key), projection)
-                continue
+            let isReady = if case .ready = sources.tiles[key] { true } else { false }
+            if !isReady {
+                request(key, of: sources)
+                complete = false
+                guard standIns else {
+                    continue
+                }
             }
-            request(key, of: sources)
-            complete = false
-            guard standIns else {
-                continue
-            }
-            if let texture = previous[key] {
-                draw(texture, projection.bounds(key), projection)
-                continue
-            }
-            var ancestor = key.parent
-            while let candidate = ancestor {
+            // The tile itself, else the nearest ancestor to stand in for it.
+            for candidate in sequence(first: key, next: \.parent) {
                 if case .ready(let texture, _) = sources.tiles[candidate] {
-                    // In use, as a stand-in: evicted, the tile baked again while its
-                    // own source is still missing would have none.
+                    // In use, as a stand-in too: evicted, the tile baked again while
+                    // its own source is still missing would have none.
                     sources.tiles[candidate] = .ready(texture, lastUsed: frame)
                     draw(texture, projection.bounds(candidate), projection)
                     break
@@ -637,7 +626,6 @@ final class Surface {
                     draw(texture, projection.bounds(candidate), projection)
                     break
                 }
-                ancestor = candidate.parent
             }
         }
         return complete
@@ -738,15 +726,7 @@ final class Surface {
         let bitmap = Bitmap(width: image.width, height: image.height, alpha: true) { context in
             context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
         }
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm, width: bitmap.width, height: bitmap.height, mipmapped: false)
-        descriptor.usage = .shaderRead
-        guard let texture = device.makeTexture(descriptor: descriptor) else {
-            return nil
-        }
-        bitmap.bytes.withUnsafeBytes {
-            texture.replace(region: MTLRegionMake2D(0, 0, bitmap.width, bitmap.height), mipmapLevel: 0, withBytes: $0.baseAddress!, bytesPerRow: bitmap.width * 4)
-        }
-        return texture
+        return Textures.texture2D(bitmap, device: device)
     }
 
     private func makeTexture() -> MTLTexture? {

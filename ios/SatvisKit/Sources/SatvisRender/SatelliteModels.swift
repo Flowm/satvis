@@ -74,7 +74,7 @@ final class PreparedModel: @unchecked Sendable {
     }
 
     /// A model file fetched, read and put on the GPU off the main thread; nil if any step fails.
-    static func load(
+    private static func load(
         _ file: String, loader: @escaping @Sendable (String) async -> Data?, device: MTLDevice, priority: TaskPriority
     ) async -> PreparedModel? {
         await Task.detached(priority: priority) { () -> PreparedModel? in

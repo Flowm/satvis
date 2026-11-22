@@ -5,22 +5,11 @@ import Foundation
 /// it: whatever lacks the expected shape is dropped, so an index written before a
 /// field existed reads as one without it.
 public struct GroupIndex: Sendable, Hashable, Decodable {
-    public var groups: [GroupStatus]
-    public var presets: [String: Preset]
-
-    public init(groups: [GroupStatus] = [], presets: [String: Preset] = [:]) {
-        self.groups = groups
-        self.presets = presets
-    }
+    public var groups: [GroupStatus] = []
+    public var presets: [String: Preset] = [:]
 
     enum CodingKeys: String, CodingKey {
         case groups, presets
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        groups = try container.decode([Lenient<GroupStatus>].self, forKey: .groups).compactMap(\.value)
-        presets = ((try? container.decodeIfPresent([String: Lenient<Preset>].self, forKey: .presets)) ?? [:]).compactMapValues(\.value)
     }
 
     /// The name of the preset a route opens with: `name` if there is one, else the default.
@@ -52,6 +41,12 @@ public struct GroupIndex: Sendable, Hashable, Decodable {
 }
 
 extension GroupIndex {
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        groups = try container.decode([Lenient<GroupStatus>].self, forKey: .groups).compactMap(\.value)
+        presets = ((try? container.decodeIfPresent([String: Lenient<Preset>].self, forKey: .presets)) ?? [:]).compactMapValues(\.value)
+    }
+
     /// The benchmark scenes of the preset a route opens with.
     public func benchmarkScenes(preset name: String?) -> [BenchmarkScene] {
         preset(named: name)?.benchmark ?? []
@@ -60,20 +55,16 @@ extension GroupIndex {
 
 public struct GroupStatus: Sendable, Hashable, Decodable {
     public var name: String
-    public var count: Int
+    public var count = 0
     /// What the user enables to show the group's satellites.
-    public var tags: [String]
-
-    public init(name: String, count: Int = 0, tags: [String] = []) {
-        self.name = name
-        self.count = count
-        self.tags = tags
-    }
+    public var tags: [String] = []
 
     enum CodingKeys: String, CodingKey {
         case name, count, tags
     }
+}
 
+extension GroupStatus {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         name = try container.decode(String.self, forKey: .name)
@@ -88,36 +79,22 @@ public struct GroupStatus: Sendable, Hashable, Decodable {
 public struct Preset: Sendable, Hashable, Decodable {
     public static let defaultName = "default"
 
-    public var title: String?
-    public var description: String?
-    public var defaults: [String: String]
-    public var groups: [PresetGroup]
+    public var defaults: [String: String] = [:]
+    public var groups: [PresetGroup] = []
     /// Shown in this route's Bookmarks sheet, in this order.
-    public var featured: [FeaturedBookmark]
+    public var featured: [FeaturedBookmark] = []
     /// What the benchmark measures from this route, the default preset's where
     /// the config lists none, as the worker serves them.
-    public var benchmark: [BenchmarkScene]
-
-    public init(
-        title: String? = nil, description: String? = nil, defaults: [String: String] = [:], groups: [PresetGroup] = [],
-        featured: [FeaturedBookmark] = [], benchmark: [BenchmarkScene] = []
-    ) {
-        self.title = title
-        self.description = description
-        self.defaults = defaults
-        self.groups = groups
-        self.featured = featured
-        self.benchmark = benchmark
-    }
+    public var benchmark: [BenchmarkScene] = []
 
     enum CodingKeys: String, CodingKey {
-        case title, description, defaults, groups, featured, benchmark
+        case defaults, groups, featured, benchmark
     }
+}
 
+extension Preset {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        title = try? container.decodeIfPresent(String.self, forKey: .title)
-        description = try? container.decodeIfPresent(String.self, forKey: .description)
         defaults = ((try? container.decodeIfPresent([String: JSONValue].self, forKey: .defaults)) ?? [:]).compactMapValues(\.string)
         groups = try container.decode([Lenient<PresetGroup>].self, forKey: .groups).compactMap(\.value)
         featured = ((try? container.decodeIfPresent([Lenient<FeaturedBookmark>].self, forKey: .featured)) ?? []).compactMap(\.value)
@@ -131,18 +108,14 @@ public struct FeaturedBookmark: Sendable, Hashable, Decodable {
     public var name: String
     public var thumbnail: String
     /// Url parameters, only those that deviate from the preset's defaults.
-    public var query: [String: String]
-
-    public init(name: String, thumbnail: String, query: [String: String] = [:]) {
-        self.name = name
-        self.thumbnail = thumbnail
-        self.query = query
-    }
+    public var query: [String: String] = [:]
 
     enum CodingKeys: String, CodingKey {
         case name, thumbnail, query
     }
+}
 
+extension FeaturedBookmark {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         name = try container.decode(String.self, forKey: .name)
@@ -155,17 +128,14 @@ public struct FeaturedBookmark: Sendable, Hashable, Decodable {
 /// no group row: it is too large to be worth enabling whole.
 public struct PresetGroup: Sendable, Hashable, Decodable {
     public var name: String
-    public var searchOnly: Bool
-
-    public init(name: String, searchOnly: Bool = false) {
-        self.name = name
-        self.searchOnly = searchOnly
-    }
+    public var searchOnly = false
 
     enum CodingKeys: String, CodingKey {
         case name, searchOnly
     }
+}
 
+extension PresetGroup {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         name = try container.decode(String.self, forKey: .name)

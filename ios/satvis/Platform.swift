@@ -175,14 +175,3 @@ extension View {
         #endif
     }
 }
-
-extension ToolbarItemPlacement {
-    /// The title's place in the bar.
-    static var barTitle: ToolbarItemPlacement {
-        #if os(macOS)
-            .principal
-        #else
-            .title
-        #endif
-    }
-}

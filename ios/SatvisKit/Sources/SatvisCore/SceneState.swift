@@ -242,3 +242,10 @@ extension LinkStation {
         self.init(latitude: station.latitude, longitude: station.longitude, name: station.name)
     }
 }
+
+extension GroundStation {
+    /// A link's station, under an id of its own.
+    public init(_ station: LinkStation) {
+        self.init(latitude: station.latitude, longitude: station.longitude, name: station.name)
+    }
+}

@@ -477,7 +477,7 @@ final class Session {
         cameraFrame = scene.cameraFrame
         // A link cuts, as its camera does.
         setProjection(scene.projection, animated: false)
-        passes.setVisiting(scene.stations.map { GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name) })
+        passes.setVisiting(scene.stations.map { GroundStation($0) })
         await catalog.open(preset: preset, activation: scene.activation, components: scene.components, named: named)
         guard generation == linkGeneration else {
             return
@@ -486,9 +486,9 @@ final class Session {
             // On the link's first station, as it was listed; where the device is
             // when it names none, or none the globe can stand on.
             let first = scene.observer.flatMap {
-                GroundStations.normalized([GroundStation(latitude: $0.latitude, longitude: $0.longitude, name: $0.name)]).first.map(GroundStations.Place.init)
+                GroundStations.normalized([GroundStation($0)]).first.map(LinkStation.init)
             }
-            if let station = first.flatMap({ place in passes.stations.first { GroundStations.Place($0) == place } }) {
+            if let station = first.flatMap({ place in passes.stations.first { LinkStation($0) == place } }) {
                 lookUp(at: station.id)
             } else if let here = await stationHere(), generation == linkGeneration {
                 lookUp(at: here)
@@ -752,7 +752,7 @@ final class Session {
     /// The globe menu's Add ground station here: placed and its panel opened, as
     /// Pick on globe places one.
     func addStation(at place: GeoCoordinate) {
-        if let id = addStation(place) {
+        if let id = passes.add(latitude: place.latitude, longitude: place.longitude) {
             select(.station(id))
         }
     }
@@ -760,7 +760,7 @@ final class Session {
     /// The globe menu's Look up from here: a station placed there, and the sky
     /// view entered on it.
     func lookUp(from place: GeoCoordinate) {
-        if let id = addStation(place) {
+        if let id = passes.add(latitude: place.latitude, longitude: place.longitude) {
             enterSky(at: id)
         }
     }
@@ -768,11 +768,6 @@ final class Session {
     /// The globe menu's Remove ground station.
     func removeStation(_ id: UUID) {
         passes.remove(id)
-    }
-
-    /// Adds a station, and says which it became.
-    private func addStation(_ place: GeoCoordinate) -> UUID? {
-        passes.add(latitude: place.latitude, longitude: place.longitude)
     }
 
     /// What the renderer has under `point`, for a tap.

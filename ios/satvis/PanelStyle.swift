@@ -136,6 +136,15 @@ extension View {
             .background(Color.panelRaised, in: .capsule)
     }
 
+    /// A scroll view that bounces only where it scrolls, and keeps `height` at what
+    /// it holds, for a frame as tall as that where it fits.
+    func measuresContent(height: Binding<CGFloat?>) -> some View {
+        scrollBounceBehavior(.basedOnSize)
+            .onScrollGeometryChange(for: CGFloat.self, of: \.contentSize.height) { _, measured in
+                height.wrappedValue = measured
+            }
+    }
+
     /// Hands `action` where the view is in the window, and again as that changes.
     func reportsFrame(_ action: @escaping (CGRect) -> Void) -> some View {
         onGeometryChange(for: CGRect.self) {

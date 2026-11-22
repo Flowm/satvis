@@ -145,19 +145,16 @@ struct ModelAsset {
     }
 
     /// The JSON and binary chunks of a GLB.
-    private static func chunks(_ data: Data) throws -> (json: Data, binary: Data) {
+    private static func chunks(_ data: Data) throws -> (json: Data, binary: [UInt8]) {
         let bytes = [UInt8](data)
         func word(_ offset: Int) -> UInt32? {
-            guard offset + 4 <= bytes.count else {
-                return nil
-            }
-            return UInt32(bytes[offset]) | UInt32(bytes[offset + 1]) << 8 | UInt32(bytes[offset + 2]) << 16 | UInt32(bytes[offset + 3]) << 24
+            offset + 4 <= bytes.count ? bytes.littleEndian(at: offset) : nil
         }
         guard word(0) == 0x4654_6C67, word(4) == 2 else {
             throw Failure.notGLB
         }
         var json: Data?
-        var binary = Data()
+        var binary: [UInt8] = []
         var offset = 12
         while let length = word(offset), let type = word(offset + 4) {
             let start = offset + 8
@@ -167,7 +164,7 @@ struct ModelAsset {
             }
             switch type {
             case 0x4E4F_534A: json = Data(bytes[start..<end])
-            case 0x004E_4942: binary = Data(bytes[start..<end])
+            case 0x004E_4942: binary = Array(bytes[start..<end])
             default: break
             }
             offset = end
@@ -232,7 +229,6 @@ private struct PrimitiveMesh {
 /// The document and its binary chunk, read on demand.
 private struct Reader {
     let document: [String: Any]
-    let binary: Data
     let bytes: [UInt8]
     let nodes: [[String: Any]]
     let meshes: [[String: Any]]
@@ -240,10 +236,9 @@ private struct Reader {
     let bufferViews: [[String: Any]]
     let textures: [[String: Any]]
 
-    init(document: [String: Any], binary: Data) {
+    init(document: [String: Any], binary: [UInt8]) {
         self.document = document
-        self.binary = binary
-        bytes = [UInt8](binary)
+        bytes = binary
         nodes = document["nodes"] as? [[String: Any]] ?? []
         meshes = document["meshes"] as? [[String: Any]] ?? []
         accessors = document["accessors"] as? [[String: Any]] ?? []
@@ -340,10 +335,10 @@ private struct Reader {
             return nil
         }
         let offset = view["byteOffset"] as? Int ?? 0
-        guard offset >= 0, length >= 0, offset + length <= binary.count else {
+        guard offset >= 0, length >= 0, offset + length <= bytes.count else {
             return nil
         }
-        return binary.subdata(in: binary.startIndex + offset..<binary.startIndex + offset + length)
+        return Data(bytes[offset..<offset + length])
     }
 
     /// An accessor's elements as floats, normalized integers scaled to 0…1 or
@@ -353,17 +348,14 @@ private struct Reader {
             return nil
         }
         let normalized = accessor["normalized"] as? Bool ?? false
-        return elements(accessor, components: components) { bytes, type in
+        return elements(accessor, components: components) { offset, type in
             switch type {
-            case 5126: Float(bitPattern: UInt32(bytes[0]) | UInt32(bytes[1]) << 8 | UInt32(bytes[2]) << 16 | UInt32(bytes[3]) << 24)
-            case 5121: normalized ? Float(bytes[0]) / 255 : Float(bytes[0])
-            case 5123:
-                normalized ? Float(UInt16(bytes[0]) | UInt16(bytes[1]) << 8) / 65535 : Float(UInt16(bytes[0]) | UInt16(bytes[1]) << 8)
-            case 5120: normalized ? max(Float(Int8(bitPattern: bytes[0])) / 127, -1) : Float(Int8(bitPattern: bytes[0]))
+            case 5126: Float(bitPattern: bytes.littleEndian(at: offset))
+            case 5121: normalized ? Float(bytes[offset]) / 255 : Float(bytes[offset])
+            case 5123: normalized ? Float(bytes.littleEndian(UInt16.self, at: offset)) / 65535 : Float(bytes.littleEndian(UInt16.self, at: offset))
+            case 5120: normalized ? max(Float(Int8(bitPattern: bytes[offset])) / 127, -1) : Float(Int8(bitPattern: bytes[offset]))
             case 5122:
-                normalized
-                    ? max(Float(Int16(bitPattern: UInt16(bytes[0]) | UInt16(bytes[1]) << 8)) / 32767, -1)
-                    : Float(Int16(bitPattern: UInt16(bytes[0]) | UInt16(bytes[1]) << 8))
+                normalized ? max(Float(bytes.littleEndian(Int16.self, at: offset)) / 32767, -1) : Float(bytes.littleEndian(Int16.self, at: offset))
             default: nil
             }
         }
@@ -373,19 +365,20 @@ private struct Reader {
         guard let accessor = accessors[safe: index] else {
             return nil
         }
-        return elements(accessor, components: 1) { bytes, type in
+        return elements(accessor, components: 1) { offset, type in
             switch type {
-            case 5121: UInt32(bytes[0])
-            case 5123: UInt32(bytes[0]) | UInt32(bytes[1]) << 8
-            case 5125: UInt32(bytes[0]) | UInt32(bytes[1]) << 8 | UInt32(bytes[2]) << 16 | UInt32(bytes[3]) << 24
+            case 5121: UInt32(bytes[offset])
+            case 5123: UInt32(bytes.littleEndian(UInt16.self, at: offset))
+            case 5125: bytes.littleEndian(at: offset)
             default: nil
             }
         }
     }
 
     /// Reads `count` elements of `components` components each, by the view's
-    /// stride, or packed where it has none.
-    private func elements<T>(_ accessor: [String: Any], components: Int, read: ([UInt8], Int) -> T?) -> [T]? {
+    /// stride, or packed where it has none: `read` is given each component's
+    /// offset in the bytes and its glTF type.
+    private func elements<T>(_ accessor: [String: Any], components: Int, read: (Int, Int) -> T?) -> [T]? {
         guard let viewIndex = accessor["bufferView"] as? Int, let view = bufferViews[safe: viewIndex], let count = accessor["count"] as? Int,
             let type = accessor["componentType"] as? Int, let componentSize = [5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4][type]
         else {
@@ -408,8 +401,7 @@ private struct Reader {
         values.reserveCapacity(count * components)
         for element in 0..<count {
             for component in 0..<components {
-                let start = base + element * stride + component * componentSize
-                guard let value = read(Array(bytes[start..<start + componentSize]), type) else {
+                guard let value = read(base + element * stride + component * componentSize, type) else {
                     return nil
                 }
                 values.append(value)

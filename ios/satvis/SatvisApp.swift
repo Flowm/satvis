@@ -344,21 +344,10 @@ struct ContentView: View {
                             switch panel {
                             case .satellites:
                                 // Closed under the info card, as the web app's.
-                                BrowserPanel(catalog: session.catalog) {
-                                    session.select(.satellite($0.id))
-                                    clearTheGlobe()
-                                }
+                                BrowserPanel(catalog: session.catalog) { open(.satellite($0.id)) }
                             case .components: ComponentsPanel(catalog: session.catalog)
-                            case .map:
-                                MapPanel(session: session) {
-                                    session.select(.satellite($0.id))
-                                    clearTheGlobe()
-                                }
-                            case .locations:
-                                LocationsPanel(passes: session.passes, onPick: pickFromLocations) {
-                                    session.select(.station($0))
-                                    clearTheGlobe()
-                                }
+                            case .map: MapPanel(session: session) { open(.satellite($0.id)) }
+                            case .locations: LocationsPanel(passes: session.passes, onPick: pickFromLocations) { open(.station($0)) }
                             case .globe: GlobePanel(session: session)
                             case .sky: SkyPanel(session: session)
                             case .graphics: GraphicsPanel(session: session) { chrome.hideUI(compact: sizeClass != .regular) }
@@ -561,6 +550,12 @@ struct ContentView: View {
         pickingFromLocations = .some(session.selection)
         clearTheGlobe()
         session.setPicking(true)
+    }
+
+    /// Opens what a panel's row names in the info panel, out of the globe's way.
+    private func open(_ selection: Selection) {
+        session.select(selection)
+        clearTheGlobe()
     }
 
     /// `WindowChrome.clearTheGlobe` at this width.
