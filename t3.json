@@ -24,6 +24,16 @@
       "previewUrl": "http://localhost:8787",
       "autoOpenPreview": true,
       "stopOnSettle": true
+    },
+    {
+      "name": "iOS app",
+      "command": "make -C ios run",
+      "icon": "play"
+    },
+    {
+      "name": "Mac app",
+      "command": "make -C ios run-mac",
+      "icon": "play"
     }
   ]
 }

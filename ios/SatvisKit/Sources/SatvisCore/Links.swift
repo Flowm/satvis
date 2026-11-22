@@ -93,7 +93,8 @@ public struct LinkQuery: Sendable, Hashable {
     private static let keptLiteral = Set(";,/?:@=$-_.!~*'()|[]`{}^".unicodeScalars)
 }
 
-/// A ground station as a link carries it (ADR 0001, `gs`).
+/// A ground station as a link carries it (ADR 0001, `gs`): where it is and what
+/// it is called, which is what makes two stations the same one, whatever their ids.
 public struct LinkStation: Sendable, Hashable {
     public var latitude: Double
     public var longitude: Double
@@ -540,7 +541,7 @@ extension LinkState {
 }
 
 /// The instant a link's minute (`2026-10-04T20:46Z`) stands for.
-public func date(minuteISO: String) -> Date? {
+func date(minuteISO: String) -> Date? {
     guard minuteISO.hasSuffix("Z") else {
         return nil
     }

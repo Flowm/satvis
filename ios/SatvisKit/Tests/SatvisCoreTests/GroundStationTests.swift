@@ -19,8 +19,8 @@ import Testing
             GroundStation(latitude: 0, longitude: 0, name: " _ "),
         ])
         #expect(
-            stations.map(GroundStations.Place.init)
-                == [GroundStation(latitude: 48.1351, longitude: 11.582, name: "Munich DE"), GroundStation(latitude: 0, longitude: 0)].map(GroundStations.Place.init))
+            stations.map(LinkStation.init)
+                == [GroundStation(latitude: 48.1351, longitude: 11.582, name: "Munich DE"), GroundStation(latitude: 0, longitude: 0)].map(LinkStation.init))
     }
 
     // A link's coordinates are only known to be numbers, and `gs=1e300,0` once

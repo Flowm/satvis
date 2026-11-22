@@ -116,6 +116,11 @@ enum BenchmarkFormat {
         }
     }
 
+    /// Whole percent.
+    static func percent(_ value: Double?) -> String {
+        value.map { "\(Formats.fixed($0, 0)) %" } ?? "–"
+    }
+
     /// A change in percent, with its sign.
     static func signedPercent(_ value: Double) -> String {
         "\(value > 0 ? "+" : "")\(Formats.fixed(value, 1)) %"

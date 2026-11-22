@@ -245,15 +245,21 @@ private struct Reader {
         guard offset + size <= bytes.count else {
             throw .truncated
         }
-        let value = bytes.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: offset, as: T.self) }
-        offset += size
-        return T(littleEndian: value)
+        defer { offset += size }
+        return bytes.littleEndian(at: offset)
     }
 
     mutating func uint8() throws(QuantizedMesh.DecodingError) -> UInt8 { try read(UInt8.self) }
     mutating func uint16() throws(QuantizedMesh.DecodingError) -> UInt16 { try read(UInt16.self) }
     mutating func uint32() throws(QuantizedMesh.DecodingError) -> UInt32 { try read(UInt32.self) }
     mutating func float() throws(QuantizedMesh.DecodingError) -> Float { Float(bitPattern: try read(UInt32.self)) }
+}
+
+extension [UInt8] {
+    /// The little-endian integer at `offset`, which has to lie within the bytes.
+    func littleEndian<T: FixedWidthInteger>(_: T.Type = T.self, at offset: Int) -> T {
+        T(littleEndian: withUnsafeBytes { $0.loadUnaligned(fromByteOffset: offset, as: T.self) })
+    }
 }
 
 /// Re:Earth's terrain, as the web app asks for it: heights above the ellipsoid,

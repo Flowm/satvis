@@ -89,8 +89,11 @@ enum Textures {
         }
     }
 
-    static func texture2D(_ bitmap: Bitmap, device: MTLDevice, queue: MTLCommandQueue) -> MTLTexture? {
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm, width: bitmap.width, height: bitmap.height, mipmapped: true)
+    /// `bitmap` as a texture the shaders read, with mipmaps where given a `queue`
+    /// to make them on.
+    static func texture2D(_ bitmap: Bitmap, device: MTLDevice, queue: MTLCommandQueue? = nil) -> MTLTexture? {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba8Unorm, width: bitmap.width, height: bitmap.height, mipmapped: queue != nil)
         descriptor.usage = .shaderRead
         guard let texture = device.makeTexture(descriptor: descriptor) else {
             return nil
@@ -98,7 +101,9 @@ enum Textures {
         bitmap.bytes.withUnsafeBytes {
             texture.replace(region: MTLRegionMake2D(0, 0, bitmap.width, bitmap.height), mipmapLevel: 0, withBytes: $0.baseAddress!, bytesPerRow: bitmap.width * 4)
         }
-        generateMipmaps(texture, queue: queue)
+        if let queue {
+            generateMipmaps(texture, queue: queue)
+        }
         return texture
     }
 

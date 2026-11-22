@@ -280,7 +280,7 @@ struct PerformanceOverlay: View {
                 Text(Self.overPercent(over)).fontWeight(.semibold).foregroundStyle((over ?? 0) > 0 ? Self.overColor : .white)
                 Spacer(minLength: 0)
                 Text("total CPU ").foregroundStyle(.white.opacity(0.65))
-                Text(Self.percent(stats?.cpuTotal)).fontWeight(.semibold)
+                Text(BenchmarkFormat.percent(stats?.cpuTotal)).fontWeight(.semibold)
             }
             .lineLimit(1)
         }
@@ -333,14 +333,9 @@ struct PerformanceOverlay: View {
         Text(text).fontWeight(bold ? .semibold : .regular).lineLimit(1).frame(width: 38, alignment: .trailing)
     }
 
-    /// Whole percent, or a dash without a figure.
-    private static func percent(_ value: Double?) -> String {
-        value.map { "\(Formats.fixed($0, 0)) %" } ?? "–"
-    }
-
     /// A share that rounds to 0 % but is not, which the colour marks, reads as under 1 %.
     private static func overPercent(_ value: Double?) -> String {
-        value.map { $0 > 0 && $0 < 0.5 } == true ? "< 1 %" : percent(value)
+        value.map { $0 > 0 && $0 < 0.5 } == true ? "< 1 %" : BenchmarkFormat.percent(value)
     }
 }
 

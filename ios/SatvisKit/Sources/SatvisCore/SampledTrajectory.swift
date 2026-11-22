@@ -6,9 +6,9 @@ import Foundation
 /// Positions are in the pseudo-fixed frame, in metres, and are read back by a
 /// six-node Lagrange interpolation, as `GridPositionProperty` reads them.
 public struct SampledTrajectory: Sendable {
-    public static let samplesPerOrbit = 120.0
-    public static let orbitsBack = 0.5
-    public static let orbitsForward = 1.5
+    static let samplesPerOrbit = 120.0
+    static let orbitsBack = 0.5
+    static let orbitsForward = 1.5
     /// Nodes per interpolation: a quintic, which the web app chose because a cubic
     /// was kilometres out on long, eccentric orbits.
     public static let stencil = 6

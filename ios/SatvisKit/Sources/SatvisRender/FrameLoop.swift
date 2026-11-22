@@ -27,7 +27,7 @@ final class FrameLoop {
     private let drawables = DrawableGate()
     /// When the frames begun are shown, which their content is timed to.
     private let presentation = FramePresentation()
-    private let faults = GPUFaults()
+    private let faults: GPUFaults
     private let queue: MTLCommandQueue
     private let inFlight = DispatchSemaphore(value: framesInFlight)
     /// The frame in flight begun last, which its buffers are kept for.
@@ -35,14 +35,10 @@ final class FrameLoop {
     /// Each frame in flight's stencils (`PointFrame`).
     private var pointFrameBuffers: [MTLBuffer?] = Array(repeating: nil, count: framesInFlight)
 
-    /// Called with the first frame the GPU fails of each kind.
-    var onFault: (@MainActor @Sendable (GPUFault) -> Void)? {
-        get { faults.onFault }
-        set { faults.onFault = newValue }
-    }
-
-    init(queue: MTLCommandQueue) {
+    /// `faults` is told of each frame the GPU fails.
+    init(queue: MTLCommandQueue, faults: GPUFaults) {
         self.queue = queue
+        self.faults = faults
     }
 
     /// When a frame of `view` begun at `started` will be shown, of a screen
@@ -100,13 +96,8 @@ final class FrameLoop {
             }
         #endif
         let semaphore = inFlight
-        let faults = faults
-        commands.addCompletedHandler { buffer in
-            semaphore.signal()
-            if buffer.status == .error {
-                faults.record(buffer.error)
-            }
-        }
+        commands.addCompletedHandler { _ in semaphore.signal() }
+        faults.watch(commands)
         index = (index + 1) % Self.framesInFlight
         return Frame(commands: commands, drawable: drawable, screen: screen, waitedForBuffer: waitedForBuffer, waitedForDrawable: waitedForDrawable)
     }

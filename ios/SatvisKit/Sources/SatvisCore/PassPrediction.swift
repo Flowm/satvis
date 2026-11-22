@@ -61,10 +61,6 @@ public struct Pass: Sendable, Hashable {
     }
 
     public var duration: Double { end - start }
-
-    public func contains(_ time: Double) -> Bool {
-        start <= time && time <= end
-    }
 }
 
 /// A satellite's passes over ground stations, found the way the web app's `Orbit`
@@ -84,21 +80,19 @@ public struct PassFinder: Sendable {
 
     /// The web app predicts no passes for a satellite slower than two revolutions
     /// a day: a geostationary one is overhead all the time or never.
-    public var predictsPasses: Bool { orbitalPeriod <= 60 * 12 }
+    var predictsPasses: Bool { orbitalPeriod <= 60 * 12 }
 
-    /// Every pass over the stations that starts inside the window, sorted by start.
+    /// Every pass over the station that starts inside the window, sorted by start.
     public func passes(
-        satellite: String, name: String, over stations: [GroundStation], mode: OverpassMode, swath: SwathExtents, from start: Double, to end: Double
+        satellite: String, name: String, over station: GroundStation, mode: OverpassMode, swath: SwathExtents, from start: Double, to end: Double
     ) -> [Pass] {
-        stations.flatMap { station in
-            let found =
-                switch mode {
-                case .elevation: elevationPasses(over: station, from: start, to: end)
-                case .swath: swathPasses(over: station, swath: swath, from: start, to: end)
-                }
-            return found.map {
-                Pass(satellite: satellite, satelliteName: name, station: station.displayName, stationID: station.id, start: $0.start, end: $0.end, measure: $0.measure)
+        let found =
+            switch mode {
+            case .elevation: elevationPasses(over: station, from: start, to: end)
+            case .swath: swathPasses(over: station, swath: swath, from: start, to: end)
             }
+        return found.map {
+            Pass(satellite: satellite, satelliteName: name, station: station.displayName, stationID: station.id, start: $0.start, end: $0.end, measure: $0.measure)
         }.sorted { $0.start < $1.start }
     }
 
@@ -108,7 +102,7 @@ public struct PassFinder: Sendable {
     /// the station, found as the swath search finds them, steps of a tenth of an
     /// orbit; in each, the peak by golden section and the rise and set by
     /// bisection, to 10 ms. A pass that runs over a step is carried on into the next.
-    public func elevationPasses(over station: GroundStation, from start: Double, to end: Double) -> [Pass] {
+    func elevationPasses(over station: GroundStation, from start: Double, to end: Double) -> [Pass] {
         let minElevation = 5.0
         let observer = (latitude: station.latitude * deg2rad, longitude: station.longitude * deg2rad, height: 0.0)
         let lookAt = { (time: Double) -> (azimuth: Double, elevation: Double)? in
@@ -165,7 +159,7 @@ public struct PassFinder: Sendable {
     /// `Orbit.computePassesSwath`: the reaches of the wider extent, each the pass
     /// for a symmetric swath, cut to where the station's side is served for an
     /// asymmetric one, with the closest approach by golden section.
-    public func swathPasses(over station: GroundStation, swath: SwathExtents, from startMs: Double, to endMs: Double) -> [Pass] {
+    func swathPasses(over station: GroundStation, swath: SwathExtents, from startMs: Double, to endMs: Double) -> [Pass] {
         let swathWidth = swath.starboardKm + swath.portKm
         let maxExtent = max(swath.starboardKm, swath.portKm)
         let distanceAt = { (time: Double) in self.subpointDistanceKm(station, time) }

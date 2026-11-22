@@ -169,6 +169,12 @@ import Testing
                 PassAlert(subject: .station(id), satellites: ["43689|METOP-C", "49045|SL-4 R/B"], groups: ["last-30-days", "weather"]),
             ])
         #expect(PassAlert.decodeAll(from: try JSONEncoder().encode(alerts)) == alerts)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        #expect(
+            String(decoding: try encoder.encode(alerts), as: UTF8.self)
+                == #"[{"groups":["stations"],"satellites":["25544|ISS (ZARYA)"],"subject":{"satellite":{"_0":"25544|ISS (ZARYA)"}}},"#
+                + #"{"groups":["last-30-days","weather"],"satellites":["43689|METOP-C","49045|SL-4 R\/B"],"subject":{"station":{"_0":"6F1C2A3E-8B4D-4E5F-9A0B-1C2D3E4F5A6B"}}}]"#)
         #expect(PassAlert.decodeAll(from: Data("not json".utf8)).isEmpty)
     }
 }

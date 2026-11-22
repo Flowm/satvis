@@ -147,13 +147,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     var skyCache = SkyCache()
     private let meter = FrameMeter()
     private let loop: FrameLoop
+    private let faults = GPUFaults()
     /// The pictures asked of the next frame, for bookmarks.
     private let snapshots = SnapshotRequests()
 
     /// Called with the first frame the GPU fails of each kind, which it logs.
     var onGPUFault: (@MainActor @Sendable (GPUFault) -> Void)? {
-        get { loop.onFault }
-        set { loop.onFault = newValue }
+        get { faults.onFault }
+        set { faults.onFault = newValue }
     }
 
     /// Who measures the frames: the performance panel, the benchmark. Nothing is
@@ -254,7 +255,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         self.overlay = overlay
         surface = try Surface(device: device, library: libraries.precise, site: URL(string: "https://satvis.space/")!)
         models = SatelliteModels(device: device)
-        loop = FrameLoop(queue: queue)
+        loop = FrameLoop(queue: queue, faults: faults)
         screenScale = Double(view.contentScaleFactorForPoints)
         pixelScale = screenScale
         pin = Textures.texture2D(StationPin.bitmap(), device: device, queue: queue)
@@ -290,7 +291,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
 
     /// Packs satellites for drawing, off the main thread. Hand the result to
     /// `setSatellites`. Unlabelled, it sets no names: tens of milliseconds for 16,000.
-    nonisolated func prepare(_ satellites: [PointSatellite], labelled: Bool = true) async -> PreparedSatellites {
+    nonisolated func prepare(_ satellites: [PointSatellite], labelled: Bool) async -> PreparedSatellites {
         let device = device
         let scale = screenScale
         return await Task.detached(priority: .userInitiated) {
@@ -359,12 +360,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Stands on the ground at the camera's observer and looks up from there,
     /// over the terrain, which the horizon and the eye's height need. `animated`
     /// flies there; without it, as reduced motion asks, the camera cuts.
-    func enterSky(_ camera: SkyCamera, animated: Bool = true) {
+    func enterSky(_ camera: SkyCamera, animated: Bool) {
         rig.enterSky(camera, animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
     }
 
     /// Back to the globe camera, by the flight in played backwards.
-    func leaveSky(animated: Bool = true) {
+    func leaveSky(animated: Bool) {
         rig.leaveSky(animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
     }
 
@@ -416,7 +417,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// view opens.
     /// Follows what has this id. `animated` flies there from where the camera
     /// is, as the web app's Track button does; a link or a double tap cuts.
-    func track(_ id: String, animated: Bool = false) {
+    func track(_ id: String, animated: Bool) {
         rig.track(id, animated: animated, uptime: ProcessInfo.processInfo.systemUptime, model: { self.trackedModel($0) })
     }
 
@@ -437,14 +438,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Lets go, and goes back to the view tracking began from, as the web app
     /// does: the free camera is kept while tracking, through switches from one
     /// satellite to another. `animated` flies back.
-    func stopTracking(animated: Bool = false) {
+    func stopTracking(animated: Bool) {
         rig.stopTracking(animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
     }
 
     /// Back to where the app opens, letting go of what is followed. `animated`
     /// flies there; without it, as reduced motion asks, the camera cuts. Not
     /// from the sky view, which `leaveSky` leaves first.
-    func flyHome(animated: Bool = true) {
+    func flyHome(animated: Bool) {
         rig.flyHome(animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
     }
 
@@ -727,6 +728,19 @@ extension MTLDevice {
     /// A new buffer holding a copy of `array`.
     func makeBuffer<Element>(copying array: [Element]) -> MTLBuffer? {
         array.withUnsafeBytes { makeBuffer(bytes: $0.baseAddress!, length: $0.count) }
+    }
+
+    /// A sampler linear within a level, and between levels where `mipmapped`, of
+    /// at most `anisotropy` samples, addressed `s` across and `t` down.
+    func makeLinearSampler(mipmapped: Bool, anisotropy: Int = 1, s: MTLSamplerAddressMode, t: MTLSamplerAddressMode) -> MTLSamplerState? {
+        let descriptor = MTLSamplerDescriptor()
+        descriptor.minFilter = .linear
+        descriptor.magFilter = .linear
+        descriptor.mipFilter = mipmapped ? .linear : .notMipmapped
+        descriptor.maxAnisotropy = anisotropy
+        descriptor.sAddressMode = s
+        descriptor.tAddressMode = t
+        return makeSamplerState(descriptor: descriptor)
     }
 }
 

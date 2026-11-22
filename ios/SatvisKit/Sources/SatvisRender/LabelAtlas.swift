@@ -271,13 +271,8 @@ private final class LabelFont: @unchecked Sendable {
                 }
             }
         }
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm, width: width, height: 2 * height, mipmapped: false)
-        descriptor.usage = .shaderRead
-        guard let texture = device.makeTexture(descriptor: descriptor) else {
+        guard let texture = Textures.texture2D(bitmap, device: device) else {
             return nil
-        }
-        bitmap.bytes.withUnsafeBytes {
-            texture.replace(region: MTLRegionMake2D(0, 0, width, 2 * height), mipmapLevel: 0, withBytes: $0.baseAddress!, bytesPerRow: width * 4)
         }
         return GlyphAtlas(texture: texture, width: width, height: height, cells: cells, blank: blank)
     }

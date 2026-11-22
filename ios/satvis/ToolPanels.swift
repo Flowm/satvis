@@ -159,10 +159,7 @@ struct ToolMenu<Tools: View>: View {
                             tools
                         }
                     }
-                    .scrollBounceBehavior(.basedOnSize)
-                    .onScrollGeometryChange(for: CGFloat.self, of: \.contentSize.height) { _, height in
-                        toolsHeight = height
-                    }
+                    .measuresContent(height: $toolsHeight)
                     .frame(height: shownToolsHeight)
                 }
                 .transition(.asymmetric(insertion: .identity, removal: .opacity))
@@ -248,19 +245,10 @@ private struct ToolLabel: View {
 /// the column is the corner buttons' twin opposite.
 private struct ToolRowStyle: ButtonStyle {
     var isSelected = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        ToolRow(configuration: configuration, isSelected: isSelected)
-    }
-}
-
-private struct ToolRow: View {
-    let configuration: ButtonStyleConfiguration
-    let isSelected: Bool
     @ScaledMetric(relativeTo: .body) private var scale = 1.0
     @Environment(\.toolNamesFolded) private var folded
 
-    var body: some View {
+    func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(isSelected ? Color.panelAccent : .primary)
             // Folded, the icon's column alone: a row square, as the web app's. Open,
@@ -324,12 +312,7 @@ struct ToolPanelView<Content: View>: View {
                 ScrollView {
                     padded(content)
                 }
-                .scrollBounceBehavior(.basedOnSize)
-                .onScrollGeometryChange(for: CGFloat.self) {
-                    $0.contentSize.height
-                } action: { _, height in
-                    contentHeight = height
-                }
+                .measuresContent(height: $contentHeight)
                 .frame(height: contentHeight.map { min($0, (maxHeight ?? .infinity) - headerHeight) })
             }
         }
@@ -446,16 +429,9 @@ struct PanelRow<Mark: View, Title: View>: View {
 
 /// A row pressed lit, and greyed while it is disabled, as the web app's rows.
 struct PanelRowStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        PanelRowBody(configuration: configuration)
-    }
-}
-
-private struct PanelRowBody: View {
-    let configuration: ButtonStyleConfiguration
     @Environment(\.isEnabled) private var isEnabled
 
-    var body: some View {
+    func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .background(.white.opacity(configuration.isPressed ? 0.12 : 0))
             .opacity(isEnabled ? 1 : 0.4)

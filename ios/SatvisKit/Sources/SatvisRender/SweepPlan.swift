@@ -13,15 +13,6 @@ public struct SweepStep: Sendable, Equatable, Codable {
     public var `repeat`: Bool
     /// As the panel lists it, a repeat marked.
     public var label: String
-
-    /// A step as `SweepPlan.steps` builds it.
-    public init(satelliteCount: Int, components: [String], clockMultiplier: Double, repeat: Bool, label: String) {
-        self.satelliteCount = satelliteCount
-        self.components = components
-        self.clockMultiplier = clockMultiplier
-        self.repeat = `repeat`
-        self.label = label
-    }
 }
 
 /// Counts that are not whole and non-negative, and rates that are not positive,
@@ -50,11 +41,11 @@ public enum SweepPlan {
     /// 0, the globe alone, is every row's baseline.
     public static let satelliteCounts: [Double] = [0, 100, 500, 1000, 5000]
     /// A harness sanity check, not a measurement.
-    public static let quickSatelliteCounts: [Double] = [0, 100, 1000]
+    static let quickSatelliteCounts: [Double] = [0, 100, 1000]
     /// Propagation is paid per simulated quarter orbit, so a faster clock separates it from drawing.
     public static let clockMultipliers: [Double] = [1, 10, 100, 1000]
     /// Orbit is rebuilt on every trajectory window refresh, so a faster clock shows most there.
-    public static let clockComponentSets: [[String]] = [["Point", "Orbit"]]
+    static let clockComponentSets: [[String]] = [["Point", "Orbit"]]
     /// Milliseconds, shorter than a scene's.
     public static let warmupMilliseconds = 2000.0
     /// Milliseconds a step is measured.

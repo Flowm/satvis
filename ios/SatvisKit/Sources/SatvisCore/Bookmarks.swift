@@ -82,11 +82,11 @@ public struct BookmarkSummary: Sendable, Hashable {
 /// the parity fixtures.
 public enum Bookmarks {
     /// The newest opened links kept; older ones drop off.
-    public static let openedLimit = 8
+    static let openedLimit = 8
 
     /// The parameters the web app's stores own, which a bookmark keeps; a link's
     /// others, such as `framems`, travel past it.
-    public static var ownedParameters: Set<String> { Set(WebTables.shared.bookmarks.ownedParams) }
+    public static let ownedParameters = Set(WebTables.shared.bookmarks.ownedParams)
 
     /// A link's owned parameters, each by its first value, as a bookmark keeps them.
     public static func ownedQuery(of query: LinkQuery) -> [String: String] {
@@ -117,7 +117,7 @@ public enum Bookmarks {
     }
 
     /// Records a link a visit started with: newest first, once each, at most `openedLimit`.
-    public static func withOpened(_ opened: [Bookmark], _ link: Bookmark) -> [Bookmark] {
+    static func withOpened(_ opened: [Bookmark], _ link: Bookmark) -> [Bookmark] {
         Array(([link] + opened.filter { $0.scene != link.scene }).prefix(openedLimit))
     }
 

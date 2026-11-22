@@ -45,12 +45,7 @@ struct BenchmarkPanel: View {
                 case .sweep: BenchmarkSweepTab(session: session)
                 }
             }
-            .scrollBounceBehavior(.basedOnSize)
-            .onScrollGeometryChange(for: CGFloat.self) {
-                $0.contentSize.height
-            } action: { _, height in
-                bodyHeight = height
-            }
+            .measuresContent(height: $bodyHeight)
             .frame(maxHeight: bodyHeight)
         }
         .padding(14)
