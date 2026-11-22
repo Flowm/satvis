@@ -2,6 +2,7 @@
      The scale row shows the timeline or the ladder, never both, so the deck height stays fixed. -->
 <template>
   <div class="deck" :class="{ 'deck--folded': !open }" :style="surfaceStyle">
+    <replay-bar />
     <div ref="cluster" class="cluster">
       <button v-if="open" type="button" class="play" :aria-label="playing ? 'Pause' : 'Play'" @click="togglePlaying">
         <span class="play__circle">
@@ -83,6 +84,8 @@
         >
           <!-- Before the ticks, so the scale stays readable across a mark. -->
           <div v-for="mark in marks" :key="mark.key" class="pass" :style="{ left: `${mark.left}px`, width: `${mark.width}px` }"></div>
+          <!-- Where the granule layer on has granules: nearer live than about 3 hours, it has none yet. -->
+          <div v-for="mark in sensedMarks" :key="`sensed-${mark.key}`" class="sensed" :style="{ left: `${mark.left}px`, width: `${mark.width}px` }"></div>
           <div v-for="tick in ticks" :key="tick.at" class="tick" :class="{ 'tick--major': tick.major }" :style="{ left: `${tick.x}px` }">
             <span v-if="tick.label" class="tick__label">{{ tick.label }}</span>
           </div>
@@ -100,9 +103,12 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useLadder, useTimeline } from "@/composables/useClockScales";
 import { useController } from "@/composables/useController";
 import { useSelectedEntity } from "@/composables/useSelectedEntity";
+import { useSensedSpans } from "@/composables/useSensedSpans";
 import { useViewerClock } from "@/composables/useViewerClock";
 import { arrowStep, CHIP_PX, clockLabel, dateLabel, LADDER, multiplierLabel, passMarks, rateLabel, REAL_TIME_RUNG } from "@/modules/util/clockDeck";
 import { DeviceDetect } from "@/modules/util/DeviceDetect";
+
+import ReplayBar from "./ReplayBar.vue";
 
 const clock = useViewerClock();
 const { now, playing, multiplier, rung, offPresent, togglePlaying, goLive } = clock;
@@ -113,6 +119,8 @@ const { ticks, width: timelineWidth, onDown: onTimelineDown, onMove: onTimelineM
 /** The timeline moves under a fixed needle, so marks are recomputed relative to `now`. */
 const { satellitePasses } = useSelectedEntity(useController());
 const marks = computed(() => passMarks(satellitePasses.value, now.value.getTime(), timelineWidth.value));
+const sensed = useSensedSpans(() => now.value.getTime());
+const sensedMarks = computed(() => passMarks(sensed.value, now.value.getTime(), timelineWidth.value));
 
 const ladder = ref<HTMLElement>();
 const { onScroll: onLadderScroll, onDown: onLadderDown, onMove: onLadderMove, onUp: onLadderUp, pick: pickRung, showRung, step } = useLadder(clock, ladder);
@@ -459,6 +467,16 @@ onUnmounted(() => {
   border-radius: var(--radius) var(--radius) 0 0;
   touch-action: none;
   cursor: ew-resize;
+}
+
+/* The granule fill's yellow, a band along the top so the passes stay readable under it. */
+.sensed {
+  position: absolute;
+  top: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: #ffd54acc;
+  pointer-events: none;
 }
 
 .pass {

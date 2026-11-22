@@ -2,9 +2,21 @@
 // time passes, and which representation fits the scene. The satellite's collection
 // (SatelliteComponentCollection) holds them and asks.
 
-import { BoundingSphere, Cartesian2, Cartesian3, Color, DistanceDisplayCondition, JulianDate, NearFarScalar, PerspectiveFrustum, TimeInterval } from "@cesium/core";
+import {
+  BoundingSphere,
+  Cartesian2,
+  Cartesian3,
+  Color,
+  DistanceDisplayCondition,
+  JulianDate,
+  NearFarScalar,
+  PerspectiveFrustum,
+  type Quaternion,
+  TimeInterval,
+} from "@cesium/core";
 import {
   CallbackProperty,
+  ColorMaterialProperty,
   ConstantProperty,
   Entity,
   HorizontalOrigin,
@@ -27,10 +39,21 @@ import { modelLevel } from "@/config/modelLevels";
 import { ORBIT_CLASS_COLOR, type OrbitClass } from "@/config/orbitClass";
 import type { ModelLod } from "@/config/satelliteMetadata";
 import { drawable } from "@/modules/util/drawablePositions";
-import { GroundTrack, type GroundTrackBatch } from "@/modules/util/GroundTrackBatch";
+import { GroundTrack, type GroundTrackBatch, RIBBON_COLOR } from "@/modules/util/GroundTrackBatch";
 import { BatchedLine, type PolylineBatch } from "@/modules/util/PolylineBatch";
 
-import { coneDescription, coneOrientation, groundTrackSwath, modelUrl, orbitPathTimes, orbitTrackTimes, orbitUsesPathGraphic } from "./satelliteGraphics";
+import {
+  coneDescription,
+  coneOrientation,
+  FAN_ALONG_HALF_ANGLE,
+  fanOrientation,
+  fanShape,
+  groundTrackSwath,
+  modelUrl,
+  orbitPathTimes,
+  orbitTrackTimes,
+  orbitUsesPathGraphic,
+} from "./satelliteGraphics";
 import type { SatelliteProperties } from "./SatelliteProperties";
 
 /** A BatchedLine when merged into a shared orbit batch, a GroundTrack in the ground-track batch. */
@@ -136,6 +159,12 @@ const ORBIT_WIDTH = 1;
  */
 export const ORBIT_LINE_COLOR = Color.WHITE.withAlpha(0.225);
 export const ORBIT_TRACK_LINE_COLOR = Color.GOLD.withAlpha(0.225);
+
+/**
+ * The ground track fan's line on the ground, the ribbon's red brightened: it stands out on cloud
+ * and on the basemap's yellow-green land, where the granule outlines' yellow did not.
+ */
+const FAN_LINE_COLOR = Color.fromCssColorString("#ff4433").withAlpha(0.9);
 
 /**
  * When each batched orbit was cut, in simulation time. Past half a period it is recut
@@ -595,6 +624,57 @@ export const COMPONENT_KINDS: Record<ComponentName, ComponentKind> = {
           false,
         ) as unknown as typeof component.orientation;
       }
+    },
+  },
+
+  /**
+   * The instrument's scan line: a thin fan from the satellite across the track to its swath
+   * extents, the ground track's ribbon's at the satellite, whose line on the ground is the
+   * edge a granule is sensed behind (ADR 0023).
+   */
+  "Ground track fan": {
+    create: (host) => {
+      if (!groundTrackSwath(host.props.orbitClass, host.props.swathExtents)) {
+        return undefined;
+      }
+      const entity = new Entity();
+      entity.addProperty("rectangularSensor");
+      const sensor = new CesiumSensorVolumes.RectangularSensorGraphics();
+      sensor.yHalfAngle = new ConstantProperty(FAN_ALONG_HALF_ANGLE);
+      // The ribbon's colour, as the fan is its edge at the satellite.
+      sensor.lateralSurfaceMaterial = new ColorMaterialProperty(RIBBON_COLOR);
+      sensor.intersectionColor = new ConstantProperty(FAN_LINE_COLOR);
+      sensor.intersectionWidth = new ConstantProperty(2);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (entity as any).rectangularSensor = sensor;
+      return entity;
+    },
+    bind: (component, host) => {
+      const { trajectory, swathExtents } = host.props;
+      if (!(component instanceof Entity) || !trajectory.entityPosition) {
+        return;
+      }
+      // The callbacks run per frame, each for the same time: the shape is found once for it.
+      let shapeAt: JulianDate | undefined;
+      let shape: ReturnType<typeof fanShape>;
+      const shapeFor = (time: JulianDate) => {
+        if (shapeAt === undefined || !JulianDate.equals(shapeAt, time)) {
+          shapeAt = JulianDate.clone(time, shapeAt);
+          shape = fanShape(swathExtents, trajectory.position(time));
+        }
+        return shape;
+      };
+      const next = new JulianDate();
+      component.position = trajectory.entityPosition as typeof component.position;
+      component.orientation = new CallbackProperty((time?: JulianDate, result?: Quaternion) => {
+        const at = time as JulianDate;
+        const roll = shapeFor(at)?.rollRad;
+        return roll === undefined ? undefined : fanOrientation(trajectory.position(at), trajectory.position(JulianDate.addSeconds(at, 1, next)), roll, result);
+      }, false) as unknown as typeof component.orientation;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sensor = (component as any).rectangularSensor as InstanceType<typeof CesiumSensorVolumes.RectangularSensorGraphics>;
+      sensor.xHalfAngle = new CallbackProperty((time?: JulianDate) => shapeFor(time as JulianDate)?.xHalfAngleRad ?? 0, false);
+      sensor.radius = new CallbackProperty((time?: JulianDate) => shapeFor(time as JulianDate)?.radiusMeters ?? 0, false);
     },
   },
 

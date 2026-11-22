@@ -19,7 +19,7 @@ import { SURFACE_MODELS } from "@/config/surfaceModels";
 import { CAMERA_MODES, SCENE_MODES, SKY_MODE } from "@/config/viewModes";
 import { baseLayerNames, imageryProviderNames, terrainProviderNames } from "@/modules/CesiumLayerProviders";
 import { sameValue } from "@/modules/util/equality";
-import { boolean, enumString, layerList, ratioOrNative, stringList, timestamp, toMinuteIso } from "@/modules/util/urlCodec";
+import { boolean, enumString, layerList, plainString, ratioOrNative, stringList, timestamp, toMinuteIso } from "@/modules/util/urlCodec";
 import { UNSEEN_MODES, type UnseenMode } from "@/modules/util/visibility";
 
 export const useCesiumStore = defineStore(
@@ -150,6 +150,9 @@ export const useCesiumStore = defineStore(
       instrumentImagery.value = shown ? [...without, token] : without;
     }
 
+    /** The ground station whose overpasses the replay bar steps through, by name; empty with no replay on (ADR 0023). */
+    const replayStation = ref("");
+
     return {
       layers,
       setLayers,
@@ -160,6 +163,7 @@ export const useCesiumStore = defineStore(
       instrumentImagery,
       instrumentImageryLabels,
       toggleInstrumentImagery,
+      replayStation,
       time,
       setTime,
       terrainProvider,
@@ -188,6 +192,7 @@ export const useCesiumStore = defineStore(
       config: [
         { name: "layers", url: "layers", kind: layerList(imageryProviderNames) },
         { name: "instrumentImagery", url: "imagery", kind: stringList() },
+        { name: "replayStation", url: "replay", kind: plainString() },
         { name: "terrainProvider", url: "terrain", kind: enumString(terrainProviderNames()) },
         { name: "surfaceModel", url: "surface", kind: enumString(SURFACE_MODELS) },
         { name: "starMap", url: "stars", kind: enumString([...STAR_MAPS]) },

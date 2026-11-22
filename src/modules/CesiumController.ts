@@ -21,7 +21,7 @@ import utc from "dayjs/plugin/utc";
 
 import { usePostHog } from "@/composables/usePostHog";
 import { defaultViewDistance } from "@/config/defaultView";
-import type { DrawnImagery } from "@/config/instrumentImagery";
+import { type DrawnImagery, granuleLayerOwner, isGranuleLayer, type TiledImagery } from "@/config/instrumentImagery";
 import { parseLayer } from "@/config/layers";
 import { TOUCH_HOLD_MS } from "@/config/layout";
 import { type FrameRate, frameIntervalFor, msaaSamplesFor, resolutionScaleFor } from "@/config/rendering";
@@ -37,8 +37,11 @@ import { eumetViewFrames } from "./EumetViewImagery";
 import { type Frame, type FramedImagery, type FrameSource, type ImageryContext, showFramedImagery, trackRequests } from "./FramedImagery";
 import { geoMosaicFrames } from "./GeoMosaicImagery";
 import { gibsFrames } from "./GibsImagery";
+import { showGranuleImagery } from "./GranuleImagery";
+import { granuleLayer } from "./GranuleLayers";
 import { RenderPacer } from "./renderPacing";
-import { cesiumSceneMode } from "./satelliteGraphics";
+import type { SatelliteComponentCollection } from "./SatelliteComponentCollection";
+import { cesiumSceneMode, type ScanPlane, scanPlane } from "./satelliteGraphics";
 import { SatelliteManager } from "./SatelliteManager";
 import type { Observer } from "./skyGeometry";
 import { SkyInteraction } from "./SkyInteraction";
@@ -60,7 +63,7 @@ type Shown = Pick<FramedImagery<ImageryLayer>, "top">;
 type Instrument = Shown & { drawn: DrawnImagery; lifetime: AbortController };
 
 /** A layer of each imagery provider the globe draws, frame by frame. */
-const FRAMES: Record<DrawnImagery["provider"], (imagery: DrawnImagery) => FrameSource<ImageryProvider>> = {
+const FRAMES: Record<TiledImagery["provider"], (imagery: TiledImagery) => FrameSource<ImageryProvider>> = {
   gibs: ({ layer, maxLevel, format, daily }) => gibsFrames({ layer, maximumLevel: maxLevel, format, daily }),
   eumetview: ({ layer, maxLevel, format }) => eumetViewFrames({ layer, maximumLevel: maxLevel, format }),
   // The georing mosaic has one layer, and its file says how deep it goes.
@@ -79,8 +82,19 @@ function layerFrames(source: FrameSource<ImageryProvider>): FrameSource<Frame<Im
 }
 
 function sameDrawn(a: DrawnImagery, b: DrawnImagery): boolean {
-  return (Object.keys(a) as (keyof DrawnImagery)[]).every((key) => a[key] === b[key]);
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)] as (keyof DrawnImagery)[]);
+  // `granules` and `pictures` are read afresh from each record.
+  return [...keys].every((key) => JSON.stringify(a[key]) === JSON.stringify(b[key]));
 }
+
+/** Wall milliseconds between looks for the satellite a granule layer follows. */
+const FOLLOW_LOOKUP_MS = 1000;
+
+/** What a granule layer draws its satellite with while it is on. */
+const SCAN_COMPONENT = "Ground track fan";
+
+/** Metres. A NOAA-20 swath, 3,000 km wide, fills the view from here without the limb in it. */
+const REPLAY_HEIGHT_M = 5_000_000;
 
 /**
  * Degrees. A little north, so Europe clears the limb without cutting off the southern hemisphere.
@@ -158,6 +172,8 @@ export class CesiumController {
   #basemaps: Shown[] = [];
   #instruments: Instrument[] = [];
   #overlays: Shown[] = [];
+  /** By satellite, the granule layers following its scan line, which keep its ground track fan on. */
+  #scanHolds = new Map<SatelliteComponentCollection, number>();
 
   /** "Fixed" or "Inertial". The sky view suppresses it with "Fixed". */
   readonly #camera: Suppressible<string>;
@@ -345,7 +361,7 @@ export class CesiumController {
     this.viewer.scene.requestRender();
   }
 
-  /** Each is a layer a frame (FramedImagery.ts), so its layers come and go as the clock moves. */
+  /** Each is a layer a frame (FramedImagery.ts) or a layer a granule (GranuleImagery.ts), so its layers come and go as the clock moves. */
   #showInstrument(drawn: DrawnImagery): Instrument {
     const lifetime = new AbortController();
     // Its place among the others by the time it has a layer: they come and go meanwhile.
@@ -359,7 +375,21 @@ export class CesiumController {
         ),
       ),
     ];
-    const shown = showFramedImagery(layerFrames(FRAMES[drawn.provider](drawn)), this.viewer.scene.imageryLayers, this.#over(below), this.#imageryContext(lifetime.signal));
+    const context = this.#imageryContext(lifetime.signal);
+    let shown: Shown;
+    if (isGranuleLayer(drawn)) {
+      const follow = {
+        scan: this.#scanOf(drawn.token, lifetime.signal),
+        clock: this.viewer.clock,
+        scene: this.viewer.scene,
+        credits: this.viewer.creditDisplay,
+        signal: lifetime.signal,
+      };
+      const { source, outlines } = granuleLayer(drawn, this.viewer.scene.groundPrimitives, follow);
+      shown = showGranuleImagery(source, this.viewer.scene.imageryLayers, outlines, this.#over(below), context);
+    } else {
+      shown = showFramedImagery(layerFrames(FRAMES[drawn.provider](drawn)), this.viewer.scene.imageryLayers, this.#over(below), context);
+    }
     return {
       drawn,
       lifetime,
@@ -389,6 +419,52 @@ export class CesiumController {
     return () => {
       const under = below().findLast((shown) => shown.top !== undefined);
       return under ? this.viewer.scene.imageryLayers.indexOf(under.top!) + 1 : 0;
+    };
+  }
+
+  /**
+   * The scan plane of the satellite whose own layer `token` is, while it is drawn (ADR 0023);
+   * a composite's follows none. Until `signal` aborts, that satellite shows its ground track
+   * fan whether or not the component is on.
+   */
+  #scanOf(token: string, signal: AbortSignal): (time: JulianDate) => ScanPlane | undefined {
+    let sat: SatelliteComponentCollection | undefined;
+    let lookedAt = Number.NEGATIVE_INFINITY;
+    const next = new JulianDate();
+    const holds = this.#scanHolds;
+    const hold = (on: SatelliteComponentCollection | undefined) => {
+      if (on !== undefined) holds.set(on, (holds.get(on) ?? 0) + 1);
+    };
+    // Off only when no other granule layer of the satellite still follows it.
+    const release = (from: SatelliteComponentCollection | undefined) => {
+      if (from === undefined) return;
+      const left = (holds.get(from) ?? 1) - 1;
+      if (left > 0) {
+        holds.set(from, left);
+        return;
+      }
+      holds.delete(from);
+      if (!this.sats.enabledComponents.includes(SCAN_COMPONENT)) {
+        from.disableComponent(SCAN_COMPONENT);
+      }
+    };
+    signal.addEventListener("abort", () => release(sat), { once: true });
+    return (time) => {
+      if (Date.now() - lookedAt >= FOLLOW_LOOKUP_MS && !signal.aborted) {
+        lookedAt = Date.now();
+        const owner = granuleLayerOwner(this.sats.catalog.entries, token);
+        const found = owner && this.sats.getSatellite(owner.entry.name);
+        if (found !== sat) {
+          release(sat);
+          hold(found);
+        }
+        sat = found;
+        // A no-op where it is drawn; brings it back to a satellite rebuilt, or after the component is switched off.
+        sat?.enableComponent(SCAN_COMPONENT);
+      }
+      // The fill's shader reads Earth-fixed positions, which only 3D's depth gives.
+      const trajectory = this.viewer.scene.mode === SceneMode.SCENE3D ? sat?.props.trajectory : undefined;
+      return trajectory && scanPlane(trajectory.position(time), trajectory.position(JulianDate.addSeconds(time, 1, next)));
     };
   }
 
@@ -568,6 +644,22 @@ export class CesiumController {
     this.viewer.clock.startTime = JulianDate.fromIso8601(dayjs.utc(current).subtract(12, "hour").toISOString());
     this.viewer.clock.stopTime = JulianDate.fromIso8601(dayjs.utc(current).add(7, "day").toISOString());
     this.viewer.clock.currentTime = JulianDate.fromIso8601(dayjs.utc(current).toISOString());
+  }
+
+  /**
+   * Plays from `time` (epoch ms) at `multiplier`, looking straight down on `centre` from
+   * REPLAY_HEIGHT_M, untracked: an overpass replay (ADR 0023). The sky view keeps its camera.
+   */
+  replay({ time, multiplier, centre }: { time: number; multiplier: number; centre: { latitude: number; longitude: number } }): void {
+    this.setTime(time);
+    this.viewer.clockViewModel.multiplier = multiplier;
+    this.viewer.clockViewModel.shouldAnimate = true;
+    if (!this.skyView.active) {
+      this.viewer.trackedEntity = undefined;
+      const duration = DeviceDetect.prefersReducedMotion() ? 0 : undefined;
+      this.viewer.camera.flyTo({ destination: Cartesian3.fromDegrees(centre.longitude, centre.latitude, REPLAY_HEIGHT_M), duration, easingFunction: smootherstep });
+    }
+    this.viewer.scene.requestRender();
   }
 
   /**

@@ -80,10 +80,13 @@ export const QUICK_SATELLITE_COUNTS: readonly number[] = [0, 100, 1000];
 /** Orbit is rebuilt on every trajectory window refresh, so a faster clock shows most there. */
 export const CLOCK_COMPONENT_SETS: readonly (readonly string[])[] = [["Point", "Orbit"]];
 
+/** The components the sweeps measure: the native app's too, whose plan is held to these (SweepParityTests.swift). The ground track fan is the web app's alone. */
+const SWEPT_COMPONENTS = SATELLITE_COMPONENTS.filter((component) => component !== "Ground track fan");
+
 /** Each set adds one component, so consecutive rows differ by that component's cost. */
 export const CUMULATIVE_COMPONENT_SETS: readonly (readonly string[])[] = ((): string[][] => {
   const sets: string[][] = [[]];
-  for (const component of SATELLITE_COMPONENTS) {
+  for (const component of SWEPT_COMPONENTS) {
     sets.push([...(sets[sets.length - 1] as string[]), component]);
   }
   return sets;
@@ -92,7 +95,7 @@ export const CUMULATIVE_COMPONENT_SETS: readonly (readonly string[])[] = ((): st
 /** Point is the baseline, as a satellite exists even without one. */
 export const ISOLATED_COMPONENT_SETS: readonly (readonly string[])[] = [
   ["Point"],
-  ...SATELLITE_COMPONENTS.filter((component) => component !== "Point").map((component) => ["Point", component]),
+  ...SWEPT_COMPONENTS.filter((component) => component !== "Point").map((component) => ["Point", component]),
 ];
 
 /** As the console's `bench.<name>()` and both apps' panels run them. */

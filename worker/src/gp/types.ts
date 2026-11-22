@@ -234,13 +234,20 @@ export interface SatelliteInstrument {
 export interface SatelliteImagery {
   /** The CEOS short name of the instrument it shows, one of the record's `instruments`. */
   instrument: string;
-  /** The service that holds it: "gibs". An app leaves out the entries of one it does not know. */
+  /**
+   * The service that holds it: "gibs", or "cmr" for a satellite's granules from a catalogue,
+   * as outlines or cut from another layer's frames. An app leaves out the entries of one it
+   * does not know.
+   */
   provider: string;
   /** The provider's own id for the layer or dataset: never a url. */
   layer: string;
   /** What the picture is: "True colour". */
   label: string;
-  /** "rgb", a colour picture composed from the instrument's bands, is the only one so far. */
+  /**
+   * "rgb", a colour picture composed from the instrument's bands, or "outline", a `cmr`
+   * layer's granule outlines with no picture in them, as it has no `pictures` (ADR 0023).
+   */
   kind: string;
   /** ISO 8601 duration between frames. Absent where there is none to state: one swath an orbit. */
   period?: string;
@@ -264,6 +271,32 @@ export interface SatelliteImagery {
   maxLevel?: number;
   /** The type of its tiles. */
   format?: TileFormat;
+  /**
+   * The collections that list the layer's granules and their outlines: NASA CMR's, by
+   * concept id ("C2208781576-LANCEMODIS"), the near-real-time one first, or one of
+   * EUMETSAT's Data Store ("EO:EUM:DAT:0409"). An app replays the layer granule by granule
+   * along the satellite's track (ADR 0023): a GIBS layer of one granule a frame, a EUMETView
+   * one cut to each granule, or a `cmr` layer, of the outlines alone or of `pictures`. Its
+   * `period` is then the granules'.
+   */
+  granules?: string[];
+  /** The satellite's name in a collection of `granules` that lists several: "LANDSAT-9", "Sentinel-3A". */
+  platform?: string;
+  /**
+   * A EUMETView granule layer's: how long after a granule's start the frame holding it is
+   * stamped nearest, as EUMETView names a frame of a swath or of orbits when it ends.
+   */
+  frame?: string;
+  /** A `cmr` layer's pictures: the layer whose frames each granule is cut from, of kind "rgb". */
+  pictures?: GranulePictures;
+}
+
+/** The layer a `cmr` layer's granules are cut from (ADR 0023). */
+export interface GranulePictures {
+  provider: "gibs" | "eumetview";
+  layer: string;
+  /** "day", a daily layer's frame of the granule's UTC day, or how long after a granule's start the frame holding it is stamped nearest: "PT35M". */
+  frame: string;
 }
 
 /** The types of tile an app can draw (src/config/instrumentImagery.ts, TILE_FORMATS). */

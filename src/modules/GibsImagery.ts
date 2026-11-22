@@ -12,6 +12,9 @@ import type { FrameList, FrameSource } from "./FramedImagery";
 
 const GIBS = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best";
 
+/** What a picture from GIBS is credited with. */
+export const GIBS_CREDIT = "NASA Global Imagery Browse Services for EOSDIS";
+
 export interface GibsOptions {
   layer: string;
   /** The layer's `GoogleMapsCompatible_LevelN` set; N is also the deepest level. */
@@ -64,6 +67,12 @@ async function fetchDomain(options: GibsOptions, range: string, signal: AbortSig
   }
 }
 
+/** The days a daily layer lists, its newest maybe still filling in; undefined where GIBS does not answer. */
+export function gibsDays(layer: string, signal: AbortSignal): Promise<TimeRange[] | undefined> {
+  // Every daily true colour layer has a level-9 set, and its domain is the same in each.
+  return fetchDomain({ layer, maximumLevel: 9, format: "jpeg", daily: false }, "all", signal);
+}
+
 /**
  * A layer's frames a day either side of `around`, or all of them: for a daily layer, whose
  * whole list is short, and for one with none that near, as one that ended. Not when GIBS
@@ -97,10 +106,81 @@ export function gibsFrames(options: GibsOptions): FrameSource<WebMapTileServiceI
         format: `image/${options.format}`,
         tilingScheme: new WebMercatorTilingScheme(),
         maximumLevel: options.maximumLevel,
-        credit: "NASA Global Imagery Browse Services for EOSDIS",
+        credit: GIBS_CREDIT,
         // Without the list: GIBS's own name for its latest frame, which for a daily layer
         // is the day still filling in, so yesterday's.
         dimensions: { Time: frame !== undefined || options.daily ? formatFrame(frame ?? Date.now() - DAY_MS, options.daily) : "default" },
       }),
   };
+}
+
+/**
+ * How long a granule found without pixels is taken as without them: its provider may still
+ * be taking it in, as a daily picture fills over its day, or EUMETView's swaths come hours on.
+ */
+export const RECHECK_MS = 10 * 60 * 1000;
+
+/** Whether GIBS has a granule's pixels, by layer and start; a "no" is forgotten after RECHECK_MS, as GIBS may be taking the granule in. */
+const granulePixels = new Map<string, Promise<boolean>>();
+
+/**
+ * Opaque pixels a granule's level-0 tile has at least where GIBS drew it. A 6-minute VIIRS
+ * granule covered 294 to 770 of the tile's 65,536 on 2026-11-20; the one that crossed the
+ * antimeridian at 23:30Z, 1, and GIBS's WMS drew nothing of it.
+ */
+const MIN_OPAQUE_PIXELS = 50;
+
+/** The opaque pixels of a tile, or undefined where it cannot be decoded here. */
+async function opaquePixels(tile: Blob): Promise<number | undefined> {
+  if (typeof createImageBitmap !== "function" || typeof OffscreenCanvas !== "function") {
+    return undefined;
+  }
+  const bitmap = await createImageBitmap(tile);
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+  const context = canvas.getContext("2d");
+  if (context === null) {
+    return undefined;
+  }
+  context.drawImage(bitmap, 0, 0);
+  const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+  let count = 0;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i]! > 0) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/**
+ * Whether GIBS has the pixels of a granule layer's frame at `start`: its one tile at level 0,
+ * a 404 where GIBS left the granule out, as it does about two in five of NOAA-20's daytime
+ * ones, and nearly empty where it drew little of it. A frame it lacks would otherwise ask
+ * for every tile in view and be refused each. False, and asked again later, where GIBS
+ * cannot be reached.
+ */
+export function gibsHasGranule(options: Pick<GibsOptions, "layer" | "maximumLevel" | "format">, start: number): Promise<boolean> {
+  const key = `${options.layer}/${start}`;
+  let answer = granulePixels.get(key);
+  if (answer === undefined) {
+    const url = `${GIBS}/${options.layer}/default/${formatFrame(start, false)}/GoogleMapsCompatible_Level${options.maximumLevel}/0/0/0.${options.format}`;
+    answer = fetch(url)
+      .then(async (response) => {
+        if (!response.ok) {
+          return false;
+        }
+        const opaque = await opaquePixels(await response.blob()).catch(() => undefined);
+        return opaque === undefined || opaque >= MIN_OPAQUE_PIXELS;
+      })
+      .then((has) => {
+        if (!has) setTimeout(() => granulePixels.delete(key), RECHECK_MS);
+        return has;
+      })
+      .catch(() => {
+        granulePixels.delete(key);
+        return false;
+      });
+    granulePixels.set(key, answer);
+  }
+  return answer;
 }

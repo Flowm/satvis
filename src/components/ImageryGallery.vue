@@ -10,15 +10,56 @@
       @click="toggle(imagery)"
     >
       <div class="card__preview">
-        <img v-if="previews.get(imagery.key) && !failed.has(imagery.key)" :src="previews.get(imagery.key)" alt="" loading="lazy" @error="failed.add(imagery.key)" />
+        <img
+          v-if="previews.get(imagery.key) && !failed.has(imagery.key) && previewErrorsOf(imagery.key) < PICTURE_TRIES"
+          :key="`${previews.get(imagery.key)}#${previewErrorsOf(imagery.key)}`"
+          :src="previews.get(imagery.key)"
+          alt=""
+          loading="lazy"
+          @error="previewErrors.set(previews.get(imagery.key)!, previewErrorsOf(imagery.key) + 1)"
+        />
         <div v-else class="card__placeholder">
-          <UIcon name="lucide:image-off" />
-          <span>No preview</span>
+          <template v-if="imagery.granuleLayer && !imagery.granuleLayer.pictures">
+            <UIcon name="lucide:square-dashed" />
+            <span>Outlines only</span>
+          </template>
+          <template v-else>
+            <UIcon name="lucide:image-off" />
+            <span>No preview</span>
+          </template>
         </div>
         <span class="card__badge">{{ instrument }}</span>
         <span v-if="imagery.preview?.end" class="card__badge card__badge--ended">Ended {{ imagery.preview.end }}</span>
       </div>
-      <div class="card__body">
+      <div v-if="imagery.granuleLayer" class="card__body">
+        <div class="card__title">{{ RECORDED_SWATH }}</div>
+        <div class="card__detail">{{ imagery.label }}, as the clock runs</div>
+        <div class="card__actions">
+          <USwitch
+            :model-value="isShown(imagery)"
+            label="Show"
+            size="sm"
+            :aria-label="`Show ${imagery.label} as a map layer`"
+            @update:model-value="cesiumStore.toggleInstrumentImagery(imagery.token!, $event)"
+            @click.stop
+          />
+          <UTooltip :text="isTracked ? 'Stop tracking' : 'Track the satellite'">
+            <UButton icon="i-lucide-video" variant="ghost" :color="isTracked ? 'primary' : 'neutral'" size="xs" aria-label="Track the satellite" @click.stop="toggleTrack" />
+          </UTooltip>
+        </div>
+        <!-- NASA lists a granule about 3 hours after it is sensed: nearer live there is nothing to show. -->
+        <div v-if="isShown(imagery) && aheadOfData(imagery)" class="card__hint" @click.stop>
+          <UIcon name="lucide:clock-alert" class="card__hint-icon" />
+          <span v-if="imagery.preview?.end">Nothing sensed at this time. The layer ended on {{ imagery.preview.end }}.</span>
+          <span v-else>Nothing sensed yet at this time. The latest is {{ behindLive(latest.get(imagery.key)!.newest) }} behind live.</span>
+          <button type="button" class="card__hint-action" @click="goToLatest(imagery)">Go to latest</button>
+        </div>
+        <a v-if="imagery.href" class="card__open card__open--below" :href="imagery.href" :title="`Open in ${imagery.viewer}`" target="_blank" rel="noopener" @click.stop>
+          {{ imagery.viewer }}
+          <UIcon name="lucide:external-link" />
+        </a>
+      </div>
+      <div v-else class="card__body">
         <div class="card__title">{{ imagery.label }}</div>
         <div v-if="imagery.detail" class="card__detail">{{ imagery.detail }}</div>
         <div class="card__actions">
@@ -45,15 +86,22 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, useTemplateRef, watch } from "vue";
 
-import { imageryPreviewUrl, PREVIEW_HEIGHT, PREVIEW_WIDTH, type PreviewCentre, previewBounds } from "@/config/instrumentImagery";
+import { useController } from "@/composables/useController";
+import { useSelectedEntity } from "@/composables/useSelectedEntity";
+import { useViewerClock } from "@/composables/useViewerClock";
+import { imageryPreviewUrl, isGranuleLayer, RECORDED_SWATH, PREVIEW_HEIGHT, PREVIEW_WIDTH, type PreviewCentre, previewBounds } from "@/config/instrumentImagery";
 import { geoMosaicPreview } from "@/modules/GeoMosaicImagery";
+import { PICTURE_TRIES } from "@/modules/granulePictures";
+import { AFTER_OVERPASS_MS, granuleCentre, latestGranule, type LatestGranules, REPLAY_LEAD_MS } from "@/modules/overpassReplay";
+import type { Granule } from "@/modules/util/cmrGranules";
 import type { ImageryInfo } from "@/modules/util/entityInfo";
 import { useCesiumStore } from "@/stores/cesium";
 
 /**
  * The Imagery tab: a card for each layer that shows one of the satellite's instruments,
  * with a picture of its latest frame, a switch that shows it on the globe where the globe
- * can draw it, and a link to it in its provider's viewer.
+ * can draw it, and a link to it in its provider's viewer. A granule layer's card can also
+ * track the satellite, and sends the clock to its newest granule where it is past it.
  */
 const props = defineProps<{
   layers: { instrument: string; imagery: ImageryInfo }[];
@@ -66,6 +114,12 @@ const props = defineProps<{
 const cesiumStore = useCesiumStore();
 /** Previews that could not be had, by card, which show the placeholder instead; forgotten with the satellite. */
 const failed = reactive(new Set<string>());
+/**
+ * Errors of each preview so far, by its url; a new one asks again, up to PICTURE_TRIES, as
+ * GIBS's WMS answers about one request in five with an error. A newer granule's is a new url.
+ */
+const previewErrors = reactive(new Map<string, number>());
+const previewErrorsOf = (key: string) => previewErrors.get(previews.value.get(key) ?? "") ?? 0;
 
 /**
  * Where the pictures are, built once per satellite. A geostationary imager sees a disc
@@ -83,6 +137,7 @@ function forgetPreviews(): void {
   madePreviews.forEach((url) => URL.revokeObjectURL(url));
   madePreviews.clear();
   failed.clear();
+  previewErrors.clear();
 }
 watch(
   [() => props.layers, bounds],
@@ -108,14 +163,82 @@ watch(
 );
 onUnmounted(forgetPreviews);
 
+/**
+ * A granule layer's newest day granule with pixels, by card, which it pictures and goes to:
+ * its latest frame is a granule that may be by night, or one GIBS left out.
+ */
+const latest = reactive(new Map<string, LatestGranules>());
+/** How often the newest granule is asked again while the tab is open: CMR lists one every 6 minutes. */
+const LATEST_REFRESH_MS = 10 * 60 * 1000;
+watch(
+  () => props.layers,
+  (layers, _, onCleanup) => {
+    latest.clear();
+    const reading = new AbortController();
+    const ask = () => {
+      for (const { imagery } of layers) {
+        const layer = imagery.granuleLayer;
+        if (!isGranuleLayer(layer)) continue;
+        void latestGranule(layer, reading.signal).then((granules) => {
+          if (granules !== undefined && !reading.signal.aborted) latest.set(imagery.key, granules);
+        });
+      }
+    };
+    ask();
+    const timer = layers.some(({ imagery }) => imagery.granuleLayer) ? setInterval(ask, LATEST_REFRESH_MS) : undefined;
+    onCleanup(() => {
+      reading.abort();
+      clearInterval(timer);
+    });
+  },
+  { immediate: true },
+);
+
+/** Degrees either side of a granule's centre in its picture: a NOAA-20 granule is about 3,000 km across. */
+const GRANULE_HALF_WIDTH = 20;
+
+const controller = useController();
+const { isTracked, toggleTrack } = useSelectedEntity(controller);
+const { now } = useViewerClock();
+
+/** The clock is past the newest granule the layer has, so it shows nothing new. */
+function aheadOfData(imagery: ImageryInfo): boolean {
+  const granule = latest.get(imagery.key)?.newest;
+  return granule !== undefined && now.value.getTime() > granule.end + AFTER_OVERPASS_MS;
+}
+
+/** "42 min", "3 h 12 min", "1 d 2 h". */
+function behindLive(granule: Granule): string {
+  const minutes = Math.max(0, Math.round((Date.now() - granule.start) / 60_000));
+  const hours = Math.floor(minutes / 60);
+  if (hours >= 24) return `${Math.floor(hours / 24)} d ${hours % 24} h`;
+  return hours === 0 ? `${minutes} min` : `${hours} h ${minutes % 60} min`;
+}
+
+/** The clock to a few minutes before the newest granule the card pictures, so the satellite flies onto it; pinned in the url. */
+function goToLatest(imagery: ImageryInfo): void {
+  const granule = latest.get(imagery.key)?.pictured;
+  if (granule === undefined) return;
+  const time = granule.start - REPLAY_LEAD_MS;
+  controller.setTime(time);
+  cesiumStore.setTime(new Date(time).toISOString());
+}
+
 /** Each card's picture by card: a provider's WMS answer, or one made here. */
 const previews = computed(() => {
   const where = bounds.value;
-  const now = new Date();
+  const asked = new Date();
   return new Map(
     props.layers.flatMap(({ imagery }) => {
-      if (!imagery.preview || where === undefined) return [];
-      const url = isGeoring(imagery) ? madePreviews.get(imagery.key) : imageryPreviewUrl(imagery.preview, where, now);
+      const granule = latest.get(imagery.key)?.pictured;
+      if (imagery.preview && granule !== undefined) {
+        // Held off the antimeridian, where GIBS's WMS draws nothing for a box that crosses it.
+        const { latitude, longitude } = granuleCentre(granule);
+        const centre = { latitude, longitude: Math.max(-180 + GRANULE_HALF_WIDTH, Math.min(180 - GRANULE_HALF_WIDTH, longitude)) };
+        return [[imagery.key, imageryPreviewUrl({ ...imagery.preview, granule: granule.start }, previewBounds(centre, GRANULE_HALF_WIDTH), asked)] as const];
+      }
+      if (!imagery.preview || where === undefined || imagery.granuleLayer) return [];
+      const url = isGeoring(imagery) ? madePreviews.get(imagery.key) : imageryPreviewUrl(imagery.preview, where, asked);
       return url === undefined ? [] : [[imagery.key, url] as const];
     }),
   );
@@ -208,6 +331,32 @@ watch(() => props.focus, reveal);
   font-weight: 600;
 }
 
+/* The clock past the newest granule: amber, as the clock deck's reset. */
+.card__hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #ffb02e1a;
+  color: var(--panel-amber);
+  font-size: 11.5px;
+  line-height: 1.35;
+  cursor: default;
+}
+
+.card__hint-icon {
+  flex: none;
+}
+
+.card__hint-action {
+  color: var(--panel-accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
 /* Amber: the app colour for "away from rest", as on the status chip. */
 .card__badge--ended {
   right: 6px;
@@ -242,6 +391,11 @@ watch(() => props.focus, reveal);
   align-items: center;
   gap: 4px;
   color: var(--panel-muted);
+}
+
+.card__open--below {
+  margin-top: 6px;
+  font-size: 12px;
 }
 
 .card__open:hover {

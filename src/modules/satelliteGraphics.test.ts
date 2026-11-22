@@ -1,4 +1,4 @@
-import { Cartesian3, FixedFrameTransforms, HeadingPitchRoll, Quaternion } from "@cesium/core";
+import { Cartesian3, FixedFrameTransforms, HeadingPitchRoll, Math as CesiumMath, Matrix3, Quaternion } from "@cesium/core";
 import { SceneMode } from "@cesium/engine";
 import { describe, expect, test } from "vitest";
 
@@ -8,12 +8,16 @@ import {
   cesiumSceneMode,
   coneDescription,
   coneOrientation,
+  fanOrientation,
+  fanShape,
   groundTrackSwath,
   isLeo,
   modelUrl,
+  nadirAngle,
   orbitPathTimes,
   orbitTrackTimes,
   orbitUsesPathGraphic,
+  scanPlane,
   GEOMETRY_REFRESH_MAX_SECONDS,
   GEOMETRY_REFRESH_MIN_SECONDS,
   geometryRefreshSeconds,
@@ -87,6 +91,53 @@ describe("coneOrientation", () => {
   test("Cesium really does throw on the position the guard withholds", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(() => FixedFrameTransforms.headingPitchRollQuaternion(undefined as any, new HeadingPitchRoll(0, Math.PI, 0))).toThrow(/origin is required/);
+  });
+});
+
+describe("ground track fan", () => {
+  const VIIRS = { starboardKm: 1565, portKm: 1565 };
+  // NOAA 20's height, over the equator.
+  const above = Cartesian3.fromDegrees(0, 0, 830_000);
+  const north = Cartesian3.fromDegrees(0, 0.1, 830_000);
+  const axis = (orientation: Quaternion, column: number) => Matrix3.getColumn(Matrix3.fromQuaternion(orientation), column, new Cartesian3());
+
+  test("reaches VIIRS's swath edges at its scan angle, 56° off nadir", () => {
+    expect(CesiumMath.toDegrees(nadirAngle(1_565_000, 830_000, 6_378_137))).toBeCloseTo(56.5, 0);
+    const shape = fanShape(VIIRS, above)!;
+    expect(CesiumMath.toDegrees(shape.xHalfAngleRad)).toBeCloseTo(56.5, 0);
+    expect(shape.rollRad).toBe(0);
+    // Past the 1,850 km slant range to an edge.
+    expect(shape.radiusMeters).toBeGreaterThan(1_850_000);
+    expect(shape.radiusMeters).toBeLessThan(2_500_000);
+  });
+
+  test("tilts toward the wider side of a sensor whose sides differ", () => {
+    const shape = fanShape({ starboardKm: 1000, portKm: 500 }, above)!;
+    expect(shape.rollRad).toBeGreaterThan(0);
+    expect(shape.xHalfAngleRad + shape.rollRad).toBeCloseTo(nadirAngle(1_000_000, 830_000, 6_378_137), 3);
+  });
+
+  test("looks straight down and spreads across the track, starboard to the right of it", () => {
+    const orientation = fanOrientation(above, north, 0)!;
+    // Flying north over the equator at 0°: down is -x, starboard is east, +y.
+    expect(axis(orientation, 2).x).toBeCloseTo(-1, 6);
+    expect(axis(orientation, 1).y).toBeCloseTo(1, 6);
+    const tilted = fanOrientation(above, north, CesiumMath.toRadians(10))!;
+    expect(CesiumMath.toDegrees(Math.asin(axis(tilted, 2).y))).toBeCloseTo(10, 6);
+  });
+
+  test("lies in a plane through the satellite whose normal points ahead along the track", () => {
+    const plane = scanPlane(above, north)!;
+    expect(plane.point).toEqual(above);
+    // North, flying north over the equator.
+    expect(plane.ahead.z).toBeCloseTo(1, 6);
+    expect(scanPlane(undefined, north)).toBeUndefined();
+  });
+
+  test("declines without a position or a direction", () => {
+    expect(fanShape(VIIRS, undefined)).toBeUndefined();
+    expect(fanOrientation(undefined, north, 0)).toBeUndefined();
+    expect(fanOrientation(above, above, 0)).toBeUndefined();
   });
 });
 

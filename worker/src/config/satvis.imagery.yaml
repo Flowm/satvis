@@ -17,6 +17,20 @@
 # under the satellite, measured from a tile on 2026-11-12. An entry without them is a
 # link only.
 #
+# `granules` lists the collections that list a layer's granules: NASA CMR's by concept id,
+# the near-real-time one first, as CMR's id pins a collection and its version where short
+# names repeat (MODIS's near-real-time and standard collections are both MOD03), or one of
+# EUMETSAT's Data Store. `platform` names the satellite in a collection that lists several.
+# An entry with `granules` is one the web app replays behind the clock, each granule in its
+# outline (ADR 0023), and its `period` is the granules':
+# - a GIBS layer of one granule a frame;
+# - a EUMETView layer, each granule cut from the frame stamped nearest its start plus
+#   `frame`;
+# - a `cmr` entry, its granules cut from the frames of `pictures`: a daily layer's (`frame:
+#   day`) or a EUMETView one's, as above. Without `pictures`, `kind: outline`, it is a
+#   satellite's granule outlines where no provider has their pixels.
+# Every collection here was read on 2026-11-21 or 22; the comment beside its ids names them.
+#
 # Layer ids, periods, first frames and tile sets were read from each provider's
 # capabilities on 2026-11-11. Re-check an entry there before copying it: a layer that stops keeps its
 # place in the capabilities, so nothing there says it has ended.
@@ -34,6 +48,16 @@ satellites:
           format: jpeg
           period: P1D
           start: 2000-02-24
+        # MOD03 6.1NRT, MOD03 6.1: the geolocation, which every MODIS product shares. Each
+        # granule cut from the day's picture above.
+        - provider: cmr
+          layer: MOD03
+          label: True colour
+          kind: rgb
+          period: PT5M
+          start: 2000-02-24
+          granules: [C1426422512-LANCEMODIS, C1379767668-LAADS]
+          pictures: { provider: gibs, layer: MODIS_Terra_CorrectedReflectance_TrueColor, frame: day }
       MISR:
         # Ended. The nadir camera's, one of nine.
         - provider: gibs
@@ -58,6 +82,15 @@ satellites:
           format: jpeg
           period: P1D
           start: 2002-07-03
+        # MYD03 6.1NRT, MYD03 6.1, as Terra's.
+        - provider: cmr
+          layer: MYD03
+          label: True colour
+          kind: rgb
+          period: PT5M
+          start: 2002-07-04
+          granules: [C1426640814-LANCEMODIS, C1379841358-LAADS]
+          pictures: { provider: gibs, layer: MODIS_Aqua_CorrectedReflectance_TrueColor, frame: day }
 
   - noradId: 37849
     name: SUOMI NPP
@@ -74,6 +107,18 @@ satellites:
           period: P1D
           start: 2015-11-24
           end: 2026-11-02
+        # VNP03MOD 2. Its near-real-time collection, VNP03MOD_NRT, has none left; GIBS keeps
+        # the granules 90 days, to the end of January 2027.
+        - provider: gibs
+          layer: VIIRS_SNPP_CorrectedReflectance_TrueColor_Granule
+          label: True colour
+          kind: rgb
+          maxLevel: 9
+          format: png
+          period: PT6M
+          end: 2026-11-02
+          window: P90D
+          granules: [C2105092427-LAADS]
 
   - noradId: 43013
     name: NOAA 20 (JPSS-1)
@@ -87,6 +132,17 @@ satellites:
           format: jpeg
           period: P1D
           start: 2018-01-05
+        # One frame a 6-minute granule, transparent outside it; read 2026-11-21. GIBS
+        # leaves out about two in five of the daytime ones, which keep their outline.
+        - provider: gibs
+          layer: VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule
+          label: True colour
+          kind: rgb
+          maxLevel: 9
+          format: png
+          period: PT6M
+          window: P90D
+          granules: [C2208781576-LANCEMODIS, C2105084593-LAADS] # VJ103MOD_NRT 2.1, VJ103MOD 2.1
 
   - noradId: 54234
     name: NOAA 21 (JPSS-2)
@@ -100,6 +156,16 @@ satellites:
           format: jpeg
           period: P1D
           start: 2023-02-10
+        # GIBS has no NOAA-21 granule layer (read 2026-11-21): each granule cut from the
+        # day's picture above, until it has one.
+        - provider: cmr
+          layer: VJ203MOD
+          label: True colour
+          kind: rgb
+          period: PT6M
+          start: 2023-02-10
+          granules: [C3383721151-LANCEMODIS, C3478458790-LAADS] # VJ203MOD_NRT 2.1, VJ203MOD 2.1
+          pictures: { provider: gibs, layer: VIIRS_NOAA21_CorrectedReflectance_TrueColor, frame: day }
 
   - noradId: 58928
     name: PACE
@@ -113,6 +179,15 @@ satellites:
           format: jpeg
           period: P1D
           start: 2024-02-25
+        # PACE_OCI_L1B_SCI 3: by day only, as OCI senses. Cut from the day's picture above.
+        - provider: cmr
+          layer: PACE_OCI_L1B_SCI
+          label: True colour
+          kind: rgb
+          period: PT5M
+          start: 2024-03-05
+          granules: [C3392966952-OB_CLOUD]
+          pictures: { provider: gibs, layer: OCI_PACE_True_Color, frame: day }
       SPEXone:
         - provider: gibs
           layer: SPEXONE_PACE_True_Color
@@ -146,6 +221,19 @@ satellites:
           maxLevel: 6
           format: png
           start: 2020-09-01
+        # AVHRRF_MB-STAR-L2P 2.80: NOAA's sea surface temperature from the AVHRR, whose
+        # 10-minute granules are its swath's, an hour behind live, with no day or night of
+        # their own. Each cut from the orbits stacked above, from the frame where its orbit is
+        # the newest: EUMETView stamps a frame when its newest orbit ends, 20 to 55 minutes
+        # after a day granule starts (measured on Metop-B and C, 2026-10-02 and 11-18/21).
+        - provider: cmr
+          layer: AVHRRF_MB-STAR-L2P
+          label: Natural colour
+          kind: rgb
+          period: PT10M
+          start: 2012-10-19
+          granules: [C2205121394-POCLOUD]
+          pictures: { provider: eumetview, layer: eps:m01_rgb_natural_fog, frame: PT35M }
 
   - noradId: 43689
     name: METOP-C
@@ -158,31 +246,110 @@ satellites:
           maxLevel: 6
           format: png
           start: 2020-09-01
+        # AVHRRF_MC-STAR-L2P 2.80, as Metop-B's.
+        - provider: cmr
+          layer: AVHRRF_MC-STAR-L2P
+          label: Natural colour
+          kind: rgb
+          period: PT10M
+          start: 2018-12-04
+          granules: [C2205121400-POCLOUD]
+          pictures: { provider: eumetview, layer: eps:m03_rgb_natural_fog, frame: PT35M }
 
   - noradId: 41335
     name: SENTINEL-3A
     instruments:
       OLCI:
-        # One swath an orbit, so no period.
+        # A swath an orbit, cut to the granules of OL_1_EFR___, by day only, as EUMETSAT's
+        # Data Store lists them: 2 hours behind live, where CMR's OLCIS3A_L1_EFR is 26, and
+        # from 2024-07-26. EUMETView stamps a swath about when its day pass ended, so a
+        # granule's start plus `frame` is within 50 minutes of it (measured 2021 to 2026-11-22).
         - provider: eumetview
           layer: copernicus:sentinel3a_olci_l1_rgb_fullres
-          label: True colour, one swath per orbit
+          label: True colour
           kind: rgb
           maxLevel: 8
           format: png
+          period: PT3M
           start: 2020-02-17
+          granules: [EO:EUM:DAT:0409]
+          platform: Sentinel-3A
+          frame: PT25M
 
   - noradId: 43437
     name: SENTINEL-3B
     instruments:
       OLCI:
+        # As Sentinel-3A's.
         - provider: eumetview
           layer: copernicus:sentinel3b_olci_l1_rgb_fullres
-          label: True colour, one swath per orbit
+          label: True colour
           kind: rgb
           maxLevel: 8
           format: png
+          period: PT3M
           start: 2020-02-17
+          granules: [EO:EUM:DAT:0409]
+          platform: Sentinel-3B
+          frame: PT25M
+
+  # NASA's harmonized Landsat and Sentinel-2 scenes (HLS 2.0): a 110 km tile each, over land
+  # and by day, about three days behind live. CMR lists them by satellite; GIBS's daily
+  # picture of each pair holds both.
+  - noradId: 39084
+    name: LANDSAT 8
+    instruments:
+      OLI:
+        - provider: cmr
+          layer: HLSL30.LANDSAT-8
+          label: True colour
+          kind: rgb
+          period: PT1M
+          start: 2013-04-11
+          granules: [C2021957657-LPCLOUD]
+          platform: LANDSAT-8
+          pictures: { provider: gibs, layer: HLS_L30_Nadir_BRDF_Adjusted_Reflectance, frame: day }
+
+  - noradId: 49260
+    name: LANDSAT 9
+    instruments:
+      OLI-2:
+        - provider: cmr
+          layer: HLSL30.LANDSAT-9
+          label: True colour
+          kind: rgb
+          period: PT1M
+          granules: [C2021957657-LPCLOUD]
+          platform: LANDSAT-9
+          pictures: { provider: gibs, layer: HLS_L30_Nadir_BRDF_Adjusted_Reflectance, frame: day }
+
+  - noradId: 40697
+    name: SENTINEL-2A
+    instruments:
+      MSI (Sentinel-2):
+        - provider: cmr
+          layer: HLSS30.Sentinel-2A
+          label: True colour
+          kind: rgb
+          period: PT1M
+          start: 2015-11-28
+          granules: [C2021957295-LPCLOUD]
+          platform: Sentinel-2A
+          pictures: { provider: gibs, layer: HLS_S30_Nadir_BRDF_Adjusted_Reflectance, frame: day }
+
+  - noradId: 42063
+    name: SENTINEL-2B
+    instruments:
+      MSI (Sentinel-2):
+        # HLS has no Sentinel-2C scenes yet (read 2026-11-22).
+        - provider: cmr
+          layer: HLSS30.Sentinel-2B
+          label: True colour
+          kind: rgb
+          period: PT1M
+          granules: [C2021957295-LPCLOUD]
+          platform: Sentinel-2B
+          pictures: { provider: gibs, layer: HLS_S30_Nadir_BRDF_Adjusted_Reflectance, frame: day }
 
   # The layers below are named for a service, not a satellite: GOES-East, Meteosat's
   # full disc. Each is listed under the satellite that provides the service now, and

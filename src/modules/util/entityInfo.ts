@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { gcatCategoryLabel, gcatClassLabel } from "@/config/gcatCodes";
-import { type ImageryEntry, type ImageryPreview, readImageryList } from "@/config/instrumentImagery";
+import { type DrawnImagery, type ImageryEntry, type ImageryPreview, readImageryList } from "@/config/instrumentImagery";
 import type { OrbitClass } from "@/config/orbitClass";
 import { satcatLabel, SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, SATCAT_ORBIT_TYPE } from "@/config/satcatCodes";
 import { swathExtentsOf, type SatelliteInstrument, type SatelliteMetadata } from "@/config/satelliteMetadata";
@@ -45,6 +45,8 @@ export interface ImageryInfo {
   token?: string;
   /** What a picture of it needs; with `token`, as the provider draws any layer the globe can. */
   preview?: ImageryPreview;
+  /** The layer itself, where it is one of granules a frame: the recorded swath (ADR 0023). */
+  granuleLayer?: DrawnImagery;
 }
 
 /** One record entry of `imagery`, read: what the tab shows of it, and the instrument it belongs under. */
@@ -114,7 +116,31 @@ function instrumentImagery({ instrument, provider, layer, label, detail, viewer,
   const drawing =
     drawn === undefined
       ? {}
-      : { token: drawn.token, preview: { provider: drawn.provider, layer: drawn.layer, format: drawn.format, daily: drawn.daily, ...(end !== undefined && { end }) } };
+      : {
+          token: drawn.token,
+          ...(drawn.pictures !== undefined && drawn.pictures.frame !== "granule"
+            ? // Cut from another layer's frames: its frame of the newest granule.
+              {
+                preview: {
+                  provider: drawn.pictures.provider,
+                  layer: drawn.pictures.layer,
+                  format: "jpeg" as const,
+                  daily: drawn.pictures.frame === "day",
+                  pictures: drawn.pictures,
+                },
+              }
+            : drawn.provider !== "cmr" && {
+                preview: {
+                  provider: drawn.provider,
+                  layer: drawn.layer,
+                  format: drawn.format,
+                  daily: drawn.daily,
+                  ...(drawn.pictures !== undefined && { pictures: drawn.pictures }),
+                  ...(end !== undefined && { end }),
+                },
+              }),
+          ...(drawn.granules !== undefined && { granuleLayer: drawn }),
+        };
   return {
     instrument,
     imagery: { key: `${provider}:${layer}`, label, ...(detail !== undefined && { detail }), ...(href !== undefined && { viewer, href }), ...drawing },

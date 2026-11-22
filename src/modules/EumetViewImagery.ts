@@ -36,6 +36,23 @@ export interface EumetViewCapabilities {
 
 const BOUNDS = ["westBoundLongitude", "southBoundLatitude", "eastBoundLongitude", "northBoundLatitude"] as const;
 
+/**
+ * The credit EUMETSAT's data policy and the Copernicus legal notice ask of a
+ * picture made from a layer's data in `year`: the satellite series it comes from.
+ */
+export function eumetViewCredit(layer: string, year: number): string {
+  if (layer.startsWith("copernicus:")) {
+    return `Contains modified Copernicus Sentinel data ${year} processed by EUMETSAT`;
+  }
+  if (layer.startsWith("eps:")) {
+    return `Contains modified EUMETSAT Metop data ${year}`;
+  }
+  if (layer.startsWith("msg_") || layer.startsWith("mtg_")) {
+    return `Contains modified EUMETSAT Meteosat data ${year}`;
+  }
+  return "EUMETSAT";
+}
+
 /** What a layer's own WMS capabilities say of it. Of two bounding boxes the later is the layer's, the first its workspace's. */
 export function parseCapabilities(xml: string): EumetViewCapabilities {
   const dimension = /<Dimension name="time"[^>]*>([^<]*)</.exec(xml)?.[1];
@@ -46,23 +63,25 @@ export function parseCapabilities(xml: string): EumetViewCapabilities {
   return { ranges: dimension ? parseDomain(dimension) : [], bounds: bounds.every(Number.isFinite) ? bounds : undefined };
 }
 
+/** What a layer's own capabilities say of it, or undefined where EUMETView cannot be reached or answers with an error. */
+export async function fetchCapabilities(layer: string, signal: AbortSignal): Promise<EumetViewCapabilities | undefined> {
+  try {
+    const response = await fetch(`${EUMETVIEW}/${layer.replace(":", "/")}/ows?service=WMS&version=1.3.0&request=GetCapabilities`, { signal });
+    return response.ok ? parseCapabilities(await response.text()) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function eumetViewFrames(options: EumetViewOptions): FrameSource<WebMapServiceImageryProvider> {
   let bounds: EumetViewCapabilities["bounds"];
   return {
     name: options.layer,
     refreshMs: REFRESH_MS,
     fetchRanges: async (signal) => {
-      try {
-        const response = await fetch(`${EUMETVIEW}/${options.layer.replace(":", "/")}/ows?service=WMS&version=1.3.0&request=GetCapabilities`, { signal });
-        if (!response.ok) {
-          return undefined;
-        }
-        const capabilities = parseCapabilities(await response.text());
-        bounds = capabilities.bounds ?? bounds;
-        return capabilities.ranges.length > 0 ? { ranges: capabilities.ranges } : undefined;
-      } catch {
-        return undefined;
-      }
+      const capabilities = await fetchCapabilities(options.layer, signal);
+      bounds = capabilities?.bounds ?? bounds;
+      return capabilities?.ranges.length ? { ranges: capabilities.ranges } : undefined;
     },
     show: (frame) =>
       new WebMapServiceImageryProvider({
@@ -79,7 +98,7 @@ export function eumetViewFrames(options: EumetViewOptions): FrameSource<WebMapSe
         maximumLevel: Math.max(0, options.maximumLevel - LEVELS_ABOVE_WEB_MERCATOR),
         rectangle: bounds && Rectangle.fromDegrees(...bounds),
         enablePickFeatures: false,
-        credit: "EUMETSAT",
+        credit: eumetViewCredit(options.layer, new Date(frame ?? Date.now()).getUTCFullYear()),
       }),
   };
 }

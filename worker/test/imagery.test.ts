@@ -6,9 +6,38 @@ const trueColour = { provider: "gibs", layer: "TrueColor", label: "True colour",
 
 const satellite = (noradId: number, instruments: unknown) => ({ noradId, instruments });
 
+/** A satellite's granule outlines, where no provider has their pixels (ADR 0023). */
+const outlines = { provider: "cmr", layer: "VJ203MOD", label: "Outlines only", kind: "outline", period: "PT6M", granules: ["C3383721151-LANCEMODIS", "C3478458790-LAADS"] };
+
+/** The daily layer a `cmr` layer's granules are cut from. */
+const daily = { provider: "gibs", layer: "VIIRS_NOAA21_CorrectedReflectance_TrueColor", frame: "day" };
+
+/** Sentinel-3A's swaths, cut to the granules EUMETSAT's Data Store lists. */
+const swath = {
+  provider: "eumetview",
+  layer: "copernicus:sentinel3a_olci_l1_rgb_fullres",
+  label: "True colour",
+  kind: "rgb",
+  maxLevel: 8,
+  format: "png",
+  period: "PT3M",
+  granules: ["EO:EUM:DAT:0409"],
+  platform: "Sentinel-3A",
+  frame: "PT25M",
+};
+
 describe("imageryBySatellite", () => {
   it("gives each satellite its instruments' entries in manifest order", () => {
-    const granule = { ...trueColour, layer: "TrueColor_Granule", label: "True colour, per granule", period: "PT6M", window: "P90D", maxLevel: 9, format: "jpeg" };
+    const granule = {
+      ...trueColour,
+      layer: "TrueColor_Granule",
+      label: "True colour granules",
+      period: "PT6M",
+      window: "P90D",
+      maxLevel: 9,
+      format: "png",
+      granules: ["C2208781576-LANCEMODIS", "C2105084593-LAADS"],
+    };
     const imagery = imageryBySatellite(
       {
         satellites: [
@@ -96,6 +125,20 @@ describe("imageryBySatellite", () => {
     );
   });
 
+  it("reads a cmr layer of granule outlines, without tiles", () => {
+    const imagery = imageryBySatellite({ satellites: [satellite(54234, { VIIRS: [outlines] })] }, "core");
+
+    expect(imagery.get(54234)).toEqual([{ instrument: "VIIRS", ...outlines }]);
+  });
+
+  it("reads a cmr layer cut from a daily layer, and a EUMETView one of a Data Store collection with its platform", () => {
+    const cut = { ...outlines, label: "True colour", kind: "rgb", pictures: daily };
+    const imagery = imageryBySatellite({ satellites: [satellite(54234, { VIIRS: [cut] }), satellite(41335, { OLCI: [swath] })] }, "core");
+
+    expect(imagery.get(54234)).toEqual([{ instrument: "VIIRS", ...cut }]);
+    expect(imagery.get(41335)).toEqual([{ instrument: "OLCI", ...swath }]);
+  });
+
   it.each([
     [{ ...trueColour, kind: undefined }, '"kind" must be one of rgb'],
     [{ ...trueColour, kind: "band" }, '"kind" must be one of rgb'],
@@ -112,6 +155,27 @@ describe("imageryBySatellite", () => {
     [{ ...trueColour, maxLevel: 9 }, '"maxLevel" and "format" go together'],
     [{ ...trueColour, maxLevel: 9.5, format: "jpeg" }, '"maxLevel" must be a tile level'],
     [{ ...trueColour, maxLevel: 9, format: "gif" }, '"format" must be one of png, jpeg, webp'],
+    [{ ...trueColour, period: "PT6M", maxLevel: 9, format: "png", granules: [] }, '"granules" must list the CMR collections'],
+    [{ ...trueColour, period: "PT6M", maxLevel: 9, format: "png", granules: "VJ103MOD" }, '"granules" must list the CMR collections'],
+    [{ ...trueColour, period: "PT6M", maxLevel: 9, format: "png", granules: ["VJ103MOD"] }, "by concept id"],
+    [{ ...trueColour, period: "P1D", maxLevel: 9, format: "png", granules: ["C2105084593-LAADS"] }, '"granules" is for a GIBS or EUMETView layer'],
+    [{ ...trueColour, provider: "georing", period: "PT6M", maxLevel: 9, format: "png", granules: ["C2105084593-LAADS"] }, '"granules" is for a GIBS or EUMETView layer'],
+    [{ ...trueColour, period: "PT6M", granules: ["C2105084593-LAADS"] }, '"granules" is for a GIBS or EUMETView layer'],
+    [{ ...outlines, kind: "rgb" }, '"kind" outline is a cmr layer\'s without "pictures"'],
+    [{ ...trueColour, kind: "outline" }, '"kind" outline is a cmr layer\'s without "pictures"'],
+    [{ ...outlines, kind: "rgb", pictures: { ...daily, frame: "P1D" } }, '"frame" is "day"'],
+    [{ ...outlines, kind: "rgb", pictures: { ...daily, provider: "georing" } }, "names the layer the granules are cut from"],
+    [{ ...outlines, kind: "rgb", pictures: { ...daily, url: "x" } }, 'unknown key "url"'],
+    [{ ...trueColour, period: "PT6M", maxLevel: 9, format: "png", granules: ["C2105084593-LAADS"], pictures: daily }, '"pictures" is for a cmr layer'],
+    [{ ...outlines, granules: undefined }, "a cmr layer is a satellite's granules"],
+    [{ ...outlines, period: "P1D" }, "a cmr layer is a satellite's granules"],
+    [{ ...outlines, maxLevel: 9, format: "png" }, "a cmr layer is a satellite's granules"],
+    [{ ...outlines, granules: ["EO:EUM:DAT:0409", "C1-P"] }, "or name one collection of EUMETSAT's Data Store"],
+    [{ ...outlines, platform: "" }, '"platform" names the satellite'],
+    [{ ...trueColour, platform: "LANDSAT-9" }, '"platform" names the satellite'],
+    [{ ...swath, frame: undefined }, 'a EUMETView granule layer, and it alone, says in "frame"'],
+    [{ ...swath, frame: "P1D" }, 'a EUMETView granule layer, and it alone, says in "frame"'],
+    [{ ...outlines, frame: "PT25M" }, 'a EUMETView granule layer, and it alone, says in "frame"'],
     ["TrueColor", "must be an object"],
   ])("fails on an entry it cannot read: %#", (entry, message) => {
     expect(() => imageryBySatellite({ satellites: [satellite(43013, { VIIRS: [entry] })] }, "core")).toThrow(message);

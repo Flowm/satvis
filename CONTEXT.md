@@ -83,6 +83,25 @@ discussion; sharpen them here when they drift.
   named for a service ("GOES-East") is the imagery of whichever satellite provides it
   now, from the day it took over. Not a
   **basemap** or an **overlay**, which the Map panel draws on the globe.
+- **Granule**: a few minutes of one instrument's swath as its provider files it: six
+  minutes for VIIRS, with its start, whether it was sensed by day, and the ground it
+  covers, as NASA's CMR lists it (`Granule` in `src/modules/util/cmrGranules.ts`).
+- **Granule layer**: instrument imagery shown granule by granule, whose entry names the
+  collections that list its granules (`granules`), CMR's or EUMETSAT's Data Store's: a GIBS
+  layer of one granule a frame, or a layer whose frames hold more (a EUMETView swath or
+  orbits, a GIBS day), cut to each granule. The globe shows it as the granules
+  behind the clock, not one frame: each appears, outline and pixels, once the clock passes
+  its start, and goes 50 minutes later (`GranuleImagery.ts`, ADR 0023). Where the
+  satellite is drawn, the granule under it fills in behind the ground track fan instead, and
+  gets its outline and layer once the satellite has passed it. A `cmr` entry,
+  of kind `outline`, is one with the outlines alone, for a satellite whose granules no
+  provider pictures. Called the "recorded swath" where its label is not enough
+  (`RECORDED_SWATH`); the timeline shades where it has granules.
+- **Overpass replay**: the clock set back to a pass over a station and playing, with the
+  camera above the station and, where CMR recorded the pass by day, its granule layer on,
+  so the swath builds up behind the satellite. Started from a pass in the Passes table; the
+  replay bar over the clock steps to the station's overpass before or after and exits.
+  A replay is a link: `imagery`, `time` and `replay`, the station. Not the recorded swath, a layer that follows the clock wherever it is.
 - **Data availability**: what satvis has for a satellite: instrument imagery (as a map
   layer the globe draws, or as a viewer link only), CEOS instruments, a 3D model. A
   catalog facet whose picks are all-of (`docs/adr/0021-finding-imagery.md`).
@@ -165,8 +184,12 @@ discussion; sharpen them here when they drift.
 - **Swath extent**: the cross-track distance from the ground track to the edge of
   a sensor footprint, per side (starboard = velocity bearing + 90°). A swath is a
   pair of extents, not a halved width: the sides differ when a sensor is tilted.
+- **Ground track fan**: the component of an instrument's scan line, a thin fan from the
+  satellite across the track to its swath extents, so its line on the ground is the
+  ground track ribbon's edge at the satellite. Not the sensor cone, which stays round. A
+  granule fills in behind its plane (ADR 0023).
 - **Component**: one visual part of a satellite that can be switched on on its
-  own: point, label, orbit, orbit track, ground track, sensor cone, 3D model,
+  own: point, label, orbit, orbit track, ground track, ground track fan, sensor cone, 3D model,
   ground station link (`src/config/components.ts`). Component names must not
   contain a comma. How each kind is drawn, kept current and re-cut is its own module
   (`COMPONENT_KINDS` in `src/modules/componentKinds.ts`).
@@ -206,7 +229,9 @@ discussion; sharpen them here when they drift.
 - **Pass**: a time range in which a satellite serves a ground station, by
   line-of-sight elevation ("elevation" mode) or sensor footprint overlap ("swath"
   mode). In swath mode the side of the ground track the station is on matters,
-  because a tilted sensor reaches further on one side.
+  because a tilted sensor reaches further on one side. A pass is predicted; a past one of
+  a satellite with a granule layer is also the overpass CMR recorded in it, which says
+  whether it was imaged (`passImagery.ts`).
 - **Overpass mode**: how passes are computed: "elevation" or "swath".
 - **Pass predictor**: the single owner of pass prediction for one satellite:
   ground stations, overpass mode, the recompute window guard, the pass list and

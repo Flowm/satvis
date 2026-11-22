@@ -100,11 +100,12 @@
             <div class="passes__bar">
               <segmented-control v-model="overpassMode" class="passes__modes" label="Overpass calculation" :options="OVERPASS_MODES" />
               <USwitch v-model="showPastPasses" label="Past" size="xs" />
+              <USwitch v-if="recorded.length > 0" v-model="onlyImaged" label="Imaged" size="xs" />
             </div>
 
             <div v-if="passesPending" class="empty">Computing passes…</div>
             <div v-else-if="!hasAnyPasses" class="empty">{{ emptyPassText }}</div>
-            <div v-else-if="passRows.length === 0" class="empty">No upcoming passes</div>
+            <div v-else-if="tableRows.length === 0" class="empty">{{ onlyImaged ? "No imaged passes" : "No upcoming passes" }}</div>
             <table v-else ref="tableEl" class="info-table">
               <thead>
                 <tr>
@@ -114,11 +115,14 @@
                   <th>End</th>
                   <th class="num">{{ overpassMode === "swath" ? "Dist" : "El" }}</th>
                   <th class="num">{{ overpassMode === "swath" ? "Swath" : "Az" }}</th>
+                  <th v-if="recorded.length > 0" class="pass-imagery__head" aria-label="Imagery recorded" title="What the satellite recorded of the station">
+                    <UIcon name="lucide:image" />
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 <tr
-                  v-for="row in passRows"
+                  v-for="row in tableRows"
                   :key="row.key"
                   :data-start-ms="row.startMs"
                   :class="{ 'is-next': row.startMs === nextPass?.start, 'is-picked': row.startMs === pickedPassMs }"
@@ -126,11 +130,20 @@
                   <td v-if="subjectCount > 1">{{ row.name }}</td>
                   <td class="mono">{{ row.countdown }}</td>
                   <td>
-                    <a class="link" @click="cc.setTime(row.startMs)">{{ row.startLabel }}</a>
+                    <a class="link" :title="`Replay this pass${row.recorded?.day ? ', with its granules' : ''}`" @click="replayRow(row)">{{ row.startLabel }}</a>
                   </td>
                   <td>{{ row.endLabel }}</td>
                   <td class="num">{{ row.primary }}</td>
                   <td class="num">{{ row.secondary }}</td>
+                  <td v-if="recorded.length > 0" class="pass-imagery">
+                    <UIcon
+                      v-if="row.recorded"
+                      :name="PASS_IMAGERY[imageryOf(row.recorded)].icon"
+                      :class="`pass-imagery--${imageryOf(row.recorded)}`"
+                      :title="PASS_IMAGERY[imageryOf(row.recorded)].title"
+                      :aria-label="PASS_IMAGERY[imageryOf(row.recorded)].title"
+                    />
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -239,10 +252,12 @@ import { storeToRefs } from "pinia";
 import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 
 import { useController } from "@/composables/useController";
+import { useRecordedOverpasses } from "@/composables/useRecordedOverpasses";
 import { type InfoTab, useSelectedEntity } from "@/composables/useSelectedEntity";
 import { externalLinks } from "@/config/externalLinks";
 import { ORBIT_CLASS_COLOR } from "@/config/orbitClass";
 import { SKY_MODE } from "@/config/viewModes";
+import { type PassImagery, type PassTableRow, passTable } from "@/modules/passImagery";
 import { formatCountdown, passSummary, type Pass } from "@/modules/PassPredictor";
 import { formatInteger } from "@/modules/util/formats";
 import { notifyPasses } from "@/modules/util/passNotifications";
@@ -294,6 +309,35 @@ const OVERPASS_MODES = [
   { value: "elevation", label: "Elevation" },
   { value: "swath", label: "Swath" },
 ] as const;
+
+const { recorded, imageryOf, replayPass } = useRecordedOverpasses(passes);
+/** Only the passes recorded with a granule layer by day. */
+const onlyImaged = ref(false);
+// Imaged passes are past ones.
+watch(onlyImaged, (on) => {
+  if (on) showPastPasses.value = true;
+});
+/** A recorded pass's mark, and what it says. */
+const PASS_IMAGERY: Record<PassImagery, { icon: string; title: string }> = {
+  asking: { icon: "lucide:ellipsis", title: "Asking for the image" },
+  image: { icon: "lucide:image", title: "Imaged: the picture is there" },
+  part: { icon: "lucide:image", title: "Imaged: part of the picture is there" },
+  outline: { icon: "lucide:square-dashed", title: "Recorded, but no picture: granule outlines only" },
+  night: { icon: "lucide:moon", title: "Recorded by night: no true colour picture" },
+};
+/** The pass behind a row: a predicted one, or the overpass CMR recorded where the predictor has none. */
+function passOf(row: PassTableRow): { start: number; groundStationName?: string } {
+  return passes.value.find((pass) => pass.start === row.startMs) ?? { start: row.startMs };
+}
+/** The passes with what was recorded in them, and with Past the recorded overpasses the predictor no longer has. */
+const tableRows = computed(() => {
+  const table = passTable(passRows.value, passes.value, recorded.value, {
+    nowMs: nowMs.value,
+    showPast: showPastPasses.value,
+    subject: selection.value?.kind === "satellite" ? "station" : "satellite",
+  });
+  return onlyImaged.value ? table.filter((row) => row.recorded?.day) : table;
+});
 
 const emptyPassText = computed(() => (groundStationAvailable.value ? "No passes in the prediction window" : "No ground station set"));
 
@@ -389,6 +433,31 @@ function showImagery(instrument: string): void {
 }
 
 const tableEl = useTemplateRef<HTMLTableElement>("tableEl");
+
+/** Brings the pass the clock is at to the middle: with Past, a month of passes lies above it. */
+function scrollToNow(): void {
+  void nextTick(() => {
+    const rows = [...(tableEl.value?.tBodies[0]?.rows ?? [])];
+    const at = nextPass.value?.start ?? nowMs.value;
+    (rows.find((row) => Number(row.dataset.startMs) >= at) ?? rows.at(-1))?.scrollIntoView({ block: "center" });
+  });
+}
+watch([showPastPasses, onlyImaged], scrollToNow);
+
+/** Set by a replay until the table has the passes around its time: the table unmounts while they are computed. */
+let scrollOnPasses = false;
+watch([tableEl, () => nextPass.value?.start], () => {
+  if (scrollOnPasses && tableEl.value && !passesPending.value) {
+    scrollOnPasses = false;
+    scrollToNow();
+  }
+});
+
+/** Replays the row's pass, and keeps it in view once the table has moved to its time. */
+function replayRow(row: PassTableRow): void {
+  scrollOnPasses = true;
+  replayPass(passOf(row), row.recorded);
+}
 watch(pickedPassMs, (startMs) => {
   if (startMs === null) {
     return;
@@ -651,6 +720,27 @@ function notifyForPasses(): void {
 /* Here, not on the scroll container, so the sticky table header pins flush and rows do not show above it. */
 .tab-body__pad {
   padding-top: 12px;
+}
+
+/* A recorded pass's mark: an icon, its tooltip the words. */
+.pass-imagery,
+.pass-imagery__head {
+  width: 1%;
+  text-align: center;
+}
+
+.pass-imagery--asking,
+.pass-imagery--outline,
+.pass-imagery--night {
+  color: var(--panel-muted);
+}
+
+.pass-imagery--image {
+  color: var(--panel-ink);
+}
+
+.pass-imagery--part {
+  color: var(--panel-amber);
 }
 
 /* A pair rather than a switch: "Swath: off" is not what the other mode is called. */

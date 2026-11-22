@@ -1,0 +1,29 @@
+{
+  "$schema": "https://t3.codes/schema/t3.json",
+  "scripts": [
+    {
+      "name": "Dev server",
+      "command": "PORT=5187 mise exec -- pnpm run dev",
+      "icon": "play",
+      "previewUrl": "http://localhost:5187",
+      "autoOpenPreview": true,
+      "stopOnSettle": true
+    },
+    {
+      "name": "Preview build",
+      "command": "PORT=5188 mise exec -- pnpm run preview",
+      "icon": "build",
+      "previewUrl": "http://localhost:5188",
+      "autoOpenPreview": true,
+      "stopOnSettle": true
+    },
+    {
+      "name": "Worker",
+      "command": "mise exec -- pnpm run dev:worker",
+      "icon": "debug",
+      "previewUrl": "http://localhost:8787",
+      "autoOpenPreview": true,
+      "stopOnSettle": true
+    }
+  ]
+}
