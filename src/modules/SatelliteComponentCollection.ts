@@ -1,4 +1,4 @@
-import { Cartesian3, JulianDate } from "@cesium/core";
+import { Cartesian3, Cartographic, JulianDate, Math as CesiumMath } from "@cesium/core";
 import { CallbackProperty, Camera, Entity, EntityView, type Scene, SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
@@ -7,6 +7,7 @@ import type { SampleChunk, TrajectorySampler } from "@/modules/util/sampleSource
 
 import { type Component, type ComponentHost, componentKind, deferPointToModel, modelCopies, ModelSize, type SatelliteBatches, type SkyAppearance } from "./componentKinds";
 import type { GroundStation } from "./PassPredictor";
+import { chaseOffset, chaseTilt } from "./ReplayCamera";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import { SatelliteProperties } from "./SatelliteProperties";
 import { cancelPendingTrack, trackEntity, trackWhenReady, type CameraPose } from "./trackFlight";
@@ -25,6 +26,12 @@ const VIEW_FROM = new Cartesian3(0, -3600000, 4200000);
  */
 const VIEW_FROM_MODEL_DIRECTION = Cartesian3.normalize(new Cartesian3(9, -10, 9), new Cartesian3());
 const VIEW_FROM_MODEL_RADII = 6;
+
+/** How many clock ticks after tracking starts the chase is turned down whenever EntityView has aimed it at the satellite. */
+const CHASE_TILT_TICKS = 120;
+
+/** Radians. A camera aimed at the satellite as EntityView aims it, not turned down past it. */
+const AIMED_AT_RADIANS = CesiumMath.toRadians(0.2);
 
 /**
  * `EntityView` has no destroy(), and its velocity property stays subscribed to the
@@ -56,6 +63,9 @@ export class SatelliteComponentCollection implements ComponentHost {
   #skyAppearance: SkyAppearance = "normal";
 
   eventListeners: Record<string, () => void> = {};
+
+  /** Whether a granule layer of this satellite is on: tracking it then chases its swath (ADR 0023). Set by the manager. */
+  recordedSwathShown: () => boolean = () => false;
 
   /**
    * `opening` is the satellite's first window of samples. The trajectory follows the
@@ -157,6 +167,8 @@ export class SatelliteComponentCollection implements ComponentHost {
     const probe = new EntityView(entity, Object.create(scene, { camera: { value: camera } }) as Scene, scene.globe.ellipsoid);
     probe.update(this.viewer.clock.currentTime);
     releaseEntityView(probe);
+    const tilt = this.#chaseTilt(this.viewer.clock.currentTime);
+    if (tilt !== undefined) camera.lookDown(tilt);
     return { destination: Cartesian3.clone(camera.positionWC), direction: Cartesian3.clone(camera.directionWC), up: Cartesian3.clone(camera.upWC) };
   }
 
@@ -182,7 +194,7 @@ export class SatelliteComponentCollection implements ComponentHost {
     const entity = new Entity({
       name: this.props.name,
       position,
-      viewFrom: this.#viewFrom(),
+      viewFrom: this.#viewFrom,
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (entity as any)[entityKey] = entityValue;
@@ -230,10 +242,6 @@ export class SatelliteComponentCollection implements ComponentHost {
     } else {
       kind.batch?.(this).add(component);
     }
-
-    if (name === "3D model") {
-      this.#setViewFrom();
-    }
   }
 
   disableComponent(name: SatelliteComponentName): void {
@@ -249,7 +257,6 @@ export class SatelliteComponentCollection implements ComponentHost {
       this.#modelCopies = [];
       this.model.reset();
       deferPointToModel(this.#components.Point, this, false);
-      this.#setViewFrom();
     }
 
     if (this.componentNames.length === 0) {
@@ -268,25 +275,60 @@ export class SatelliteComponentCollection implements ComponentHost {
     return name === "3D model" ? this.#modelCopies : [];
   }
 
-  #viewFrom(): Cartesian3 | CallbackProperty {
-    return "3D model" in this.#components ? this.#modelViewFrom : VIEW_FROM;
+  /**
+   * Where tracking starts from: the chase while the recorded swath is on, else beside the
+   * model, else VIEW_FROM. A callback, as EntityView reads it when tracking starts, once the
+   * model's size is known, so a camera already following the satellite stays put.
+   */
+  readonly #viewFrom = new CallbackProperty((time, result?: Cartesian3) => {
+    const offset = result ?? new Cartesian3();
+    if (this.recordedSwathShown()) {
+      return chaseOffset(this.#swathKm(), this.#altitudeM(time), offset);
+    }
+    if ("3D model" in this.#components) {
+      return Cartesian3.multiplyByScalar(VIEW_FROM_MODEL_DIRECTION, VIEW_FROM_MODEL_RADII * this.model.radius(), offset);
+    }
+    return Cartesian3.clone(VIEW_FROM, offset);
+  }, false);
+
+  #swathKm(): number {
+    const { starboardKm, portKm } = this.props.swathExtents;
+    return starboardKm + portKm;
+  }
+
+  /** Metres; a low orbit's where the trajectory has no position. */
+  #altitudeM(time: JulianDate | undefined): number {
+    const position = time && this.props.trajectory.position(time);
+    return (position && Cartographic.fromCartesian(position)?.height) ?? 800_000;
+  }
+
+  /** How far the chase looks down past the satellite (chaseTilt), or undefined when tracking does not chase. */
+  #chaseTilt(time: JulianDate): number | undefined {
+    return this.recordedSwathShown() ? chaseTilt(this.#swathKm(), this.#altitudeM(time)) : undefined;
   }
 
   /**
-   * A callback: the model's size is known only once loaded, and EntityView reads it when tracking starts.
+   * Turns the chase down past the satellite once tracking has started. EntityView aims at the
+   * satellite on its first update and keeps the camera's direction after. The Viewer's first
+   * update waits for the satellite's bounding sphere, artificiallyTrack's does not, so for a
+   * while after the start, the camera is turned down whenever it is found aimed at the satellite.
    */
-  readonly #modelViewFrom = new CallbackProperty(
-    (_time, result?: Cartesian3) => Cartesian3.multiplyByScalar(VIEW_FROM_MODEL_DIRECTION, VIEW_FROM_MODEL_RADII * this.model.radius(), result ?? new Cartesian3()),
-    false,
-  );
-
-  /** Read when tracking starts, so a camera already following the satellite stays put. */
-  #setViewFrom(): void {
-    for (const component of this.#pickable()) {
-      if (component instanceof Entity) {
-        component.viewFrom = this.#viewFrom() as unknown as typeof component.viewFrom;
+  #tiltChase(): void {
+    const { clock, scene } = this.viewer;
+    let ticks = CHASE_TILT_TICKS;
+    const remove = clock.onTick.addEventListener(() => {
+      const tilt = this.#chaseTilt(clock.currentTime);
+      const satellite = this.defaultEntity?.position?.getValue(clock.currentTime);
+      if (--ticks <= 0 || tilt === undefined || !this.isTracked || satellite === undefined) {
+        remove();
+        return;
       }
-    }
+      const { camera } = scene;
+      const toSatellite = Cartesian3.normalize(Cartesian3.subtract(satellite, camera.positionWC, new Cartesian3()), new Cartesian3());
+      if (scene.mode === SceneMode.SCENE3D && Cartesian3.angleBetween(toSatellite, camera.directionWC) < AIMED_AT_RADIANS) {
+        camera.lookDown(tilt);
+      }
+    });
   }
 
   init(): void {
@@ -298,6 +340,7 @@ export class SatelliteComponentCollection implements ComponentHost {
       }
       if (this.isTracked) {
         this.artificiallyTrack();
+        this.#tiltChase();
       }
       this.#refit();
     });

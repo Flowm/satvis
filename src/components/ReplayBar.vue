@@ -1,16 +1,32 @@
-<!-- A station overpass replay's controls, over the clock while one is on (ADR 0023). -->
+<!-- An overpass replay's controls, over the clock while one is on (ADR 0023). -->
 <template>
   <div v-if="active" class="replay" role="group" aria-label="Overpass replay">
     <UIcon name="lucide:history" class="replay__icon" />
     <span class="replay__text" :title="title">
       <span class="replay__what">{{ active.satellite }} · {{ active.instrument }}</span>
       <span class="replay__where">over {{ active.station.name }}</span>
-      <span v-if="place.current" class="replay__when">{{ overpassTime(place.current) }}</span>
+      <span v-if="place.current" class="replay__when">{{ overpassTime(place.current.entry) }}</span>
     </span>
-    <button type="button" class="replay__button" :disabled="!place.previous" aria-label="Previous overpass" :title="stepTitle('previous')" @click="step(place.previous)">
+    <div class="replay__cameras" role="radiogroup" aria-label="Replay camera">
+      <button
+        v-for="option in REPLAY_CAMERAS"
+        :key="option.value"
+        type="button"
+        role="radio"
+        class="replay__button"
+        :class="{ 'replay__button--on': camera === option.value }"
+        :aria-checked="camera === option.value"
+        :aria-label="`${option.label} camera`"
+        :title="option.title"
+        @click="watchFrom(option.value)"
+      >
+        <UIcon :name="CAMERA_ICONS[option.value]" />
+      </button>
+    </div>
+    <button type="button" class="replay__button" :disabled="!place.previous" aria-label="Previous overpass" :title="stepTitle('previous')" @click="go(place.previous)">
       <UIcon name="lucide:chevron-left" />
     </button>
-    <button type="button" class="replay__button" :disabled="!place.next" aria-label="Next overpass" :title="stepTitle('next')" @click="step(place.next)">
+    <button type="button" class="replay__button" :disabled="!place.next" aria-label="Next overpass" :title="stepTitle('next')" @click="go(place.next)">
       <UIcon name="lucide:chevron-right" />
     </button>
     <button type="button" class="replay__button replay__exit" aria-label="Exit replay" title="Take the granules off and go back to now" @click="exit">
@@ -25,24 +41,44 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { computed } from "vue";
 
+import { useController } from "@/composables/useController";
 import { useOverpassReplay } from "@/composables/useOverpassReplay";
 import { useViewerClock } from "@/composables/useViewerClock";
-import { type ReplayPlan, replayPlace, stationReplay } from "@/modules/overpassReplay";
-import type { Overpass } from "@/modules/util/cmrGranules";
+import { replayPlace, stationReplay } from "@/modules/overpassReplay";
+import type { RecordedOverpass } from "@/modules/passImagery";
+import { REPLAY_CAMERAS, type ReplayCamera } from "@/modules/ReplayCamera";
 
 dayjs.extend(utc);
 
+/** Each replay camera's button. */
+const CAMERA_ICONS: Record<ReplayCamera, string> = { broadcast: "lucide:video", nadir: "lucide:locate-fixed", chase: "lucide:satellite" };
+
 /** A replay over a station; a granule layer shown from its card or the Map panel has none. */
-const { replay: active, jump, stop } = useOverpassReplay();
+const { replay: active, camera, step, watchFrom, stop } = useOverpassReplay();
 const { now, goLive } = useViewerClock();
+const { sats } = useController();
 
-/** How each of the station's overpasses is replayed. */
-const plan = (overpass: Overpass): ReplayPlan => stationReplay(overpass, active.value!.station.point);
+/** A step as replayPlace counts it: until its overpass ends. */
+interface Step {
+  entry: RecordedOverpass;
+  end: number;
+}
 
-const place = computed(() => replayPlace(active.value?.station.overpasses ?? [], now.value.getTime(), plan));
+const steps = computed((): Step[] => (active.value?.steps ?? []).map((entry) => ({ entry, end: entry.overpass.end })));
+
+/** When the clock is set for a step: its station's, where the station is still there. */
+function plan({ entry }: Step) {
+  const station = sats.groundStations.find((gs) => gs.name === entry.station)?.position ?? active.value!.station.point;
+  return stationReplay(entry.overpass, station, entry.satellite);
+}
+
+/** The replay's own step is of the layer and station on. */
+const isOn = ({ entry }: Step) => entry.layer.token === active.value?.layer.token && entry.station === active.value?.station.name;
+
+const place = computed(() => replayPlace(steps.value, now.value.getTime(), plan, isOn));
 
 /** "11-20 11:42 UTC". */
-const overpassTime = (overpass: Overpass) => `${dayjs.utc(overpass.start).format("MM-DD HH:mm")} UTC`;
+const overpassTime = (entry: RecordedOverpass) => `${dayjs.utc(entry.overpass.start).format("MM-DD HH:mm")} UTC`;
 
 const title = computed(() => {
   const on = active.value;
@@ -51,13 +87,13 @@ const title = computed(() => {
 
 /** The step's tooltip: the overpass it goes to, or that there is none. */
 function stepTitle(which: "previous" | "next"): string {
-  const overpass = place.value[which];
-  return overpass ? `${which === "next" ? "Next" : "Previous"} overpass, ${overpassTime(overpass)}` : `No ${which} overpass listed`;
+  const to = place.value[which]?.entry;
+  return to ? `${which === "next" ? "Next" : "Previous"} overpass: ${to.satellite} over ${to.station}, ${overpassTime(to)}` : `No ${which} overpass listed`;
 }
 
-/** Replays `overpass`, at the speed the clock runs. */
-function step(overpass: Overpass | undefined): void {
-  if (overpass !== undefined) jump(plan(overpass));
+/** Replays the step, at the speed the clock runs. */
+function go(to: Step | undefined): void {
+  if (to !== undefined) step(to.entry);
 }
 
 /** Takes the replay's layer off and goes back to live; the camera stays. */
@@ -124,6 +160,20 @@ function exit(): void {
 
 .replay__button:hover:not(:disabled) {
   background: #edffff1f;
+}
+
+.replay__button--on {
+  background: #edffff2e;
+  color: var(--panel-accent);
+}
+
+.replay__cameras {
+  display: flex;
+  flex: none;
+  gap: 1px;
+  padding: 0 4px;
+  border-right: 1px solid var(--panel-hairline);
+  border-left: 1px solid var(--panel-hairline);
 }
 
 .replay__button:disabled {

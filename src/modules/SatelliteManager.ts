@@ -167,6 +167,9 @@ export class SatelliteManager {
     });
   }
 
+  /** Whether a granule layer of the satellite named is on, which tracking it then chases (ADR 0023). Set by the controller, which draws the layers. */
+  recordedSwathShown: (name: string) => boolean = () => false;
+
   onCatalogChange(callback: () => void): void {
     this.#onCatalogChange = callback;
   }
@@ -499,6 +502,7 @@ export class SatelliteManager {
       chunk,
     );
     sat.props.passPredictor.mode = this.#desired.overpassMode;
+    sat.recordedSwathShown = () => this.recordedSwathShown(entry.name);
     sat.show(this.#effectiveComponents());
     // After show(): `defaultEntity` is the first entity created, and it must not
     // be the ground-station link, which is invisible outside a pass.

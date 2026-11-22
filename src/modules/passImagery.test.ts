@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import type { GranuleLayer } from "@/config/instrumentImagery";
 
-import { passImagery, passTable, type RecordedOverpass, recordedFor } from "./passImagery";
+import { passImagery, passTable, type RecordedOverpass, recordedFor, replaySteps } from "./passImagery";
 import type { PassRow } from "./PassPredictor";
 
 const MINUTE = 60 * 1000;
@@ -72,5 +72,21 @@ describe("passImagery", () => {
     expect(passImagery(recorded(0, 1), [true, true])).toBe("image");
     expect(passImagery(recorded(0, 1), [true, false])).toBe("part");
     expect(passImagery(recorded(0, 1), [false])).toBe("outline");
+  });
+});
+
+describe("replaySteps", () => {
+  const other = { ...layer, token: "gibs:M" } as GranuleLayer;
+
+  test("steps through every satellite and station by day, by start", () => {
+    const steps = [recorded(300, 310, { satellite: "NOAA 21" }), recorded(100, 110), recorded(200, 210, { station: "Kiruna" }), recorded(250, 260, { day: false })];
+    expect(replaySteps(steps, steps[1]!).map((step) => step.overpass.start / MINUTE)).toEqual([100, 200, 300]);
+  });
+
+  test("keeps the started layer where a satellite has two over one station", () => {
+    const started = recorded(100, 110);
+    const twin = { ...started, layer: other };
+    expect(replaySteps([twin, started], started)).toEqual([started]);
+    expect(replaySteps([twin, started], twin)).toEqual([twin]);
   });
 });

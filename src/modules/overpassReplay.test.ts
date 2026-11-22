@@ -17,7 +17,7 @@ function overpass(start: number, count = 2): Overpass {
 
 describe("replayPlace", () => {
   const overpasses = [overpass(100), overpass(200), overpass(300)];
-  const plan = (item: Overpass) => stationReplay(item, station);
+  const plan = (item: Overpass) => stationReplay(item, station, "NOAA 20 (JPSS-1)");
   const at = (minutes: number) => replayPlace(overpasses, minutes * MINUTE, plan);
 
   test("at a replay's start, steps to the ones either side of it", () => {
@@ -27,6 +27,14 @@ describe("replayPlace", () => {
   test("still at an overpass a little after it, then between it and the next", () => {
     expect(at(215).current).toBe(overpasses[1]);
     expect(at(240)).toEqual({ current: undefined, previous: overpasses[1], next: overpasses[2] });
+  });
+
+  test("of two replayed at once, the replay's own is current, so a step leaves it", () => {
+    const twins = [overpasses[0]!, { ...overpasses[1]! }, overpasses[1]!, overpasses[2]!];
+    const first = replayPlace(twins, 195 * MINUTE, plan, (item) => item === twins[1]);
+    expect(first).toEqual({ current: twins[1], previous: twins[0], next: twins[2] });
+    const second = replayPlace(twins, 195 * MINUTE, plan, (item) => item === twins[2]);
+    expect(second).toEqual({ current: twins[2], previous: twins[1], next: twins[3] });
   });
 
   test("before the first and after the last", () => {

@@ -4,7 +4,7 @@ import { useController } from "@/composables/useController";
 import { useOverpassReplay } from "@/composables/useOverpassReplay";
 import { type GranuleLayer, isGranuleLayer, readImageryList } from "@/config/instrumentImagery";
 import { hasPixels, isDayOverpass, stationOverpasses, stationReplay } from "@/modules/overpassReplay";
-import { type PassImagery, passImagery, type RecordedOverpass } from "@/modules/passImagery";
+import { type PassImagery, passImagery, type RecordedOverpass, replaySteps } from "@/modules/passImagery";
 
 /** How many satellite and station pairs are asked of CMR at once: a satellite's passes cover every station. */
 const MAX_PAIRS = 10;
@@ -89,20 +89,19 @@ export function useRecordedOverpasses(passes: Ref<readonly { name: string; groun
 
   /**
    * Replays a pass over its station (stationReplay). A pass CMR recorded by day also shows its
-   * granules, and the replay bar steps through the satellite's others there; any other pass
-   * stops the replay, whose granules are of another pass.
+   * granules, and the replay bar steps through the table's other recorded overpasses
+   * (replaySteps); any other pass stops the replay, whose granules are of another pass.
    */
-  function replayPass(pass: { start: number; groundStationName?: string }, entry: RecordedOverpass | undefined): void {
-    const station = sats.groundStations.find((gs) => gs.name === (entry?.station ?? pass.groundStationName));
-    if (station === undefined) return;
-    const point = { latitude: station.position.latitude, longitude: station.position.longitude };
-    if (entry === undefined || !entry.day) {
-      replay.stop();
-      cc.replay(stationReplay(pass, point));
+  function replayPass(pass: { name?: string; start: number; groundStationName?: string }, entry: RecordedOverpass | undefined): void {
+    if (entry !== undefined && entry.day) {
+      replay.start(entry, replaySteps(recorded.value, entry));
       return;
     }
-    const overpasses = (byPair.value.get(entry.pair) ?? []).filter((other) => other.day).map((other) => other.overpass);
-    replay.start(entry.layer, entry.satellite, stationReplay(entry.overpass, point), entry.station, overpasses);
+    const station = sats.groundStations.find((gs) => gs.name === pass.groundStationName);
+    if (station === undefined || pass.name === undefined) return;
+    replay.stop();
+    const point = { latitude: station.position.latitude, longitude: station.position.longitude };
+    cc.replay(stationReplay(pass, point, pass.name), replay.camera.value);
   }
 
   return { recorded, imageryOf, replayPass };

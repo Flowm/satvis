@@ -39,7 +39,9 @@ import { geoMosaicFrames } from "./GeoMosaicImagery";
 import { gibsFrames } from "./GibsImagery";
 import { showGranuleImagery } from "./GranuleImagery";
 import { granuleLayer } from "./GranuleLayers";
+import type { ReplayPlan } from "./overpassReplay";
 import { RenderPacer } from "./renderPacing";
+import { BroadcastCamera, type ReplayCamera } from "./ReplayCamera";
 import type { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { cesiumSceneMode, type ScanPlane, scanPlane } from "./satelliteGraphics";
 import { SatelliteManager } from "./SatelliteManager";
@@ -47,6 +49,7 @@ import type { Observer } from "./skyGeometry";
 import { SkyInteraction } from "./SkyInteraction";
 import { SkyView } from "./SkyView";
 import { SurfaceModel } from "./SurfaceModel";
+import { trackWhenReady } from "./trackFlight";
 
 dayjs.extend(utc);
 
@@ -161,6 +164,9 @@ export class CesiumController {
 
   skyView!: SkyView;
 
+  /** An overpass replay's camera from beyond the station (ADR 0023). */
+  readonly #broadcast: BroadcastCamera;
+
   skyInteraction!: SkyInteraction;
 
   surface!: SurfaceModel;
@@ -221,6 +227,8 @@ export class CesiumController {
     skipUnsizedPicks(this.viewer.scene);
 
     this.sats = new SatelliteManager(this.viewer);
+    this.sats.recordedSwathShown = (name) => this.#recordedSwathShown(name);
+    this.#broadcast = new BroadcastCamera(this.viewer);
     this.renderPacer = new RenderPacer(this.viewer.scene, {
       satellites: () => this.sats.activeSatellites,
       components: () => this.sats.enabledComponents,
@@ -608,6 +616,7 @@ export class CesiumController {
 
   /** The sky view drives the camera, and inertial tracking re-parents it every frame. */
   suppressCameraMode(): void {
+    this.#broadcast.stop();
     this.#camera.suppress("Fixed");
   }
 
@@ -647,19 +656,81 @@ export class CesiumController {
   }
 
   /**
-   * Plays from `time` (epoch ms) at `multiplier`, looking straight down on `centre` from
-   * REPLAY_HEIGHT_M, untracked: an overpass replay (ADR 0023). The sky view keeps its camera.
+   * Plays from `time` (epoch ms) at `multiplier`, the camera watching `satellite` pass over
+   * `centre` as `camera` says: an overpass replay (ADR 0023). The sky view keeps its camera.
    */
-  replay({ time, multiplier, centre }: { time: number; multiplier: number; centre: { latitude: number; longitude: number } }): void {
-    this.setTime(time);
-    this.viewer.clockViewModel.multiplier = multiplier;
+  replay(plan: ReplayPlan, camera: ReplayCamera): void {
+    this.setTime(plan.time);
+    this.viewer.clockViewModel.multiplier = plan.multiplier;
     this.viewer.clockViewModel.shouldAnimate = true;
-    if (!this.skyView.active) {
-      this.viewer.trackedEntity = undefined;
-      const duration = DeviceDetect.prefersReducedMotion() ? 0 : undefined;
-      this.viewer.camera.flyTo({ destination: Cartesian3.fromDegrees(centre.longitude, centre.latitude, REPLAY_HEIGHT_M), duration, easingFunction: smootherstep });
-    }
+    this.aimReplay(plan, camera);
     this.viewer.scene.requestRender();
+  }
+
+  /**
+   * Points the camera at a replay as `camera` says, at the clock as it is: from beyond the
+   * station, which needs 3D and the satellite built, else straight down on it from
+   * REPLAY_HEIGHT_M; or tracking the satellite, which chases its swath while the layer is on.
+   */
+  aimReplay({ satellite, centre }: Pick<ReplayPlan, "satellite" | "centre">, camera: ReplayCamera): void {
+    this.#broadcast.stop();
+    if (this.skyView.active) {
+      return;
+    }
+    const swing = !DeviceDetect.prefersReducedMotion();
+    if (camera === "chase") {
+      const sat = () => this.sats.getSatellite(satellite);
+      if (!sat()?.isTracked) {
+        trackWhenReady(
+          this.viewer,
+          this,
+          () => this.#placed(satellite),
+          () => sat()!.track(swing),
+        );
+      }
+      return;
+    }
+    this.sats.cancelPendingTrack();
+    this.viewer.trackedEntity = undefined;
+    const nadir = () =>
+      this.viewer.camera.flyTo({
+        destination: Cartesian3.fromDegrees(centre.longitude, centre.latitude, REPLAY_HEIGHT_M),
+        duration: swing ? undefined : 0,
+        easingFunction: smootherstep,
+      });
+    if (camera === "nadir") {
+      nadir();
+      return;
+    }
+    const broadcast = () => {
+      const sat = this.sats.getSatellite(satellite);
+      if (sat === undefined) return nadir();
+      const { starboardKm, portKm } = sat.props.swathExtents;
+      const target = { position: (time: JulianDate) => sat.props.trajectory.position(time), station: centre, swathKm: starboardKm + portKm };
+      if (!this.#broadcast.start(target, { swing })) nadir();
+    };
+    // Anything tracked meanwhile drops the wait.
+    trackWhenReady(this.viewer, this, () => this.#placed(satellite), broadcast);
+  }
+
+  /**
+   * Whether the satellite named is drawn at the clock: one a replay has just turned on is
+   * built a few frames later, and the samples of a time the clock has jumped to come after.
+   */
+  #placed(satellite: string): boolean {
+    const sat = this.sats.getSatellite(satellite);
+    const interval = sat?.defaultEntity && sat.props.trajectory.interval;
+    return interval !== undefined && TimeInterval.contains(interval, this.viewer.clock.currentTime);
+  }
+
+  /** Leaves the camera where a replay put it, for the user to move. */
+  releaseReplayCamera(): void {
+    this.#broadcast.stop();
+  }
+
+  /** Whether one of the satellite's own granule layers is on. */
+  #recordedSwathShown(name: string): boolean {
+    return this.#instruments.some(({ drawn }) => isGranuleLayer(drawn) && granuleLayerOwner(this.sats.catalog.entries, drawn.token)?.entry.name === name);
   }
 
   /**

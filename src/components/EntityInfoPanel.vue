@@ -326,7 +326,7 @@ const PASS_IMAGERY: Record<PassImagery, { icon: string; title: string }> = {
   night: { icon: "lucide:moon", title: "Recorded by night: no true colour picture" },
 };
 /** The pass behind a row: a predicted one, or the overpass CMR recorded where the predictor has none. */
-function passOf(row: PassTableRow): { start: number; groundStationName?: string } {
+function passOf(row: PassTableRow): { name?: string; start: number; groundStationName?: string } {
   return passes.value.find((pass) => pass.start === row.startMs) ?? { start: row.startMs };
 }
 /** The passes with what was recorded in them, and with Past the recorded overpasses the predictor no longer has. */

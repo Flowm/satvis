@@ -146,10 +146,29 @@ same spot then reads 137.8 against 137.9. It copies @cesium/engine 26.5's shader
 to be checked against it when Cesium is upgraded.
 
 **A replay is the layer, the clock and the camera, and nothing else**: the satellite on,
-its granule layer on, the clock set back and playing, and the camera looking straight
-down from 5,000 km, untracked (`CesiumController.replay`). The url holds the first three
-(`sats`, `imagery`, `time`) and `replay` the station, which nothing else says, so a
-replay is a link that opens with its bar.
+its granule layer on, the clock set back and playing, and the camera on the pass
+(`CesiumController.replay`). The url holds the first three (`sats`, `imagery`, `time`)
+and `replay` the station, which nothing else says, so a replay is a link that opens with
+its bar. The camera is not in it: how to watch is the viewer's, as the free camera is.
+
+**The replay bar picks the camera** (`ReplayCamera.ts`), and it stays picked for the next
+replay. Chosen from five prototyped (branch `prototype/satellite-tracking-angles`):
+
+- **Broadcast**, the first: held 1,800 km above a point beyond the station, on its side of
+  the ground track, and turning to keep the satellite in view, as a camera beside a race
+  track. The station is in the foreground, the satellite crosses it with its fan, and the
+  swath builds up across the view. A drag or a zoom takes the camera back, where it stays.
+- **Nadir**: straight down on the station from 5,000 km, north up, untracked; what a
+  replay did before.
+- **Chase**: tracking the satellite, which chases its swath while the layer is on (below).
+
+**Tracking a satellite while its recorded swath is on chases the swath**: from behind and
+above, 30° down onto the ground under the satellite, so the satellite sits up the screen
+and the swath it has recorded fills the rest. The distance grows with the swath's width,
+from 1,180 km for Landsat's 185 km to 3,100 km for VIIRS's 3,000. It is tracking as any
+other (`viewFrom`), turned down past the satellite once it starts: EntityView aims at the
+satellite and keeps the camera's direction after, so the swath behind would be off the
+bottom of the screen.
 While its layer is on, the satellite has its ground track fan, whether or not the
 component is.
 
@@ -166,15 +185,19 @@ what a satellite records as it flies.
   says how far behind live that is and goes to it, keeping the speed and the tracking.
 - **A station's overpass is a replay** (`useOverpassReplay.ts`), started from a pass in the
   Passes table. While one is on, a bar over the clock (`ReplayBar.vue`) names it and steps
-  to the station's overpass before or after, at the speed the clock runs. Exit takes the
-  layer off and goes back to live; the camera stays. Taking the layer off elsewhere ends
-  the replay too.
+  to the overpass before or after among the table's recorded ones by day
+  (`replaySteps`), at the speed the clock runs: a station's table steps through every
+  satellite over it, a satellite's through its overpasses over every station. A step to
+  another satellite takes the replay's layer off and puts the other's on. A replay opened
+  from a link steps through its layer's overpasses over its station, as it has no table.
+  Exit takes the layer off and goes back to live; the camera stays. Taking the layer off
+  elsewhere ends the replay too.
 
 - **The Passes table** (`passImagery.ts`), a station's or a satellite's: a past pass of a
   satellite with a granule layer is the overpass CMR lists over the station in the last
   30 days that overlaps it, within the fill's 2 minutes. Its Image column says whether
   GIBS has the image of it, part of it, the outline only, or it was night, and replays it
-  from 5 minutes before at 30×, the camera above the station. With Past on, the recorded
+  from 5 minutes before at 30×, watched from the replay's camera. With Past on, the recorded
   overpasses by day the predictor no longer has, as it looks back a day and CMR a month,
   are rows of their own, so what is to come is predicted and what is past is recorded.
   The Imaged switch keeps the recorded passes alone. It asks CMR for the satellites drawn,
@@ -263,8 +286,13 @@ what a satellite records as it flies.
   already holds; the layer with the timeline's shading asks nothing new of the user.
 - **Clipping the granule's tile layer as it fills.** Cesium clips the whole globe, not a
   layer, and a tile it has drawn is not drawn again.
-- **Tracking the satellite during a replay.** The camera follows the satellite's point,
-  so the swath slides under it; looking down on the granule or the station lets it pass.
+- **Tracking the satellite during a replay as tracking framed it.** EntityView aims at the
+  satellite, so the swath slides under it out of view. The chase aims at the ground under
+  it instead, and is one of the replay's cameras.
+- **Look-back**, ahead of the satellite looking back at it and the swath behind: its fan
+  covered the newest strip, and the satellite was lost against the swath.
+- **Nadir turned track-up**, the satellite flying up the screen: little over nadir.
+- **The camera in the url**: a link would open with whoever shared it's way of watching.
 
 ## Open questions
 
