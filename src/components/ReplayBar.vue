@@ -19,13 +19,13 @@
           :title="option.title"
           @click="watchFrom(option.value)"
         >
-          <UIcon :name="CAMERA_ICONS[option.value]" />
+          <UIcon :name="option.icon" />
         </button>
       </div>
-      <button type="button" class="replay__button" :disabled="!place.previous" aria-label="Previous overpass" :title="stepTitle('previous')" @click="go(place.previous)">
+      <button type="button" class="replay__button" :disabled="!place.previous" aria-label="Previous overpass" :title="stepTitle('previous')" @click="goToStep(place.previous)">
         <UIcon name="lucide:chevron-left" />
       </button>
-      <button type="button" class="replay__button" :disabled="!place.next" aria-label="Next overpass" :title="stepTitle('next')" @click="go(place.next)">
+      <button type="button" class="replay__button" :disabled="!place.next" aria-label="Next overpass" :title="stepTitle('next')" @click="goToStep(place.next)">
         <UIcon name="lucide:chevron-right" />
       </button>
       <button type="button" class="replay__button" aria-label="Exit replay" title="Take the granules off and go back to now" @click="exit">
@@ -45,40 +45,39 @@ import { useOverpassReplay } from "@/composables/useOverpassReplay";
 import { useViewerClock } from "@/composables/useViewerClock";
 import { replayPlace, stationReplay } from "@/modules/overpassReplay";
 import type { RecordedOverpass } from "@/modules/passImagery";
-import { REPLAY_CAMERAS, type ReplayCamera } from "@/modules/ReplayCamera";
+import { REPLAY_CAMERAS } from "@/modules/ReplayCamera";
 
 dayjs.extend(utc);
 
-/** Each replay camera's button. */
-const CAMERA_ICONS: Record<ReplayCamera, string> = { broadcast: "lucide:video", nadir: "lucide:locate-fixed", chase: "lucide:satellite" };
-
 /** A replay over a station; a granule layer shown from its card or the Map panel has none. */
-const { replay: active, camera, step, watchFrom, stop } = useOverpassReplay();
+const { replay: active, camera, stepTo, watchFrom, stop } = useOverpassReplay();
 const { now, goLive } = useViewerClock();
 const { sats } = useController();
 
-/** A step as replayPlace counts it: until its overpass ends. */
-interface Step {
+/** A replay step as replayPlace counts it: until its overpass ends. */
+interface PlacedStep {
   entry: RecordedOverpass;
   end: number;
 }
 
-const steps = computed((): Step[] => (active.value?.steps ?? []).map((entry) => ({ entry, end: entry.overpass.end })));
+/** The replay's steps, by start, as replayPlace counts them. */
+const placedSteps = computed((): PlacedStep[] => (active.value?.steps ?? []).map((entry) => ({ entry, end: entry.overpass.end })));
 
-/** When the clock is set for a step: its station's, where the station is still there. */
-function plan({ entry }: Step) {
-  const station = sats.groundStations.find((gs) => gs.name === entry.station)?.position ?? active.value!.station.point;
-  return stationReplay(entry.overpass, station, entry.satellite);
+/** When the clock is set for a step: over its station, where the station is still there. */
+function plan({ entry }: PlacedStep) {
+  return stationReplay(entry.overpass, sats.stationPoint(entry.station) ?? active.value!.station.point, entry.satellite);
 }
 
 /** The replay's own step is of the layer and station on. */
-const isOn = ({ entry }: Step) => entry.layer.token === active.value?.layer.token && entry.station === active.value?.station.name;
+const isOn = ({ entry }: PlacedStep) => entry.layer.token === active.value?.layer.token && entry.station === active.value?.station.name;
 
-const place = computed(() => replayPlace(steps.value, now.value.getTime(), plan, isOn));
+/** Where the clock is among the steps. */
+const place = computed(() => replayPlace(placedSteps.value, now.value.getTime(), plan, isOn));
 
 /** "11-20 11:42 UTC". */
 const overpassTime = (entry: RecordedOverpass) => `${dayjs.utc(entry.overpass.start).format("MM-DD HH:mm")} UTC`;
 
+/** The tooltip of the satellite and station: what is replayed, the instrument too. */
 const title = computed(() => {
   const on = active.value;
   return on && `Replaying the granules ${on.satellite}'s ${on.instrument} sensed over ${on.station.name}`;
@@ -91,8 +90,8 @@ function stepTitle(which: "previous" | "next"): string {
 }
 
 /** Replays the step, at the speed the clock runs. */
-function go(to: Step | undefined): void {
-  if (to !== undefined) step(to.entry);
+function goToStep(to: PlacedStep | undefined): void {
+  if (to !== undefined) stepTo(to.entry);
 }
 
 /** Takes the replay's layer off and goes back to live, and the camera to where it was before. */

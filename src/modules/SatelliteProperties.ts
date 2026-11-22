@@ -48,6 +48,12 @@ export class SatelliteProperties {
     return swathExtentsOf(this.metadata) ?? { starboardKm: DEFAULT_SWATH_KM / 2, portKm: DEFAULT_SWATH_KM / 2 };
   }
 
+  /** Across the whole swath, both sides of the ground track, km. */
+  get swathWidthKm(): number {
+    const { starboardKm, portKm } = this.swathExtents;
+    return starboardKm + portKm;
+  }
+
   /** Half-angle, degrees. */
   get coneFovDeg(): number {
     return this.metadata.coneFovDeg ?? DEFAULT_CONE_FOV_DEG;

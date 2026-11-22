@@ -19,7 +19,8 @@ const viewsBeforeTracking = new WeakMap<Viewer, CameraPose>();
 /** The one track waiting on a viewer, and who asked for it. */
 const pendingTracks = new WeakMap<Viewer, { owner: unknown; cancel: () => void }>();
 
-function currentView(camera: Camera): CameraPose {
+/** Where `camera` is now, and which way it looks. */
+export function currentView(camera: Camera): CameraPose {
   return { destination: Cartesian3.clone(camera.positionWC), direction: Cartesian3.clone(camera.directionWC), up: Cartesian3.clone(camera.upWC) };
 }
 

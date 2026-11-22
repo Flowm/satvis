@@ -2,12 +2,13 @@ import { Cartesian3, Cartographic, JulianDate, Math as CesiumMath } from "@cesiu
 import { CallbackProperty, Camera, Entity, EntityView, type Scene, SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
+import type { GroundPoint } from "@/modules/util/cmrGranules";
 import type { PassPredictorSource } from "@/modules/util/passSource";
 import type { SampleChunk, TrajectorySampler } from "@/modules/util/sampleSource";
 
 import { type Component, type ComponentHost, componentKind, deferPointToModel, modelCopies, ModelSize, type SatelliteBatches, type SkyAppearance } from "./componentKinds";
 import type { GroundStation } from "./PassPredictor";
-import { chaseOffset, chaseTilt } from "./ReplayCamera";
+import { type BroadcastTarget, chaseOffset, chaseTilt } from "./ReplayCamera";
 import type { CatalogEntry } from "./SatelliteCatalog";
 import { SatelliteProperties } from "./SatelliteProperties";
 import { cancelPendingTrack, trackEntity, trackWhenReady, type CameraPose } from "./trackFlight";
@@ -66,6 +67,9 @@ export class SatelliteComponentCollection implements ComponentHost {
 
   /** Whether a granule layer of this satellite is on: tracking it then chases its swath (ADR 0023). Set by the manager. */
   recordedSwathShown: () => boolean = () => false;
+
+  /** Tracked from the chase: its swath was on when tracking started, which is when EntityView reads viewFrom. */
+  #chasing = false;
 
   /**
    * `opening` is the satellite's first window of samples. The trajectory follows the
@@ -283,18 +287,13 @@ export class SatelliteComponentCollection implements ComponentHost {
   readonly #viewFrom = new CallbackProperty((time, result?: Cartesian3) => {
     const offset = result ?? new Cartesian3();
     if (this.recordedSwathShown()) {
-      return chaseOffset(this.#swathKm(), this.#altitudeM(time), offset);
+      return chaseOffset(this.props.swathWidthKm, this.#altitudeM(time), offset);
     }
     if ("3D model" in this.#components) {
       return Cartesian3.multiplyByScalar(VIEW_FROM_MODEL_DIRECTION, VIEW_FROM_MODEL_RADII * this.model.radius(), offset);
     }
     return Cartesian3.clone(VIEW_FROM, offset);
   }, false);
-
-  #swathKm(): number {
-    const { starboardKm, portKm } = this.props.swathExtents;
-    return starboardKm + portKm;
-  }
 
   /** Metres; a low orbit's where the trajectory has no position. */
   #altitudeM(time: JulianDate | undefined): number {
@@ -304,7 +303,17 @@ export class SatelliteComponentCollection implements ComponentHost {
 
   /** How far the chase looks down past the satellite (chaseTilt), or undefined when tracking does not chase. */
   #chaseTilt(time: JulianDate): number | undefined {
-    return this.recordedSwathShown() ? chaseTilt(this.#swathKm(), this.#altitudeM(time)) : undefined;
+    return this.recordedSwathShown() ? chaseTilt(this.props.swathWidthKm, this.#altitudeM(time)) : undefined;
+  }
+
+  /** Whether the camera tracks it from the chase, which a track started with its swath off does not, until tracked again. */
+  get chasing(): boolean {
+    return this.isTracked && this.#chasing;
+  }
+
+  /** What a replay's broadcast camera follows over `station`: this satellite and its swath. */
+  broadcastTarget(station: GroundPoint): BroadcastTarget {
+    return { position: (time) => this.props.trajectory.position(time), station, swathKm: this.props.swathWidthKm };
   }
 
   /**
@@ -339,6 +348,7 @@ export class SatelliteComponentCollection implements ComponentHost {
         this.viewer.trackedEntity = this.#components["3D model"] as Entity;
         return;
       }
+      this.#chasing = this.isTracked && this.recordedSwathShown();
       if (this.isTracked) {
         this.artificiallyTrack();
         this.#tiltChase();

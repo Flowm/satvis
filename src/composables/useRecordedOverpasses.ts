@@ -2,36 +2,51 @@ import { computed, onScopeDispose, reactive, type Ref, shallowRef, watch } from 
 
 import { useController } from "@/composables/useController";
 import { useOverpassReplay } from "@/composables/useOverpassReplay";
+import type { Selection } from "@/composables/useSelectedEntity";
 import { type GranuleLayer, isGranuleLayer, readImageryList } from "@/config/instrumentImagery";
 import { hasPixels, isDayOverpass, stationOverpasses, stationReplay } from "@/modules/overpassReplay";
 import { type PassImagery, passImagery, type RecordedOverpass, replaySteps } from "@/modules/passImagery";
 
-/** How many satellite and station pairs are asked of CMR at once: a satellite's passes cover every station. */
-const MAX_PAIRS = 10;
+/** Each satellite's own granule layers, by its metadata, which is read once. */
+const granuleLayersOf = new WeakMap<object, GranuleLayer[]>();
+
+/** The granule layers of a satellite's own instruments, not of composites it is merged into. */
+function ownGranuleLayers(metadata: { imagery?: unknown }): GranuleLayer[] {
+  let layers = granuleLayersOf.get(metadata);
+  if (layers === undefined) {
+    layers = readImageryList(metadata.imagery).flatMap(({ drawn, merged }) => (!merged && isGranuleLayer(drawn) ? [drawn] : []));
+    granuleLayersOf.set(metadata, layers);
+  }
+  return layers;
+}
 
 /**
- * The overpasses CMR lists of the passes in view (ADR 0023): for each satellite with a
- * granule layer and station among `passes`, the last STATION_DAYS over the station, which the
- * Passes table matches to its rows, with whether their pictures have their pixels and a replay of each.
+ * The overpasses CMR lists for the Passes table of `selection` (ADR 0023): of every drawn
+ * satellite with a granule layer over a selected station, or of a selected satellite over
+ * every station, the last STATION_DAYS, whether or not a pass is predicted in view. The table
+ * matches them to its rows, with whether their pictures have their pixels and a replay of
+ * each; a replay steps through them all. `passes` is recomputed as the drawn satellites and
+ * stations change, which are not reactive themselves.
  */
-export function useRecordedOverpasses(passes: Ref<readonly { name: string; groundStationName?: string }[]>) {
+export function useRecordedOverpasses(selection: Ref<Selection | null>, passes: Ref<readonly unknown[]>) {
   const cc = useController();
   const { sats } = cc;
   const replay = useOverpassReplay();
 
   // The pairs to ask about, as a key that changes only when they do.
   const pairs = computed(() => {
+    void passes.value;
     const found = new Map<string, { satellite: string; station: string; layer: GranuleLayer; latitude: number; longitude: number }>();
-    for (const { name, groundStationName } of passes.value) {
-      if (groundStationName === undefined || found.size >= MAX_PAIRS) continue;
-      const station = sats.groundStations.find((gs) => gs.name === groundStationName);
-      const metadata = sats.getSatellite(name)?.props.metadata;
-      if (station === undefined || metadata === undefined) continue;
-      for (const { drawn, merged } of readImageryList(metadata.imagery)) {
-        const { latitude, longitude } = station.position;
-        const key = `${name}|${groundStationName}|${drawn?.token}|${latitude}|${longitude}`;
-        if (!merged && isGranuleLayer(drawn) && !found.has(key)) {
-          found.set(key, { satellite: name, station: groundStationName, layer: drawn, latitude, longitude });
+    const selected = selection.value;
+    if (selected === null) return found;
+    const satellites = selected.kind === "satellite" ? [selected.sat] : sats.activeSatellites;
+    const stations = selected.kind === "groundstation" ? [selected.gs] : sats.groundStations;
+    for (const sat of satellites) {
+      for (const layer of ownGranuleLayers(sat.props.metadata)) {
+        for (const station of stations) {
+          const { latitude, longitude } = station.position;
+          const key = `${sat.props.name}|${station.name}|${layer.token}|${latitude}|${longitude}`;
+          found.set(key, { satellite: sat.props.name, station: station.name, layer, latitude, longitude });
         }
       }
     }
@@ -104,10 +119,9 @@ export function useRecordedOverpasses(passes: Ref<readonly { name: string; groun
       replay.start(entry, replaySteps(recorded.value, entry));
       return;
     }
-    const station = sats.groundStations.find((gs) => gs.name === pass.groundStationName);
-    if (station === undefined || pass.name === undefined) return;
+    const point = pass.groundStationName === undefined ? undefined : sats.stationPoint(pass.groundStationName);
+    if (point === undefined || pass.name === undefined) return;
     replay.stop({ returnView: false });
-    const point = { latitude: station.position.latitude, longitude: station.position.longitude };
     cc.replay(stationReplay(pass, point, pass.name), replay.camera.value);
   }
 

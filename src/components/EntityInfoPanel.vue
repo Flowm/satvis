@@ -334,14 +334,10 @@ const OVERPASS_MODES = [
   { value: "swath", label: "Swath" },
 ] as const;
 
-const { recorded, settled, imageryOf, replayPass } = useRecordedOverpasses(passes);
+const { recorded, settled, imageryOf, replayPass } = useRecordedOverpasses(selection, passes);
 
-/** The newest overpass the table records by day, over `station` where one is given. */
-function newestImaged(station?: string): RecordedOverpass | undefined {
-  return recorded.value.filter((entry) => entry.day && (station === undefined || entry.station === station)).toSorted((a, b) => b.overpass.start - a.overpass.start)[0];
-}
-/** What "Replay latest" replays. */
-const latestRecorded = computed(() => newestImaged());
+/** The newest overpass the table records by day, which the header button and "Last imaged" replay. */
+const latestRecorded = computed((): RecordedOverpass | undefined => recorded.value.filter((entry) => entry.day).toSorted((a, b) => b.overpass.start - a.overpass.start)[0]);
 /** "11-22 11:48". */
 const utcMinute = (ms: number) => new Date(ms).toISOString().slice(5, 16).replace("T", " ");
 
@@ -501,13 +497,11 @@ watch(
     const asked = latestRequest.value;
     if (asked === undefined || asked.subject !== name.value || passesPending.value || !settled.value) return;
     latestRequest.value = undefined;
-    const newest = newestImaged(asked.station);
-    if (newest !== undefined) {
-      replayRecorded(newest);
+    if (latestRecorded.value !== undefined) {
+      replayRecorded(latestRecorded.value);
       return;
     }
-    const where = asked.station ? ` over ${asked.station}` : "";
-    toast.add({ title: "Nothing to replay", description: `No overpass by day recorded${where} in the last 30 days.`, color: "neutral" });
+    toast.add({ title: "Nothing to replay", description: "No overpass by day recorded in the last 30 days.", color: "neutral" });
   },
   { immediate: true },
 );

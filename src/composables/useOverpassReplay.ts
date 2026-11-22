@@ -55,12 +55,6 @@ export function useOverpassReplay() {
   const satStore = useSatStore();
   const cesiumStore = useCesiumStore();
 
-  /** Where the station named is, as the passes name it. */
-  function pointOf(station: string): GroundPoint | undefined {
-    const found = cc.sats.groundStations.find((gs) => gs.name === station);
-    return found && { latitude: found.position.latitude, longitude: found.position.longitude };
-  }
-
   shared ??= effectScope(true).run(() => {
     const { catalogRevision, groundStations } = storeToRefs(satStore);
     const { replayStation } = storeToRefs(cesiumStore);
@@ -107,7 +101,8 @@ export function useOverpassReplay() {
       if (on === undefined && replayStation.value !== "") {
         replayStation.value = "";
         steps.value = undefined;
-        cc.endReplayCamera({ returnView: true });
+        // Ended elsewhere, not by Exit: the camera stays where it is.
+        cc.endReplayCamera({ returnView: false });
       }
     });
     const replay = computed((): OverpassReplay | undefined => {
@@ -121,7 +116,7 @@ export function useOverpassReplay() {
     return { layerOn, replay, steps, camera };
   })!;
 
-  /** Turns `step`'s satellite and layer on in place of the replay's, and replays it at `multiplier`. */
+  /** Turns `to`'s satellite and layer on in place of the replay's, and replays it at `multiplier`. */
   function replayStep(to: RecordedOverpass, multiplier: number): void {
     const before = shared!.layerOn.value?.layer.token;
     if (cesiumStore.replayStation !== "" && before !== undefined && before !== to.layer.token) {
@@ -130,11 +125,11 @@ export function useOverpassReplay() {
     satStore.activateSatellite(to.satellite, cc.sats.catalog);
     cesiumStore.toggleInstrumentImagery(to.layer.token, true);
     cesiumStore.replayStation = to.station;
-    const point = pointOf(to.station);
+    const point = cc.sats.stationPoint(to.station);
     if (point !== undefined) cc.replay({ ...stationReplay(to.overpass, point, to.satellite), multiplier }, shared!.camera.value);
   }
 
-  /** Starts a replay of `step`, in place of the one on, its bar stepping through `steps` (replaySteps). */
+  /** Starts a replay of `first`, in place of the one on, its bar stepping through `steps` (replaySteps). */
   function start(first: RecordedOverpass, steps: RecordedOverpass[]): void {
     cc.keepViewBeforeReplay();
     shared!.steps.value = steps;
@@ -142,7 +137,7 @@ export function useOverpassReplay() {
   }
 
   /** Goes to another of the replay's steps, at the speed the clock runs. */
-  function step(to: RecordedOverpass): void {
+  function stepTo(to: RecordedOverpass): void {
     replayStep(to, cc.viewer.clock.multiplier);
   }
 
@@ -165,5 +160,5 @@ export function useOverpassReplay() {
     cc.endReplayCamera({ returnView });
   }
 
-  return { layerOn: shared.layerOn, replay: shared.replay, camera: shared.camera, start, step, watchFrom, stop };
+  return { layerOn: shared.layerOn, replay: shared.replay, camera: shared.camera, start, stepTo, watchFrom, stop };
 }

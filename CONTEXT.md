@@ -110,6 +110,9 @@ discussion; sharpen them here when they drift.
   replay bar over the clock picks the **replay camera** (nadir, tracking or broadcast), steps
   to the table's recorded overpass before or after, of any satellite or station, and exits.
   A replay is a link: `imagery`, `time` and `replay`, the station. Not the recorded swath, a layer that follows the clock wherever it is.
+- **Chase**: how tracking frames a satellite while its recorded swath is on: from behind
+  and above, looking down onto the ground under it, so the swath fills the view. The
+  replay camera that tracks is called **Tracking** (`tracking` in code), and takes it.
 - **Data availability**: what satvis has for a satellite: instrument imagery (as a map
   layer the globe draws, or as a viewer link only), CEOS instruments, a 3D model. A
   catalog facet whose picks are all-of (`docs/adr/0021-finding-imagery.md`).

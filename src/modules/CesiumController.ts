@@ -49,7 +49,7 @@ import type { Observer } from "./skyGeometry";
 import { SkyInteraction } from "./SkyInteraction";
 import { SkyView } from "./SkyView";
 import { SurfaceModel } from "./SurfaceModel";
-import { type CameraPose, trackWhenReady } from "./trackFlight";
+import { type CameraPose, currentView, trackWhenReady } from "./trackFlight";
 
 dayjs.extend(utc);
 
@@ -229,8 +229,7 @@ export class CesiumController {
     this.renderLoop = startRenderLoop(this.viewer.cesiumWidget, this.frameCap);
     skipUnsizedPicks(this.viewer.scene);
 
-    this.sats = new SatelliteManager(this.viewer);
-    this.sats.recordedSwathShown = (name) => this.#recordedSwathShown(name);
+    this.sats = new SatelliteManager(this.viewer, { recordedSwathShown: (name) => this.#recordedSwathShown(name) });
     this.#broadcast = new BroadcastCamera(this.viewer);
     this.renderPacer = new RenderPacer(this.viewer.scene, {
       satellites: () => this.sats.activeSatellites,
@@ -369,7 +368,20 @@ export class CesiumController {
     for (const item of next) {
       this.#instruments.push("lifetime" in item ? item : this.#showInstrument(item));
     }
+    this.#reframeTracked();
     this.viewer.scene.requestRender();
+  }
+
+  /**
+   * Tracks the tracked satellite again where its recorded swath came on or went off, as
+   * EntityView reads the framing only when tracking starts: into the chase, or out of it.
+   */
+  #reframeTracked(): void {
+    const name = this.sats.trackedSatellite;
+    const sat = name ? this.sats.getSatellite(name) : undefined;
+    if (sat !== undefined && !this.skyView.active && sat.chasing !== this.#recordedSwathShown(name)) {
+      sat.track(!DeviceDetect.prefersReducedMotion());
+    }
   }
 
   /** Each is a layer a frame (FramedImagery.ts) or a layer a granule (GranuleImagery.ts), so its layers come and go as the clock moves. */
@@ -681,9 +693,10 @@ export class CesiumController {
       return;
     }
     const swing = !DeviceDetect.prefersReducedMotion();
-    if (camera === "chase") {
+    if (camera === "tracking") {
       const sat = () => this.sats.getSatellite(satellite);
-      if (!sat()?.isTracked) {
+      // Tracked already, but from before its swath came on, it is tracked again to chase it.
+      if (!sat()?.chasing) {
         trackWhenReady(
           this.viewer,
           this,
@@ -707,10 +720,7 @@ export class CesiumController {
     }
     const broadcast = () => {
       const sat = this.sats.getSatellite(satellite);
-      if (sat === undefined) return nadir();
-      const { starboardKm, portKm } = sat.props.swathExtents;
-      const target = { position: (time: JulianDate) => sat.props.trajectory.position(time), station: centre, swathKm: starboardKm + portKm };
-      if (!this.#broadcast.start(target, { swing })) nadir();
+      if (sat === undefined || !this.#broadcast.start(sat.broadcastTarget(centre), { swing })) nadir();
     };
     // Anything tracked meanwhile drops the wait.
     trackWhenReady(this.viewer, this, () => this.#placed(satellite), broadcast);
@@ -729,22 +739,23 @@ export class CesiumController {
   /** Keeps the view a replay starts from, for its end; one kept already stays, through the replay's steps. */
   keepViewBeforeReplay(): void {
     if (this.skyView.active) return;
-    const { camera } = this.viewer;
-    this.#viewBeforeReplay ??= { destination: Cartesian3.clone(camera.positionWC), direction: Cartesian3.clone(camera.directionWC), up: Cartesian3.clone(camera.upWC) };
+    this.#viewBeforeReplay ??= currentView(this.viewer.camera);
   }
 
   /**
-   * Ends a replay's camera: the broadcast stops, and with `returnView` whatever the camera
-   * was doing, tracking too, it flies back to the view the replay started from.
+   * Ends a replay's camera: the broadcast stops, and with `returnView` tracking stops too and
+   * the camera flies back to the view the replay started from. A replay opened from a link
+   * started from none, so the camera stays.
    */
   endReplayCamera({ returnView }: { returnView: boolean }): void {
     this.#broadcast.stop();
     const view = this.#viewBeforeReplay;
     this.#viewBeforeReplay = undefined;
-    if (!returnView || view === undefined || this.skyView.active) return;
+    if (!returnView || this.skyView.active) return;
     this.sats.cancelPendingTrack();
-    // Untracked, the camera starts back to where tracking began; this flight replaces that one.
+    // Untracked, the camera starts back to where tracking began; a view to return to replaces that flight.
     this.viewer.trackedEntity = undefined;
+    if (view === undefined) return;
     const swing = !DeviceDetect.prefersReducedMotion();
     this.viewer.camera.flyTo({
       destination: view.destination,

@@ -163,12 +163,14 @@ replay. Chosen from five prototyped (branch `prototype/satellite-tracking-angles
   builds up across the view. A drag or a zoom takes the camera back, where it stays.
 
 **Tracking a satellite while its recorded swath is on chases the swath**: from behind and
-above, 40° down onto the ground under the satellite, so the satellite sits up the screen
+above, 50° down onto the ground under the satellite, so the satellite sits up the screen
 and the swath it has recorded fills the rest. The distance grows with the swath's width,
 from 1,180 km for Landsat's 185 km to 3,100 km for VIIRS's 3,000. It is tracking as any
 other (`viewFrom`), turned down past the satellite once it starts: EntityView aims at the
 satellite and keeps the camera's direction after, so the swath behind would be off the
-bottom of the screen.
+bottom of the screen. As EntityView reads the framing only when tracking starts, a
+satellite tracked when its layer comes on or goes off is tracked again, into the chase or
+out of it.
 While its layer is on, the satellite has its ground track fan, whether or not the
 component is.
 
@@ -193,9 +195,12 @@ what a satellite records as it flies.
   satellite over it, a satellite's through its overpasses over every station. A step to
   another satellite takes the replay's layer off and puts the other's on. A replay opened
   from a link steps through its layer's overpasses over its station, as it has no table.
-  Exit takes the layer off and goes back to live, and the camera, whichever it was, back to
-  the view the replay started from, as the clock: a broadcast left at its place would watch
-  where the satellite no longer is. Taking the layer off elsewhere ends the replay too.
+  Exit takes the layer off and goes back to live, stops tracking, and flies the camera,
+  whichever it was, back to the view the replay started from, as the clock: a broadcast
+  left at its place would watch where the satellite no longer is. A replay opened from a
+  link started from no view, so its camera stays. Taking the layer off elsewhere ends the
+  replay too, and stops the broadcast, but leaves the camera where it is: Exit is the
+  undoing, and a layer taken off in the Map panel is not.
 
 - **The Passes table** (`passImagery.ts`), a station's or a satellite's: a past pass of a
   satellite with a granule layer is the overpass CMR lists over the station in the last
@@ -204,8 +209,10 @@ what a satellite records as it flies.
   from 5 minutes before at 30×, watched from the replay's camera. With Past on, the recorded
   overpasses by day the predictor no longer has, as it looks back a day and CMR a month,
   are rows of their own, so what is to come is predicted and what is past is recorded.
-  The Imaged switch keeps the recorded passes alone. It asks CMR for the satellites drawn,
-  as the passes are theirs, and at most 6 satellite and station pairs.
+  The Imaged switch keeps the recorded passes alone. It asks CMR for every satellite drawn
+  that has a granule layer over a selected station, or for a selected satellite over every
+  station, whether or not a pass is predicted in view, so a replay steps through them all:
+  a query a satellite and station, which only the satellites with a granule layer have.
 - **A granule's picture is credited as its layer is.** A fill is no tile of an imagery
   layer, so while one shows a picture its layer adds the credit to each frame: GIBS's, or
   EUMETView's as EUMETSAT's data policy (amended 2025-11-25) and the Copernicus legal notice

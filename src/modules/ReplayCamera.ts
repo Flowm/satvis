@@ -8,14 +8,14 @@ import type { Viewer } from "@cesium/widgets";
 import type { GroundPoint } from "@/modules/util/cmrGranules";
 import { smootherstep } from "@/modules/util/easing";
 
-/** How a replay's camera watches the overpass. */
-export type ReplayCamera = "broadcast" | "nadir" | "chase";
+/** How a replay's camera watches the overpass: tracking the satellite takes the chase. */
+export type ReplayCamera = "nadir" | "tracking" | "broadcast";
 
 /** The replay bar's choices, first the default. */
-export const REPLAY_CAMERAS: readonly { value: ReplayCamera; label: string; title: string }[] = [
-  { value: "nadir", label: "Nadir", title: "Straight down on the station, north up" },
-  { value: "chase", label: "Tracking", title: "Tracking the satellite from behind, over the swath it records" },
-  { value: "broadcast", label: "Broadcast", title: "From beyond the station, turning with the satellite" },
+export const REPLAY_CAMERAS: readonly { value: ReplayCamera; label: string; title: string; icon: string }[] = [
+  { value: "nadir", label: "Nadir", title: "Straight down on the station, north up", icon: "lucide:locate-fixed" },
+  { value: "tracking", label: "Tracking", title: "Tracking the satellite from behind, over the swath it records", icon: "lucide:satellite" },
+  { value: "broadcast", label: "Broadcast", title: "From beyond the station, turning with the satellite", icon: "lucide:video" },
 ];
 
 /** The globe's. */
@@ -27,7 +27,7 @@ function swathScaleM(swathKm: number): number {
 }
 
 /** The chase's angle below the horizontal, onto the ground under the satellite. */
-const CHASE_PITCH = CesiumMath.toRadians(40);
+const CHASE_PITCH = CesiumMath.toRadians(50);
 
 /** The chase's distance from the ground under the satellite, metres. */
 function chaseRangeM(swathKm: number): number {
@@ -68,6 +68,7 @@ export interface BroadcastTarget {
  */
 export const REPLAY_SWING_S = 2;
 
+/** REPLAY_SWING_S in the milliseconds the swing counts. */
 const SWING_MS = REPLAY_SWING_S * 1000;
 
 /** The broadcast camera's height above the station, metres. */
@@ -119,16 +120,15 @@ function groundTrack(position: BroadcastTarget["position"], time: JulianDate) {
  * something is tracked, or the scene leaves 3D: the camera then stays where it is.
  */
 export class BroadcastCamera {
+  /** Whose camera it holds. */
   readonly #viewer: Viewer;
 
+  /** Undoes what start set up, while it runs. */
   #stop: (() => void) | undefined;
 
+  /** Holds nothing until started. */
   constructor(viewer: Viewer) {
     this.#viewer = viewer;
-  }
-
-  get active(): boolean {
-    return this.#stop !== undefined;
   }
 
   /** False where the satellite has no position at the clock, or the scene is not 3D. */
@@ -198,6 +198,7 @@ export class BroadcastCamera {
     return true;
   }
 
+  /** Lets the camera go where it is; nothing where it is not running. */
   stop(): void {
     this.#stop?.();
     this.#stop = undefined;
