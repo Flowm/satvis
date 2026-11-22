@@ -178,6 +178,13 @@ what a satellite records as it flies.
   are rows of their own, so what is to come is predicted and what is past is recorded.
   The Imaged switch keeps the recorded passes alone. It asks CMR for the satellites drawn,
   as the passes are theirs, and at most 6 satellite and station pairs.
+- **A granule's picture is credited as its layer is.** A fill is no tile of an imagery
+  layer, so while one shows a picture its layer adds the credit to each frame: GIBS's, or
+  EUMETView's as EUMETSAT's data policy (amended 2025-11-25) and the Copernicus legal notice
+  word it, "Contains modified Copernicus Sentinel data <year> processed by EUMETSAT" or
+  "Contains modified EUMETSAT Metop data <year>", the year the clock's. The Data Store's
+  search lists Sentinel-3's granules without a login and passes on no data, and Sentinel
+  data is free to show and modify by EU law (Regulation 1159/2013); read 2026-11-22.
 
 ## Consequences
 
@@ -264,5 +271,7 @@ what a satellite records as it flies.
   (Planetary Computer) have outlines and pictures, under licences not yet read.
 - **Whether CMR minds a replay's load**: no rate is published beyond the 429 it answers
   with. The `Client-Id` names the app.
+- **The Data Store's fair usage**: it throttles, but its limits are on a portal page that
+  would not load (2026-11-22).
 - **The native app**, which would read the same entry and CMR, and draw a granule's
   frame into its baked surface as it draws any layer.

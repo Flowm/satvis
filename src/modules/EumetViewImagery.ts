@@ -36,6 +36,23 @@ export interface EumetViewCapabilities {
 
 const BOUNDS = ["westBoundLongitude", "southBoundLatitude", "eastBoundLongitude", "northBoundLatitude"] as const;
 
+/**
+ * The credit EUMETSAT's data policy and the Copernicus legal notice ask of a
+ * picture made from a layer's data in `year`: the satellite series it comes from.
+ */
+export function eumetViewCredit(layer: string, year: number): string {
+  if (layer.startsWith("copernicus:")) {
+    return `Contains modified Copernicus Sentinel data ${year} processed by EUMETSAT`;
+  }
+  if (layer.startsWith("eps:")) {
+    return `Contains modified EUMETSAT Metop data ${year}`;
+  }
+  if (layer.startsWith("msg_") || layer.startsWith("mtg_")) {
+    return `Contains modified EUMETSAT Meteosat data ${year}`;
+  }
+  return "EUMETSAT";
+}
+
 /** What a layer's own WMS capabilities say of it. Of two bounding boxes the later is the layer's, the first its workspace's. */
 export function parseCapabilities(xml: string): EumetViewCapabilities {
   const dimension = /<Dimension name="time"[^>]*>([^<]*)</.exec(xml)?.[1];
@@ -81,7 +98,7 @@ export function eumetViewFrames(options: EumetViewOptions): FrameSource<WebMapSe
         maximumLevel: Math.max(0, options.maximumLevel - LEVELS_ABOVE_WEB_MERCATOR),
         rectangle: bounds && Rectangle.fromDegrees(...bounds),
         enablePickFeatures: false,
-        credit: "EUMETSAT",
+        credit: eumetViewCredit(options.layer, new Date(frame ?? Date.now()).getUTCFullYear()),
       }),
   };
 }

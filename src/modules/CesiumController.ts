@@ -378,7 +378,13 @@ export class CesiumController {
     const context = this.#imageryContext(lifetime.signal);
     let shown: Shown;
     if (isGranuleLayer(drawn)) {
-      const follow = { scan: this.#scanOf(drawn.token, lifetime.signal), clock: this.viewer.clock, scene: this.viewer.scene, signal: lifetime.signal };
+      const follow = {
+        scan: this.#scanOf(drawn.token, lifetime.signal),
+        clock: this.viewer.clock,
+        scene: this.viewer.scene,
+        credits: this.viewer.creditDisplay,
+        signal: lifetime.signal,
+      };
       const { source, outlines } = granuleLayer(drawn, this.viewer.scene.groundPrimitives, follow);
       shown = showGranuleImagery(source, this.viewer.scene.imageryLayers, outlines, this.#over(below), context);
     } else {

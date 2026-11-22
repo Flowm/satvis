@@ -12,6 +12,9 @@ import type { FrameList, FrameSource } from "./FramedImagery";
 
 const GIBS = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best";
 
+/** What a picture from GIBS is credited with. */
+export const GIBS_CREDIT = "NASA Global Imagery Browse Services for EOSDIS";
+
 export interface GibsOptions {
   layer: string;
   /** The layer's `GoogleMapsCompatible_LevelN` set; N is also the deepest level. */
@@ -103,7 +106,7 @@ export function gibsFrames(options: GibsOptions): FrameSource<WebMapTileServiceI
         format: `image/${options.format}`,
         tilingScheme: new WebMercatorTilingScheme(),
         maximumLevel: options.maximumLevel,
-        credit: "NASA Global Imagery Browse Services for EOSDIS",
+        credit: GIBS_CREDIT,
         // Without the list: GIBS's own name for its latest frame, which for a daily layer
         // is the day still filling in, so yesterday's.
         dimensions: { Time: frame !== undefined || options.daily ? formatFrame(frame ?? Date.now() - DAY_MS, options.daily) : "default" },

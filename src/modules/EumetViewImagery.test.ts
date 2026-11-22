@@ -1,7 +1,7 @@
 import { Math as CesiumMath } from "@cesium/core";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { eumetViewFrames, parseCapabilities } from "./EumetViewImagery";
+import { eumetViewCredit, eumetViewFrames, parseCapabilities } from "./EumetViewImagery";
 
 const box = (west: number, south: number, east: number, north: number) => `<EX_GeographicBoundingBox>
   <westBoundLongitude>${west}</westBoundLongitude>
@@ -69,5 +69,15 @@ describe("eumetViewFrames", () => {
     const frames = eumetViewFrames(OPTIONS);
     expect(await frames.fetchRanges(new AbortController().signal, 0)).toBeUndefined();
     expect(frames.show().rectangle.west).toBeCloseTo(-Math.PI);
+  });
+});
+
+describe("eumetViewCredit", () => {
+  test("names the satellite series and the year, as the data policies ask", () => {
+    expect(eumetViewCredit("copernicus:sentinel3a_olci_l1_rgb_fullres", 2026)).toBe("Contains modified Copernicus Sentinel data 2026 processed by EUMETSAT");
+    expect(eumetViewCredit("eps:m03_rgb_natural_fog", 2025)).toBe("Contains modified EUMETSAT Metop data 2025");
+    expect(eumetViewCredit("mtg_fd:rgb_geocolour", 2026)).toBe("Contains modified EUMETSAT Meteosat data 2026");
+    expect(eumetViewCredit("msg_fes:rgb_natural", 2026)).toBe("Contains modified EUMETSAT Meteosat data 2026");
+    expect(eumetViewCredit("mumi:wideareacoverage_rgb_natural", 2026)).toBe("EUMETSAT");
   });
 });

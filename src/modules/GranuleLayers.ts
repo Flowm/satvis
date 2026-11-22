@@ -19,6 +19,8 @@ import {
   PolygonHierarchy,
 } from "@cesium/core";
 import {
+  Credit,
+  type CreditDisplay,
   GroundPolylineGeometry,
   GroundPolylinePrimitive,
   GroundPrimitive,
@@ -36,8 +38,9 @@ import { type GranuleLayer, type GranulePictures, granulePictureUrl, type Previe
 import { catalogueQuery, granuleCentre, hasPixels } from "@/modules/overpassReplay";
 import { fetchGranules, type Granule, granuleExtent } from "@/modules/util/cmrGranules";
 
+import { eumetViewCredit } from "./EumetViewImagery";
 import { trackRequests } from "./FramedImagery";
-import { gibsFrames, gibsHasGranule } from "./GibsImagery";
+import { GIBS_CREDIT, gibsFrames, gibsHasGranule } from "./GibsImagery";
 import type { GranuleOutlines, GranulePixels, GranuleSensing, GranuleSource } from "./GranuleImagery";
 import { PICTURE_TRIES } from "./granulePictures";
 import type { ScanPlane } from "./satelliteGraphics";
@@ -259,6 +262,8 @@ interface GranuleFollow {
   scan: (time: JulianDate) => ScanPlane | undefined;
   clock: Clock;
   scene: Scene;
+  /** Where the pictures in its fills are credited. */
+  credits: CreditDisplay;
   /** Ends the following. */
   signal: AbortSignal;
 }
@@ -380,7 +385,25 @@ function sensing(drawn: GranuleLayer, primitives: PrimitiveCollection, follow: G
       }
     }
   });
+  // A picture in a fill is no tile of an imagery layer, so it brings no credit of its own.
+  // Cesium clears the frame's credits after preRender.
+  const creditsByText = new Map<string, Credit>();
+  const removeCredit = follow.scene.postRender.addEventListener(() => {
+    const pictures = drawn.pictures;
+    if (pictures === undefined || ![...fills].some(({ material }) => material.uniforms.picture === 1)) {
+      return;
+    }
+    const year = JulianDate.toDate(follow.clock.currentTime).getUTCFullYear();
+    const text = pictures.provider === "gibs" ? GIBS_CREDIT : eumetViewCredit(pictures.layer, year);
+    let credit = creditsByText.get(text);
+    if (credit === undefined) {
+      credit = new Credit(text);
+      creditsByText.set(text, credit);
+    }
+    follow.credits.addCreditToNextFrame(credit);
+  });
   follow.signal.addEventListener("abort", removeListener, { once: true });
+  follow.signal.addEventListener("abort", removeCredit, { once: true });
 
   return {
     passed: (granule, time) => {
