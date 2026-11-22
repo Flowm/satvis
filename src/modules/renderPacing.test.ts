@@ -408,6 +408,22 @@ describe("RenderPacer", () => {
     });
   });
 
+  describe("ground track fans", () => {
+    const leo = (components: string[]) => satellite({ position: new Cartesian3(-7_000_000, 0, 0), perigeeKm: 6_900, apogeeKm: 7_000, components });
+
+    test("are paced as a ground track is, not at the floor", () => {
+      const fan = interval([leo(["Point", "Ground track fan"])], ["Point", "Ground track fan"]);
+      expect(fan).toBeGreaterThan(DEFAULT_LIMITS.floor);
+      expect(fan).toBeCloseTo(interval([leo(["Point", "Ground track"])], ["Point", "Ground track"]), 9);
+    });
+
+    // A granule layer turns on its satellite's fan, and the fill behind its scan line, with the component off.
+    test("count where a satellite draws one with the component off", () => {
+      expect(interval([leo(["Point", "Ground track fan"])], ["Point"], stubScene(6_800_000))).toBe(DEFAULT_LIMITS.floor);
+      expect(interval([leo(["Point"])], ["Point"], stubScene(6_800_000))).toBeGreaterThan(DEFAULT_LIMITS.floor);
+    });
+  });
+
   describe("in 2D", () => {
     const at = (latitude: number) => satellite({ position: Cartesian3.fromRadians(0, CesiumMath.toRadians(latitude), 500_000), perigeeKm: 6_871, apogeeKm: 6_881 });
 
@@ -425,6 +441,11 @@ describe("RenderPacer", () => {
         expect(interval([at(0)], ["Point", reaching], stubMap()), reaching).toBeCloseTo(interval([at(85)], ["Point"], stubMap()), 6);
       }
       expect(interval([at(0)], ["Point", "Ground station link"], stubMap())).toBe(DEFAULT_LIMITS.floor);
+    });
+
+    test("takes a fan a granule layer turned on at the stretch's limit", () => {
+      const fanned = satellite({ position: Cartesian3.fromRadians(0, 0, 500_000), perigeeKm: 6_871, apogeeKm: 6_881, components: ["Ground track fan"] });
+      expect(interval([fanned], ["Point"], stubMap())).toBeCloseTo(interval([at(85)], ["Point"], stubMap()), 6);
     });
   });
 });
