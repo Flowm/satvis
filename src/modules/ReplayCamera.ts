@@ -13,9 +13,9 @@ export type ReplayCamera = "broadcast" | "nadir" | "chase";
 
 /** The replay bar's choices, first the default. */
 export const REPLAY_CAMERAS: readonly { value: ReplayCamera; label: string; title: string }[] = [
-  { value: "broadcast", label: "Broadcast", title: "From beyond the station, turning with the satellite" },
   { value: "nadir", label: "Nadir", title: "Straight down on the station, north up" },
-  { value: "chase", label: "Chase", title: "Tracking the satellite from behind, over the swath it records" },
+  { value: "chase", label: "Tracking", title: "Tracking the satellite from behind, over the swath it records" },
+  { value: "broadcast", label: "Broadcast", title: "From beyond the station, turning with the satellite" },
 ];
 
 /** The globe's. */

@@ -154,13 +154,13 @@ its bar. The camera is not in it: how to watch is the viewer's, as the free came
 **The replay bar picks the camera** (`ReplayCamera.ts`), and it stays picked for the next
 replay. Chosen from five prototyped (branch `prototype/satellite-tracking-angles`):
 
-- **Broadcast**, the first: held 1,800 km above a point beyond the station, on its side of
-  the ground track, and turning to keep the satellite in view, as a camera beside a race
-  track. The station is in the foreground, the satellite crosses it with its fan, and the
-  swath builds up across the view. A drag or a zoom takes the camera back, where it stays.
-- **Nadir**: straight down on the station from 5,000 km, north up, untracked; what a
-  replay did before.
-- **Chase**: tracking the satellite, which chases its swath while the layer is on (below).
+- **Nadir**, the first: straight down on the station from 5,000 km, north up, untracked;
+  what a replay did before, and a view the user is free to move.
+- **Tracking**: tracking the satellite, which chases its swath while the layer is on (below).
+- **Broadcast**: held 1,800 km above a point beyond the station, on its side of the ground
+  track, and turning to keep the satellite in view, as a camera beside a race track. The
+  station is in the foreground, the satellite crosses it with its fan, and the swath
+  builds up across the view. A drag or a zoom takes the camera back, where it stays.
 
 **Tracking a satellite while its recorded swath is on chases the swath**: from behind and
 above, 30° down onto the ground under the satellite, so the satellite sits up the screen

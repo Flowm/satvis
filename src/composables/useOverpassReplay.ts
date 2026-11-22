@@ -79,7 +79,7 @@ export function useOverpassReplay() {
       return station && { latitude: station.lat, longitude: station.lon };
     });
     const steps = shallowRef<RecordedOverpass[]>();
-    const camera = ref<ReplayCamera>("broadcast");
+    const camera = ref<ReplayCamera>("nadir");
     /** Whether the steps a replay was started with hold the layer and station on. */
     const stepped = computed(() => steps.value?.some((entry) => entry.layer.token === layerOn.value?.layer.token && entry.station === replayStation.value) ?? false);
 
