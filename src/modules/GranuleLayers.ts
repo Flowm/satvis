@@ -304,14 +304,18 @@ interface GranuleFollow {
   signal: AbortSignal;
 }
 
-/** The granule's picture in its fill, where the provider has its pixels and it is not near a pole; grey where it has none. */
-async function loadPicture(drawn: GranuleLayer, pictures: GranulePictures, granule: Granule, fill: GranuleFill): Promise<void> {
+/**
+ * The granule's picture in its fill, where the provider has its pixels and it is not near a
+ * pole; grey where it has none. Each asks `scene` for its frames, which a paused clock draws none of.
+ */
+async function loadPicture(drawn: GranuleLayer, pictures: GranulePictures, granule: Granule, fill: GranuleFill, scene: Pick<Scene, "requestRender" | "postRender">): Promise<void> {
   const has = await hasPixels(drawn, granule);
   if (fill.gone) {
     return;
   }
   if (!has) {
     fill.material.uniforms.tint = MISSING_FILL_TINT;
+    scene.requestRender();
     return;
   }
   const extent = granuleExtent(granule);
@@ -342,7 +346,16 @@ async function loadPicture(drawn: GranuleLayer, pictures: GranulePictures, granu
   const radians = (degrees: number) => (degrees * Math.PI) / 180;
   fill.material.uniforms.bounds = new Cartesian4(radians(bounds.west), radians(bounds.south), radians(bounds.east), radians(bounds.north));
   fill.material.uniforms.image = image;
-  fill.material.uniforms.picture = 1;
+  // Cesium makes an image's texture in the frame after the one that takes it, and samples its
+  // white default until then: drawn at once, the fill flashed white for a paced frame.
+  const removeListener = scene.postRender.addEventListener(() => {
+    removeListener();
+    if (!fill.gone) {
+      fill.material.uniforms.picture = 1;
+      scene.requestRender();
+    }
+  });
+  scene.requestRender();
 }
 
 /** The picture at `url`, asked for again where the service answers with an error; undefined where each try failed. */
@@ -482,7 +495,7 @@ function sensing(drawn: GranuleLayer, primitives: PrimitiveCollection, follow: G
       primitives.add(primitive);
       fills.add(fill);
       if (drawn.pictures !== undefined) {
-        void loadPicture(drawn, drawn.pictures, granule, fill);
+        void loadPicture(drawn, drawn.pictures, granule, fill, follow.scene);
       }
       return fill;
     },
