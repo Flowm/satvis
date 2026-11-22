@@ -41,7 +41,7 @@ import { showGranuleImagery } from "./GranuleImagery";
 import { granuleLayer } from "./GranuleLayers";
 import type { ReplayPlan } from "./overpassReplay";
 import { RenderPacer } from "./renderPacing";
-import { BroadcastCamera, type ReplayCamera } from "./ReplayCamera";
+import { BroadcastCamera, REPLAY_SWING_S, type ReplayCamera } from "./ReplayCamera";
 import type { SatelliteComponentCollection } from "./SatelliteComponentCollection";
 import { cesiumSceneMode, type ScanPlane, scanPlane } from "./satelliteGraphics";
 import { SatelliteManager } from "./SatelliteManager";
@@ -49,7 +49,7 @@ import type { Observer } from "./skyGeometry";
 import { SkyInteraction } from "./SkyInteraction";
 import { SkyView } from "./SkyView";
 import { SurfaceModel } from "./SurfaceModel";
-import { trackWhenReady } from "./trackFlight";
+import { type CameraPose, trackWhenReady } from "./trackFlight";
 
 dayjs.extend(utc);
 
@@ -166,6 +166,9 @@ export class CesiumController {
 
   /** An overpass replay's camera from beyond the station (ADR 0023). */
   readonly #broadcast: BroadcastCamera;
+
+  /** Where the camera was when the replay on started, which its end goes back to. */
+  #viewBeforeReplay: CameraPose | undefined;
 
   skyInteraction!: SkyInteraction;
 
@@ -685,7 +688,7 @@ export class CesiumController {
           this.viewer,
           this,
           () => this.#placed(satellite),
-          () => sat()!.track(swing),
+          () => sat()!.track(swing, REPLAY_SWING_S),
         );
       }
       return;
@@ -695,7 +698,7 @@ export class CesiumController {
     const nadir = () =>
       this.viewer.camera.flyTo({
         destination: Cartesian3.fromDegrees(centre.longitude, centre.latitude, REPLAY_HEIGHT_M),
-        duration: swing ? undefined : 0,
+        duration: swing ? REPLAY_SWING_S : 0,
         easingFunction: smootherstep,
       });
     if (camera === "nadir") {
@@ -723,9 +726,32 @@ export class CesiumController {
     return interval !== undefined && TimeInterval.contains(interval, this.viewer.clock.currentTime);
   }
 
-  /** Leaves the camera where a replay put it, for the user to move. */
-  releaseReplayCamera(): void {
+  /** Keeps the view a replay starts from, for its end; one kept already stays, through the replay's steps. */
+  keepViewBeforeReplay(): void {
+    if (this.skyView.active) return;
+    const { camera } = this.viewer;
+    this.#viewBeforeReplay ??= { destination: Cartesian3.clone(camera.positionWC), direction: Cartesian3.clone(camera.directionWC), up: Cartesian3.clone(camera.upWC) };
+  }
+
+  /**
+   * Ends a replay's camera: the broadcast stops, and with `returnView` whatever the camera
+   * was doing, tracking too, it flies back to the view the replay started from.
+   */
+  endReplayCamera({ returnView }: { returnView: boolean }): void {
     this.#broadcast.stop();
+    const view = this.#viewBeforeReplay;
+    this.#viewBeforeReplay = undefined;
+    if (!returnView || view === undefined || this.skyView.active) return;
+    this.sats.cancelPendingTrack();
+    // Untracked, the camera starts back to where tracking began; this flight replaces that one.
+    this.viewer.trackedEntity = undefined;
+    const swing = !DeviceDetect.prefersReducedMotion();
+    this.viewer.camera.flyTo({
+      destination: view.destination,
+      orientation: { direction: view.direction, up: view.up },
+      duration: swing ? REPLAY_SWING_S : 0,
+      easingFunction: smootherstep,
+    });
   }
 
   /** Whether one of the satellite's own granule layers is on. */

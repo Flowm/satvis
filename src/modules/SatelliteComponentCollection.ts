@@ -27,8 +27,8 @@ const VIEW_FROM = new Cartesian3(0, -3600000, 4200000);
 const VIEW_FROM_MODEL_DIRECTION = Cartesian3.normalize(new Cartesian3(9, -10, 9), new Cartesian3());
 const VIEW_FROM_MODEL_RADII = 6;
 
-/** How many clock ticks after tracking starts the chase is turned down whenever EntityView has aimed it at the satellite. */
-const CHASE_TILT_TICKS = 120;
+/** How many frames after tracking starts the chase is turned down whenever EntityView has aimed it at the satellite. */
+const CHASE_TILT_FRAMES = 120;
 
 /** Radians. A camera aimed at the satellite as EntityView aims it, not turned down past it. */
 const AIMED_AT_RADIANS = CesiumMath.toRadians(0.2);
@@ -140,8 +140,8 @@ export class SatelliteComponentCollection implements ComponentHost {
     componentNames.forEach((name) => this.enableComponent(name));
   }
 
-  /** `animate` flies to the tracked view first, in 3D. */
-  track(animate = false): void {
+  /** `animate` flies to the tracked view first, in 3D, taking `duration` seconds where given. */
+  track(animate = false, duration?: number): void {
     // The distance is the model's size: tracked while loading, the ISS is framed from inside.
     trackWhenReady(
       this.viewer,
@@ -152,7 +152,7 @@ export class SatelliteComponentCollection implements ComponentHost {
           return;
         }
         const pose = animate && this.viewer.scene.mode === SceneMode.SCENE3D ? this.#trackedCameraPose(this.defaultEntity) : undefined;
-        trackEntity(this.viewer, () => this.defaultEntity, pose);
+        trackEntity(this.viewer, () => this.defaultEntity, pose, duration);
       },
     );
   }
@@ -311,15 +311,16 @@ export class SatelliteComponentCollection implements ComponentHost {
    * Turns the chase down past the satellite once tracking has started. EntityView aims at the
    * satellite on its first update and keeps the camera's direction after. The Viewer's first
    * update waits for the satellite's bounding sphere, artificiallyTrack's does not, so for a
-   * while after the start, the camera is turned down whenever it is found aimed at the satellite.
+   * while after the start, the camera is turned down whenever it is found aimed at the
+   * satellite: before each frame is drawn, after the updates, so no frame shows it aimed.
    */
   #tiltChase(): void {
     const { clock, scene } = this.viewer;
-    let ticks = CHASE_TILT_TICKS;
-    const remove = clock.onTick.addEventListener(() => {
+    let frames = CHASE_TILT_FRAMES;
+    const remove = scene.preRender.addEventListener(() => {
       const tilt = this.#chaseTilt(clock.currentTime);
       const satellite = this.defaultEntity?.position?.getValue(clock.currentTime);
-      if (--ticks <= 0 || tilt === undefined || !this.isTracked || satellite === undefined) {
+      if (--frames <= 0 || tilt === undefined || !this.isTracked || satellite === undefined) {
         remove();
         return;
       }

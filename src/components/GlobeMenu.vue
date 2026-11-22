@@ -11,6 +11,8 @@ import type { DropdownMenuItem } from "@nuxt/ui";
 import { computed, onBeforeUnmount, ref } from "vue";
 
 import { useController } from "@/composables/useController";
+import { useLatestReplay } from "@/composables/useLatestReplay";
+import { useSelectedEntity } from "@/composables/useSelectedEntity";
 import type { GlobeMenuPlace } from "@/modules/CesiumController";
 import { stationLabel } from "@/modules/GroundStationEntity";
 import { DeviceDetect } from "@/modules/util/DeviceDetect";
@@ -31,6 +33,8 @@ const emit = defineEmits<{
 
 const cc = useController();
 const satStore = useSatStore();
+const { requestLatest } = useLatestReplay();
+const { preferredTab } = useSelectedEntity(cc);
 const cesiumStore = useCesiumStore();
 
 const open = ref(false);
@@ -58,6 +62,15 @@ function addStation(lat: number, lon: number): void {
   cesiumStore.pickMode = false;
 }
 
+/** Opens the station's passes and replays the newest one imaged by day there. */
+function replayLatest(index: number): void {
+  const station = cc.sats.groundStations[index];
+  if (station === undefined) return;
+  requestLatest({ subject: station.name });
+  preferredTab.value = "passes";
+  station.select();
+}
+
 function lookUpFrom(index: number): void {
   satStore.setObserverStation(index);
   cesiumStore.enterSkyView();
@@ -77,6 +90,7 @@ const items = computed<DropdownMenuItem[][]>(() => {
     return [
       [{ type: "label", label: stationLabel(station.name, station.lat, station.lon) }],
       [
+        { label: "Replay latest overpass", icon: "lucide:history", onSelect: () => replayLatest(index) },
         { label: "Look up from here", icon: "lucide:telescope", onSelect: () => lookUpFrom(index) },
         { label: "Remove ground station", icon: "lucide:trash-2", color: "error", onSelect: () => satStore.removeGroundStation(index) },
       ],

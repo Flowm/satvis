@@ -1,7 +1,7 @@
 // Where the camera watches a satellite's swath from (ADR 0023): the broadcast camera of an
 // overpass replay, and the chase that tracking takes while the recorded swath is on.
 
-import { Cartesian3, Ellipsoid, JulianDate, Math as CesiumMath } from "@cesium/core";
+import { Cartesian3, Ellipsoid, JulianDate, Math as CesiumMath, Matrix3, Quaternion } from "@cesium/core";
 import { SceneMode } from "@cesium/engine";
 import type { Viewer } from "@cesium/widgets";
 
@@ -27,7 +27,7 @@ function swathScaleM(swathKm: number): number {
 }
 
 /** The chase's angle below the horizontal, onto the ground under the satellite. */
-const CHASE_PITCH = CesiumMath.toRadians(30);
+const CHASE_PITCH = CesiumMath.toRadians(40);
 
 /** The chase's distance from the ground under the satellite, metres. */
 function chaseRangeM(swathKm: number): number {
@@ -61,14 +61,41 @@ export interface BroadcastTarget {
   swathKm: number;
 }
 
-/** How long the broadcast camera takes to swing in from where the camera was, ms. */
-const SWING_MS = 1500;
+/**
+ * Seconds every replay camera takes to move in from where the camera was, so a switch either
+ * way moves at one pace: between Cesium's flights, 3 s at these distances, and the 1.5 s the
+ * broadcast swing first took.
+ */
+export const REPLAY_SWING_S = 2;
+
+const SWING_MS = REPLAY_SWING_S * 1000;
 
 /** The broadcast camera's height above the station, metres. */
 const BROADCAST_HEIGHT_M = 1_800_000;
 
 /** How far up from the ground under the satellite it aims, as a share of the satellite's height: the satellite and its fresh swath both in view. */
 const AIM_HEIGHT_SHARE = 0.15;
+
+/** A camera's turn from the world's axes: its right, up and back as columns. */
+function orientation(direction: Cartesian3, up: Cartesian3): Quaternion {
+  const right = Cartesian3.normalize(Cartesian3.cross(direction, up, new Cartesian3()), new Cartesian3());
+  const level = Cartesian3.cross(right, direction, new Cartesian3());
+  // prettier-ignore
+  const rotation = new Matrix3(
+    right.x, level.x, -direction.x,
+    right.y, level.y, -direction.y,
+    right.z, level.z, -direction.z,
+  );
+  return Quaternion.fromRotationMatrix(rotation);
+}
+
+/** The direction and up of a camera turned by `turn` (orientation). */
+function axes(turn: Quaternion): { direction: Cartesian3; up: Cartesian3 } {
+  const rotation = Matrix3.fromQuaternion(turn);
+  const up = Matrix3.getColumn(rotation, 1, new Cartesian3());
+  const direction = Cartesian3.negate(Matrix3.getColumn(rotation, 2, new Cartesian3()), new Cartesian3());
+  return { direction, up };
+}
 
 /** The ground track under `position` at `time`: the ground point, its up, and the track's direction and starboard. */
 function groundTrack(position: BroadcastTarget["position"], time: JulianDate) {
@@ -122,7 +149,7 @@ export class BroadcastCamera {
     const eyeUp = ellipsoid.geodeticSurfaceNormal(eye, new Cartesian3());
 
     camera.cancelFlight();
-    const from = swing ? { position: Cartesian3.clone(camera.positionWC), direction: Cartesian3.clone(camera.directionWC), started: performance.now() } : undefined;
+    const from = swing ? { position: Cartesian3.clone(camera.positionWC), orientation: orientation(camera.directionWC, camera.upWC), started: performance.now() } : undefined;
 
     const aim = () => {
       const now = groundTrack(target.position, viewer.clock.currentTime);
@@ -130,16 +157,18 @@ export class BroadcastCamera {
       const at = Cartesian3.add(now.ground, Cartesian3.multiplyByScalar(now.up, now.altitudeM * AIM_HEIGHT_SHARE, new Cartesian3()), new Cartesian3());
       let position = eye;
       let direction = Cartesian3.normalize(Cartesian3.subtract(at, eye, new Cartesian3()), new Cartesian3());
+      // Level: the eye's up, square to the direction.
+      let up = Cartesian3.cross(Cartesian3.normalize(Cartesian3.cross(direction, eyeUp, new Cartesian3()), new Cartesian3()), direction, new Cartesian3());
       const progress = from && Math.min(1, (performance.now() - from.started) / SWING_MS);
       if (from && progress !== undefined && progress < 1) {
+        // The whole turn at once: blending direction and up apart whips the roll round where they cross.
         const eased = smootherstep(progress);
         position = Cartesian3.lerp(from.position, eye, eased, new Cartesian3());
-        direction = Cartesian3.normalize(Cartesian3.lerp(from.direction, direction, eased, new Cartesian3()), new Cartesian3());
+        const turned = Quaternion.slerp(from.orientation, orientation(direction, up), eased, new Quaternion());
+        ({ direction, up } = axes(turned));
         // A paused clock draws no frames of its own.
         scene.requestRender();
       }
-      const right = Cartesian3.normalize(Cartesian3.cross(direction, eyeUp, new Cartesian3()), new Cartesian3());
-      const up = Cartesian3.cross(right, direction, new Cartesian3());
       camera.setView({ destination: position, orientation: { direction, up } });
     };
 

@@ -1,38 +1,37 @@
 <!-- An overpass replay's controls, over the clock while one is on (ADR 0023). -->
 <template>
   <div v-if="active" class="replay" role="group" aria-label="Overpass replay">
-    <UIcon name="lucide:history" class="replay__icon" />
-    <span class="replay__text" :title="title">
-      <span class="replay__what">{{ active.satellite }} · {{ active.instrument }}</span>
-      <span class="replay__where">over {{ active.station.name }}</span>
-      <span v-if="place.current" class="replay__when">{{ overpassTime(place.current.entry) }}</span>
+    <span class="replay__what" :title="title">{{ active.satellite }}</span>
+    <span class="replay__where" :title="title">
+      {{ active.station.name }}<template v-if="place.current"> · {{ overpassTime(place.current.entry) }}</template>
     </span>
-    <div class="replay__cameras" role="radiogroup" aria-label="Replay camera">
-      <button
-        v-for="option in REPLAY_CAMERAS"
-        :key="option.value"
-        type="button"
-        role="radio"
-        class="replay__button"
-        :class="{ 'replay__button--on': camera === option.value }"
-        :aria-checked="camera === option.value"
-        :aria-label="`${option.label} camera`"
-        :title="option.title"
-        @click="watchFrom(option.value)"
-      >
-        <UIcon :name="CAMERA_ICONS[option.value]" />
+    <div class="replay__controls">
+      <div class="replay__cameras" role="radiogroup" aria-label="Replay camera">
+        <button
+          v-for="option in REPLAY_CAMERAS"
+          :key="option.value"
+          type="button"
+          role="radio"
+          class="replay__button"
+          :class="{ 'replay__button--on': camera === option.value }"
+          :aria-checked="camera === option.value"
+          :aria-label="`${option.label} camera`"
+          :title="option.title"
+          @click="watchFrom(option.value)"
+        >
+          <UIcon :name="CAMERA_ICONS[option.value]" />
+        </button>
+      </div>
+      <button type="button" class="replay__button" :disabled="!place.previous" aria-label="Previous overpass" :title="stepTitle('previous')" @click="go(place.previous)">
+        <UIcon name="lucide:chevron-left" />
+      </button>
+      <button type="button" class="replay__button" :disabled="!place.next" aria-label="Next overpass" :title="stepTitle('next')" @click="go(place.next)">
+        <UIcon name="lucide:chevron-right" />
+      </button>
+      <button type="button" class="replay__button" aria-label="Exit replay" title="Take the granules off and go back to now" @click="exit">
+        <UIcon name="lucide:x" />
       </button>
     </div>
-    <button type="button" class="replay__button" :disabled="!place.previous" aria-label="Previous overpass" :title="stepTitle('previous')" @click="go(place.previous)">
-      <UIcon name="lucide:chevron-left" />
-    </button>
-    <button type="button" class="replay__button" :disabled="!place.next" aria-label="Next overpass" :title="stepTitle('next')" @click="go(place.next)">
-      <UIcon name="lucide:chevron-right" />
-    </button>
-    <button type="button" class="replay__button replay__exit" aria-label="Exit replay" title="Take the granules off and go back to now" @click="exit">
-      <UIcon name="lucide:x" />
-      <span>Exit</span>
-    </button>
   </div>
 </template>
 
@@ -96,52 +95,56 @@ function go(to: Step | undefined): void {
   if (to !== undefined) step(to.entry);
 }
 
-/** Takes the replay's layer off and goes back to live; the camera stays. */
+/** Takes the replay's layer off and goes back to live, and the camera to where it was before. */
 function exit(): void {
-  stop();
+  stop({ returnView: true });
   goLive();
 }
 </script>
 
 <style scoped>
 .replay {
-  display: flex;
+  display: grid;
+  grid-template-areas:
+    "what controls"
+    "where where";
+  grid-template-columns: minmax(0, 1fr) auto;
   width: fit-content;
+  min-width: 260px;
   max-width: calc(100% - 16px);
   align-items: center;
-  gap: 4px;
+  column-gap: 10px;
   margin: 0 auto 6px;
-  padding: 3px 4px 3px 10px;
+  padding: 3px 4px 5px 12px;
   border: 1px solid var(--panel-hairline);
-  border-radius: 999px;
+  border-radius: 14px;
   background: var(--panel-surface);
   font-size: 12.5px;
   pointer-events: auto;
 }
 
-.replay__icon {
-  flex: none;
-  color: var(--panel-accent);
-}
-
-.replay__text {
-  display: flex;
-  min-width: 0;
-  gap: 6px;
+.replay__what {
+  grid-area: what;
   overflow: hidden;
-  padding-right: 4px;
+  font-weight: 600;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.replay__what {
-  font-weight: 600;
-}
-
-.replay__where,
-.replay__when {
+.replay__where {
+  grid-area: where;
   overflow: hidden;
+  padding-right: 8px;
   color: var(--panel-muted);
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.replay__controls {
+  display: flex;
+  grid-area: controls;
+  align-items: center;
+  gap: 2px;
 }
 
 .replay__button {
@@ -179,10 +182,5 @@ function exit(): void {
 .replay__button:disabled {
   color: var(--panel-faint);
   cursor: default;
-}
-
-.replay__exit {
-  padding-right: 10px;
-  font-weight: 600;
 }
 </style>

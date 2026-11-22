@@ -23,9 +23,10 @@ function currentView(camera: Camera): CameraPose {
   return { destination: Cartesian3.clone(camera.positionWC), direction: Cartesian3.clone(camera.directionWC), up: Cartesian3.clone(camera.upWC) };
 }
 
-function flyTo(viewer: Viewer, pose: CameraPose, callbacks?: { complete: () => void; cancel: () => void }): void {
+/** `duration` in seconds; Cesium's own by distance where it is left out. */
+function flyTo(viewer: Viewer, pose: CameraPose, callbacks?: { complete: () => void; cancel: () => void }, duration?: number): void {
   // Cesium's own easing started a flight down to a satellite at 150°/s, and whipped the one back up to 270°/s.
-  viewer.camera.flyTo({ destination: pose.destination, orientation: { direction: pose.direction, up: pose.up }, easingFunction: smootherstep, ...callbacks });
+  viewer.camera.flyTo({ destination: pose.destination, orientation: { direction: pose.direction, up: pose.up }, easingFunction: smootherstep, duration, ...callbacks });
 }
 
 /**
@@ -88,7 +89,7 @@ export function trackWhenReady(viewer: Viewer, owner: unknown, ready: () => bool
  * the first flight in a chain found it. Anything else setting `trackedEntity`
  * mid-flight cancels it.
  */
-export function trackEntity(viewer: Viewer, target: () => Entity | undefined, pose?: CameraPose): void {
+export function trackEntity(viewer: Viewer, target: () => Entity | undefined, pose?: CameraPose, duration?: number): void {
   const previous = flights.get(viewer);
   flights.delete(viewer);
   viewer.camera.cancelFlight();
@@ -122,5 +123,5 @@ export function trackEntity(viewer: Viewer, target: () => Entity | undefined, po
       viewsBeforeTracking.delete(viewer);
     }
   };
-  flyTo(viewer, pose, { complete: () => finish(true), cancel: () => finish(false) });
+  flyTo(viewer, pose, { complete: () => finish(true), cancel: () => finish(false) }, duration);
 }

@@ -107,7 +107,7 @@ export function useOverpassReplay() {
       if (on === undefined && replayStation.value !== "") {
         replayStation.value = "";
         steps.value = undefined;
-        cc.releaseReplayCamera();
+        cc.endReplayCamera({ returnView: true });
       }
     });
     const replay = computed((): OverpassReplay | undefined => {
@@ -136,6 +136,7 @@ export function useOverpassReplay() {
 
   /** Starts a replay of `step`, in place of the one on, its bar stepping through `steps` (replaySteps). */
   function start(first: RecordedOverpass, steps: RecordedOverpass[]): void {
+    cc.keepViewBeforeReplay();
     shared!.steps.value = steps;
     replayStep(first, 30);
   }
@@ -152,13 +153,16 @@ export function useOverpassReplay() {
     if (on !== undefined) cc.aimReplay({ satellite: on.satellite, centre: on.station.point }, camera);
   }
 
-  /** Takes the replay's layer off, and no other, and leaves the camera where it is; the clock is the caller's to put back. */
-  function stop(): void {
+  /**
+   * Takes the replay's layer off, and no other; with `returnView` the camera flies back to
+   * where it was when the replay started, else it stays. The clock is the caller's to put back.
+   */
+  function stop({ returnView }: { returnView: boolean }): void {
     const token = shared!.replay.value?.layer.token;
     if (token !== undefined) cesiumStore.toggleInstrumentImagery(token, false);
     cesiumStore.replayStation = "";
     shared!.steps.value = undefined;
-    cc.releaseReplayCamera();
+    cc.endReplayCamera({ returnView });
   }
 
   return { layerOn: shared.layerOn, replay: shared.replay, camera: shared.camera, start, step, watchFrom, stop };

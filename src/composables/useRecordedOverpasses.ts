@@ -42,6 +42,8 @@ export function useRecordedOverpasses(passes: Ref<readonly { name: string; groun
   // By pair, as `pairs` keys them.
   const byPair = shallowRef(new Map<string, RecordedOverpass[]>());
   const recorded = computed(() => [...byPair.value.values()].flat());
+  /** Every pair asked about has answered, or failed to. */
+  const settled = computed(() => [...pairs.value.keys()].every((key) => byPair.value.has(key)));
   // Every pair's overpasses once listed: the passes empty while they are computed, as after a replay's jump.
   const listed = new Map<string, RecordedOverpass[]>();
   // The pictures' answer for each day granule of an overpass, by overpass.
@@ -60,7 +62,12 @@ export function useRecordedOverpasses(passes: Ref<readonly { name: string; groun
       for (const [key, { satellite, station, layer, latitude, longitude }] of pairs.value) {
         if (listed.has(key)) continue;
         void stationOverpasses(layer, { latitude, longitude }, controller.signal).then((overpasses) => {
-          if (controller.signal.aborted || overpasses === undefined) return;
+          if (controller.signal.aborted) return;
+          if (overpasses === undefined) {
+            // Not kept in `listed`, so it is asked again; none for now, so the rest settle.
+            byPair.value = new Map(byPair.value).set(key, []);
+            return;
+          }
           const entries = overpasses.map((overpass) => ({ pair: key, satellite, station, layer, overpass, day: isDayOverpass(overpass) }));
           listed.set(key, entries);
           byPair.value = new Map(byPair.value).set(key, entries);
@@ -99,10 +106,10 @@ export function useRecordedOverpasses(passes: Ref<readonly { name: string; groun
     }
     const station = sats.groundStations.find((gs) => gs.name === pass.groundStationName);
     if (station === undefined || pass.name === undefined) return;
-    replay.stop();
+    replay.stop({ returnView: false });
     const point = { latitude: station.position.latitude, longitude: station.position.longitude };
     cc.replay(stationReplay(pass, point, pass.name), replay.camera.value);
   }
 
-  return { recorded, imageryOf, replayPass };
+  return { recorded, settled, imageryOf, replayPass };
 }

@@ -163,7 +163,7 @@ replay. Chosen from five prototyped (branch `prototype/satellite-tracking-angles
   builds up across the view. A drag or a zoom takes the camera back, where it stays.
 
 **Tracking a satellite while its recorded swath is on chases the swath**: from behind and
-above, 30° down onto the ground under the satellite, so the satellite sits up the screen
+above, 40° down onto the ground under the satellite, so the satellite sits up the screen
 and the swath it has recorded fills the rest. The distance grows with the swath's width,
 from 1,180 km for Landsat's 185 km to 3,100 km for VIIRS's 3,000. It is tracking as any
 other (`viewFrom`), turned down past the satellite once it starts: EntityView aims at the
@@ -184,14 +184,18 @@ what a satellite records as it flies.
   side of the clock (`useSensedSpans.ts`), and where the clock is past the newest, the card
   says how far behind live that is and goes to it, keeping the speed and the tracking.
 - **A station's overpass is a replay** (`useOverpassReplay.ts`), started from a pass in the
-  Passes table. While one is on, a bar over the clock (`ReplayBar.vue`) names it and steps
+  Passes table: its start, or its picture icon where it was recorded by day. The newest
+  recorded by day is one press away wherever the table's subject is: the replay button in
+  the info panel's header, the "Last imaged" box over the table, and a station pin's globe
+  menu, which opens the station's passes first (`useLatestReplay.ts`). While one is on, a bar over the clock (`ReplayBar.vue`) names it and steps
   to the overpass before or after among the table's recorded ones by day
   (`replaySteps`), at the speed the clock runs: a station's table steps through every
   satellite over it, a satellite's through its overpasses over every station. A step to
   another satellite takes the replay's layer off and puts the other's on. A replay opened
   from a link steps through its layer's overpasses over its station, as it has no table.
-  Exit takes the layer off and goes back to live; the camera stays. Taking the layer off
-  elsewhere ends the replay too.
+  Exit takes the layer off and goes back to live, and the camera, whichever it was, back to
+  the view the replay started from, as the clock: a broadcast left at its place would watch
+  where the satellite no longer is. Taking the layer off elsewhere ends the replay too.
 
 - **The Passes table** (`passImagery.ts`), a station's or a satellite's: a past pass of a
   satellite with a granule layer is the overpass CMR lists over the station in the last
