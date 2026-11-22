@@ -101,21 +101,24 @@ export function granuleCentre(granule: Granule): GroundPoint {
   return { latitude, longitude: ((((longitude + 180) % 360) + 360) % 360) - 180 };
 }
 
-/** What a replay sets: the clock, its speed, and where the camera looks down from. */
+/** What a replay sets: the clock, its speed, and the satellite and station the camera watches. */
 export interface ReplayPlan {
   /** Epoch ms the clock starts at. */
   time: number;
   /** One of the speed ladder's rungs. */
   multiplier: number;
+  /** The satellite passing, by name. */
+  satellite: string;
+  /** The station it passes over. */
   centre: GroundPoint;
 }
 
 /** How long before an overpass the clock is set: the satellite comes up to it. */
 export const REPLAY_LEAD_MS = 5 * MINUTE;
 
-/** A pass or an overpass over a station: from five minutes before it starts, at 30×, above the station. */
-export function stationReplay(overpass: Pick<Overpass, "start">, station: GroundPoint): ReplayPlan {
-  return { time: overpass.start - REPLAY_LEAD_MS, multiplier: 30, centre: station };
+/** `satellite`'s pass or overpass over a station: from five minutes before it starts, at 30×. */
+export function stationReplay(overpass: Pick<Overpass, "start">, station: GroundPoint, satellite: string): ReplayPlan {
+  return { time: overpass.start - REPLAY_LEAD_MS, multiplier: 30, satellite, centre: station };
 }
 
 /** How far around the clock a satellite's own overpasses are listed for the timeline: a day each way, about 14 orbits. */
@@ -148,10 +151,12 @@ export interface ReplayPlace<T> {
 /**
  * Where `time` is among `items`, oldest first, each starting its replay at `plan(item).time`
  * and ending at `item.end`: so a step from one replay goes to the one before or after it.
+ * Of items replayed at the same time, as one overpass over two stations, the current is the
+ * one `on`, the replay's own.
  */
-export function replayPlace<T extends { end: number }>(items: readonly T[], time: number, plan: (item: T) => ReplayPlan): ReplayPlace<T> {
+export function replayPlace<T extends { end: number }>(items: readonly T[], time: number, plan: (item: T) => ReplayPlan, on: (item: T) => boolean = () => true): ReplayPlace<T> {
+  const at = items.findLastIndex((item) => on(item) && plan(item).time <= time + STEP_SLACK_MS && time <= item.end + AFTER_OVERPASS_MS);
+  if (at >= 0) return { current: items[at], previous: items[at - 1], next: items[at + 1] };
   const begun = items.filter((item) => plan(item).time <= time + STEP_SLACK_MS).length;
-  const last = items[begun - 1];
-  const current = last !== undefined && time <= last.end + AFTER_OVERPASS_MS ? last : undefined;
-  return { current, previous: items[current === undefined ? begun - 1 : begun - 2], next: items[begun] };
+  return { current: undefined, previous: items[begun - 1], next: items[begun] };
 }

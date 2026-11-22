@@ -109,3 +109,20 @@ export function passImagery(entry: RecordedOverpass, pixels: readonly boolean[] 
   const count = pixels.filter(Boolean).length;
   return count === 0 ? "outline" : count === pixels.length ? "image" : "part";
 }
+
+/**
+ * What a replay started at `started` steps through: the recorded overpasses by day of the
+ * Passes table it was started from, which are a station's of every satellite or a
+ * satellite's over every station. One a satellite, station and overpass, of `started`'s layer
+ * where a satellite has two over it. By start.
+ */
+export function replaySteps(recorded: readonly RecordedOverpass[], started: RecordedOverpass): RecordedOverpass[] {
+  const steps = new Map<string, RecordedOverpass>();
+  for (const entry of recorded) {
+    if (!entry.day) continue;
+    const key = `${entry.satellite}|${entry.station}|${entry.overpass.start}`;
+    const held = steps.get(key);
+    if (held === undefined || (entry.layer.token === started.layer.token && held.layer.token !== started.layer.token)) steps.set(key, entry);
+  }
+  return [...steps.values()].toSorted((a, b) => a.overpass.start - b.overpass.start);
+}

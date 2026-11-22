@@ -4,6 +4,7 @@ import type { Viewer } from "@cesium/widgets";
 
 import type { ElementsEntry } from "@/config/presets";
 import { CesiumCleanupHelper } from "@/modules/util/CesiumCleanupHelper";
+import type { GroundPoint } from "@/modules/util/cmrGranules";
 import { sameValue } from "@/modules/util/equality";
 import { approximatePeriodMinutes, type GpRecord } from "@/modules/util/gp";
 import { GroundTrackBatch } from "@/modules/util/GroundTrackBatch";
@@ -125,8 +126,13 @@ export class SatelliteManager {
   #customRecordCount = 0;
 
   /** The sources default to the workers; a test passes the inline ones. */
-  constructor(viewer: Viewer, sources: { samples?: SampleSource; passes?: PassSource } = {}) {
+  /**
+   * `recordedSwathShown` says whether a granule layer of the satellite named is on, which
+   * tracking it then chases (ADR 0023): the controller's, which draws the layers.
+   */
+  constructor(viewer: Viewer, sources: { samples?: SampleSource; passes?: PassSource; recordedSwathShown?: (name: string) => boolean } = {}) {
     this.viewer = viewer;
+    this.#recordedSwathShown = sources.recordedSwathShown ?? (() => false);
     this.#samples = sources.samples ?? new WorkerSampleSource();
     // A worker separate from sampling; see passWorker.
     this.#passes = sources.passes ?? new WorkerPassSource();
@@ -166,6 +172,9 @@ export class SatelliteManager {
       this.#reconcileActive();
     });
   }
+
+  /** Whether a granule layer of the satellite named is on; see the constructor. */
+  readonly #recordedSwathShown: (name: string) => boolean;
 
   onCatalogChange(callback: () => void): void {
     this.#onCatalogChange = callback;
@@ -499,6 +508,7 @@ export class SatelliteManager {
       chunk,
     );
     sat.props.passPredictor.mode = this.#desired.overpassMode;
+    sat.recordedSwathShown = () => this.#recordedSwathShown(entry.name);
     sat.show(this.#effectiveComponents());
     // After show(): `defaultEntity` is the first entity created, and it must not
     // be the ground-station link, which is invisible outside a pass.
@@ -596,6 +606,12 @@ export class SatelliteManager {
 
   get groundStations(): GroundStationEntity[] {
     return this.#stations;
+  }
+
+  /** Where the ground station named is, as a pass names it, or undefined where there is none. */
+  stationPoint(name: string): GroundPoint | undefined {
+    const station = this.#stations.find((gs) => gs.name === name);
+    return station && { latitude: station.position.latitude, longitude: station.position.longitude };
   }
 
   /** The drawn satellites' passes over the station named `name`, starting within two days of `time`. */

@@ -38,6 +38,9 @@
             <UTooltip v-if="canEnterSkyView" text="View the sky from here">
               <UButton icon="i-lucide-telescope" variant="ghost" color="neutral" size="xs" aria-label="View the sky from this ground station" @click="enterSkyView" />
             </UTooltip>
+            <UTooltip v-if="latestRecorded && !inSkyView" :text="`Replay the last imaged overpass: ${latestRecorded.satellite} over ${latestRecorded.station}`">
+              <UButton icon="i-lucide-history" variant="ghost" color="neutral" size="xs" aria-label="Replay the last imaged overpass" @click="replayRecorded(latestRecorded)" />
+            </UTooltip>
             <!-- Hidden, not disabled, in the sky view: that view owns the camera. -->
             <UTooltip v-if="!inSkyView" :text="isTracked ? 'Stop tracking' : 'Track entity'">
               <UButton icon="i-lucide-video" variant="ghost" :color="isTracked ? 'primary' : 'neutral'" size="xs" aria-label="Track entity" @click="toggleTrack" />
@@ -96,6 +99,15 @@
               <pass-timeline v-if="showTimeline" :passes="passes" :now-ms="nowMs" :mode="overpassMode" :picked="pickedPassMs" @pick="pickPass" />
             </template>
 
+            <div v-if="latestRecorded" class="latest-replay">
+              <UIcon name="lucide:history" class="latest-replay__icon" />
+              <span class="latest-replay__text">
+                <span class="latest-replay__label">Last imaged</span>
+                {{ latestRecorded.satellite }} over {{ latestRecorded.station }} · {{ utcMinute(latestRecorded.overpass.start) }} UTC
+              </span>
+              <UButton icon="i-lucide-play" size="xs" variant="soft" label="Replay" :title="`Replay it, with its granules`" @click="replayRecorded(latestRecorded)" />
+            </div>
+
             <!-- Outside the empty branches: swath mode can empty the list, and the switch back must stay reachable. -->
             <div class="passes__bar">
               <segmented-control v-model="overpassMode" class="passes__modes" label="Overpass calculation" :options="OVERPASS_MODES" />
@@ -136,8 +148,19 @@
                   <td class="num">{{ row.primary }}</td>
                   <td class="num">{{ row.secondary }}</td>
                   <td v-if="recorded.length > 0" class="pass-imagery">
+                    <button
+                      v-if="row.recorded?.day"
+                      type="button"
+                      class="pass-replay"
+                      :class="`pass-imagery--${imageryOf(row.recorded)}`"
+                      :title="`${PASS_IMAGERY[imageryOf(row.recorded)].title}. Replay it, with its granules`"
+                      :aria-label="`Replay, ${PASS_IMAGERY[imageryOf(row.recorded)].title}`"
+                      @click="replayRow(row)"
+                    >
+                      <UIcon :name="PASS_IMAGERY[imageryOf(row.recorded)].icon" />
+                    </button>
                     <UIcon
-                      v-if="row.recorded"
+                      v-else-if="row.recorded"
                       :name="PASS_IMAGERY[imageryOf(row.recorded)].icon"
                       :class="`pass-imagery--${imageryOf(row.recorded)}`"
                       :title="PASS_IMAGERY[imageryOf(row.recorded)].title"
@@ -252,12 +275,13 @@ import { storeToRefs } from "pinia";
 import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 
 import { useController } from "@/composables/useController";
+import { useLatestReplay } from "@/composables/useLatestReplay";
 import { useRecordedOverpasses } from "@/composables/useRecordedOverpasses";
 import { type InfoTab, useSelectedEntity } from "@/composables/useSelectedEntity";
 import { externalLinks } from "@/config/externalLinks";
 import { ORBIT_CLASS_COLOR } from "@/config/orbitClass";
 import { SKY_MODE } from "@/config/viewModes";
-import { type PassImagery, type PassTableRow, passTable } from "@/modules/passImagery";
+import { type PassImagery, type PassTableRow, passTable, type RecordedOverpass } from "@/modules/passImagery";
 import { formatCountdown, passSummary, type Pass } from "@/modules/PassPredictor";
 import { formatInteger } from "@/modules/util/formats";
 import { notifyPasses } from "@/modules/util/passNotifications";
@@ -310,7 +334,19 @@ const OVERPASS_MODES = [
   { value: "swath", label: "Swath" },
 ] as const;
 
-const { recorded, imageryOf, replayPass } = useRecordedOverpasses(passes);
+const { recorded, settled, imageryOf, replayPass } = useRecordedOverpasses(selection, passes);
+
+/** The newest overpass the table records by day, which the header button and "Last imaged" replay. */
+const latestRecorded = computed((): RecordedOverpass | undefined => recorded.value.filter((entry) => entry.day).toSorted((a, b) => b.overpass.start - a.overpass.start)[0]);
+/** "11-22 11:48". */
+const utcMinute = (ms: number) => new Date(ms).toISOString().slice(5, 16).replace("T", " ");
+
+/** Replays a recorded overpass as its row would. */
+function replayRecorded(entry: RecordedOverpass): void {
+  scrollOnPasses = true;
+  replayPass({ name: entry.satellite, start: entry.overpass.start, groundStationName: entry.station }, entry);
+}
+
 /** Only the passes recorded with a granule layer by day. */
 const onlyImaged = ref(false);
 // Imaged passes are past ones.
@@ -326,7 +362,7 @@ const PASS_IMAGERY: Record<PassImagery, { icon: string; title: string }> = {
   night: { icon: "lucide:moon", title: "Recorded by night: no true colour picture" },
 };
 /** The pass behind a row: a predicted one, or the overpass CMR recorded where the predictor has none. */
-function passOf(row: PassTableRow): { start: number; groundStationName?: string } {
+function passOf(row: PassTableRow): { name?: string; start: number; groundStationName?: string } {
   return passes.value.find((pass) => pass.start === row.startMs) ?? { start: row.startMs };
 }
 /** The passes with what was recorded in them, and with Past the recorded overpasses the predictor no longer has. */
@@ -452,6 +488,23 @@ watch([tableEl, () => nextPass.value?.start], () => {
     scrollToNow();
   }
 });
+
+// A replay asked for elsewhere, once this table has listed what it records.
+const { request: latestRequest } = useLatestReplay();
+watch(
+  [latestRequest, settled, passesPending, name],
+  () => {
+    const asked = latestRequest.value;
+    if (asked === undefined || asked.subject !== name.value || passesPending.value || !settled.value) return;
+    latestRequest.value = undefined;
+    if (latestRecorded.value !== undefined) {
+      replayRecorded(latestRecorded.value);
+      return;
+    }
+    toast.add({ title: "Nothing to replay", description: "No overpass by day recorded in the last 30 days.", color: "neutral" });
+  },
+  { immediate: true },
+);
 
 /** Replays the row's pass, and keeps it in view once the table has moved to its time. */
 function replayRow(row: PassTableRow): void {
@@ -741,6 +794,47 @@ function notifyForPasses(): void {
 
 .pass-imagery--part {
   color: var(--panel-amber);
+}
+
+/* A recorded pass's mark as a button, which replays it. */
+.pass-replay {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.pass-replay:hover {
+  background: #edffff1f;
+}
+
+/* The newest recorded overpass, one press from its replay. */
+.latest-replay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--panel-hairline);
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+
+.latest-replay__icon {
+  flex: none;
+  color: var(--panel-accent);
+}
+
+.latest-replay__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.latest-replay__label {
+  display: block;
+  color: var(--panel-muted);
+  font-size: 11px;
 }
 
 /* A pair rather than a switch: "Swath: off" is not what the other mode is called. */

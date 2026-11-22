@@ -1,21 +1,15 @@
 import { storeToRefs } from "pinia";
-import { computed, type ComputedRef, effectScope, type ShallowRef, shallowRef, watch } from "vue";
+import { computed, type ComputedRef, effectScope, type Ref, ref, type ShallowRef, shallowRef, watch } from "vue";
 
 import { useController } from "@/composables/useController";
 import { type GranuleLayer, granuleLayerOwner } from "@/config/instrumentImagery";
 import { stationLabel } from "@/modules/GroundStationEntity";
-import { isDayOverpass, type ReplayPlan, stationOverpasses } from "@/modules/overpassReplay";
-import type { GroundPoint, Overpass } from "@/modules/util/cmrGranules";
+import { isDayOverpass, stationOverpasses, stationReplay } from "@/modules/overpassReplay";
+import type { RecordedOverpass } from "@/modules/passImagery";
+import type { ReplayCamera } from "@/modules/ReplayCamera";
+import type { GroundPoint } from "@/modules/util/cmrGranules";
 import { useCesiumStore } from "@/stores/cesium";
 import { useSatStore } from "@/stores/sat";
-
-/** The station a replay steps through the overpasses of. */
-interface ReplayStation {
-  name: string;
-  point: GroundPoint;
-  /** By day, oldest first. */
-  overpasses: Overpass[];
-}
 
 /** A granule layer on the globe, and the satellite and instrument whose it is. */
 interface GranuleLayerOn {
@@ -24,24 +18,30 @@ interface GranuleLayerOn {
   instrument: string;
 }
 
-/** A station's overpass replay: the newest granule layer on, over the station the url names. */
-interface StationReplay extends GranuleLayerOn {
-  station: ReplayStation;
+/** An overpass replay: the newest granule layer on, over the station the url names, and the overpasses its bar steps through. */
+interface OverpassReplay extends GranuleLayerOn {
+  station: { name: string; point: GroundPoint };
+  /**
+   * By start: the recorded overpasses by day of the Passes table the replay was started
+   * from, a station's of each satellite or a satellite's over each station (replaySteps);
+   * opened from a link, its layer's over its station.
+   */
+  steps: RecordedOverpass[];
 }
 
-/** A layer's overpasses over a station, as fetched or as the Passes table had them. */
+/** A layer's overpasses by day over a station, as fetched for a replay opened from a link. */
 interface Listed {
   key: string;
-  overpasses: Overpass[];
+  steps: RecordedOverpass[];
 }
 
 /** Shared by every caller, as each would otherwise read the catalog and ask CMR for itself. */
 let shared:
   | {
       layerOn: ComputedRef<GranuleLayerOn | undefined>;
-      replay: ComputedRef<StationReplay | undefined>;
-      key: ComputedRef<string | undefined>;
-      listed: ShallowRef<Listed | undefined>;
+      replay: ComputedRef<OverpassReplay | undefined>;
+      steps: ShallowRef<RecordedOverpass[] | undefined>;
+      camera: Ref<ReplayCamera>;
     }
   | undefined;
 
@@ -72,6 +72,11 @@ export function useOverpassReplay() {
       const station = groundStations.value.find((gs) => stationLabel(gs.name, gs.lat, gs.lon) === replayStation.value);
       return station && { latitude: station.lat, longitude: station.lon };
     });
+    const steps = shallowRef<RecordedOverpass[]>();
+    const camera = ref<ReplayCamera>("nadir");
+    /** Whether the steps a replay was started with hold the layer and station on. */
+    const stepped = computed(() => steps.value?.some((entry) => entry.layer.token === layerOn.value?.layer.token && entry.station === replayStation.value) ?? false);
+
     const key = computed(() => layerOn.value && point.value && `${layerOn.value.layer.token}|${replayStation.value}|${point.value.latitude}|${point.value.longitude}`);
     const listed = shallowRef<Listed>();
     let asking: AbortController | undefined;
@@ -79,51 +84,81 @@ export function useOverpassReplay() {
       key,
       (now) => {
         asking?.abort();
-        if (now === undefined || listed.value?.key === now) return;
+        if (now === undefined || stepped.value || listed.value?.key === now) return;
+        const { layer, satellite } = layerOn.value!;
+        const station = replayStation.value;
         const controller = new AbortController();
         asking = controller;
-        void stationOverpasses(layerOn.value!.layer, point.value!, controller.signal).then((overpasses) => {
-          if (!controller.signal.aborted) listed.value = { key: now, overpasses: (overpasses ?? []).filter(isDayOverpass) };
+        void stationOverpasses(layer, point.value!, controller.signal).then((overpasses) => {
+          if (controller.signal.aborted) return;
+          const entries = (overpasses ?? []).filter(isDayOverpass).map((overpass) => ({ pair: now, satellite, station, layer, overpass, day: true }));
+          listed.value = { key: now, steps: entries };
         });
       },
       { immediate: true },
     );
     watch(layerOn, (on) => {
-      if (on === undefined) replayStation.value = "";
+      if (on === undefined && replayStation.value !== "") {
+        replayStation.value = "";
+        steps.value = undefined;
+        // Ended elsewhere, not by Exit: the camera stays where it is.
+        cc.endReplayCamera({ returnView: false });
+      }
     });
-    const replay = computed((): StationReplay | undefined => {
+    const replay = computed((): OverpassReplay | undefined => {
       const on = layerOn.value;
-      if (on === undefined || point.value === undefined || listed.value?.key !== key.value) return undefined;
-      return { ...on, station: { name: replayStation.value, point: point.value, overpasses: listed.value!.overpasses } };
+      if (on === undefined || point.value === undefined || replayStation.value === "") return undefined;
+      const station = { name: replayStation.value, point: point.value };
+      if (stepped.value) return { ...on, station, steps: steps.value! };
+      if (listed.value?.key === key.value) return { ...on, station, steps: listed.value!.steps };
+      return undefined;
     });
-    return { layerOn, replay, key, listed };
+    return { layerOn, replay, steps, camera };
   })!;
 
-  /** Starts a replay over the station named `station`, in place of the one on; `overpasses` are the layer's there by day, which spares asking CMR. */
-  function start(layer: GranuleLayer, satellite: string, plan: ReplayPlan, station: string, overpasses: Overpass[]): void {
+  /** Turns `to`'s satellite and layer on in place of the replay's, and replays it at `multiplier`. */
+  function replayStep(to: RecordedOverpass, multiplier: number): void {
     const before = shared!.layerOn.value?.layer.token;
-    if (cesiumStore.replayStation !== "" && before !== undefined && before !== layer.token) {
+    if (cesiumStore.replayStation !== "" && before !== undefined && before !== to.layer.token) {
       cesiumStore.toggleInstrumentImagery(before, false);
     }
-    satStore.activateSatellite(satellite, cc.sats.catalog);
-    cesiumStore.toggleInstrumentImagery(layer.token, true);
-    cesiumStore.replayStation = station;
-    const key = shared!.key.value;
-    if (key !== undefined) shared!.listed.value = { key, overpasses };
-    cc.replay(plan);
+    satStore.activateSatellite(to.satellite, cc.sats.catalog);
+    cesiumStore.toggleInstrumentImagery(to.layer.token, true);
+    cesiumStore.replayStation = to.station;
+    const point = cc.sats.stationPoint(to.station);
+    if (point !== undefined) cc.replay({ ...stationReplay(to.overpass, point, to.satellite), multiplier }, shared!.camera.value);
   }
 
-  /** Moves the clock and camera to `plan`, at the speed the clock runs. */
-  function jump(plan: ReplayPlan): void {
-    cc.replay({ ...plan, multiplier: cc.viewer.clock.multiplier });
+  /** Starts a replay of `first`, in place of the one on, its bar stepping through `steps` (replaySteps). */
+  function start(first: RecordedOverpass, steps: RecordedOverpass[]): void {
+    cc.keepViewBeforeReplay();
+    shared!.steps.value = steps;
+    replayStep(first, 30);
   }
 
-  /** Takes the replay's layer off, and no other; the clock is the caller's to put back. */
-  function stop(): void {
+  /** Goes to another of the replay's steps, at the speed the clock runs. */
+  function stepTo(to: RecordedOverpass): void {
+    replayStep(to, cc.viewer.clock.multiplier);
+  }
+
+  /** Watches the replay on from `camera`, and any replay after. */
+  function watchFrom(camera: ReplayCamera): void {
+    shared!.camera.value = camera;
+    const on = shared!.replay.value;
+    if (on !== undefined) cc.aimReplay({ satellite: on.satellite, centre: on.station.point }, camera);
+  }
+
+  /**
+   * Takes the replay's layer off, and no other; with `returnView` the camera flies back to
+   * where it was when the replay started, else it stays. The clock is the caller's to put back.
+   */
+  function stop({ returnView }: { returnView: boolean }): void {
     const token = shared!.replay.value?.layer.token;
     if (token !== undefined) cesiumStore.toggleInstrumentImagery(token, false);
     cesiumStore.replayStation = "";
+    shared!.steps.value = undefined;
+    cc.endReplayCamera({ returnView });
   }
 
-  return { layerOn: shared.layerOn, replay: shared.replay, start, jump, stop };
+  return { layerOn: shared.layerOn, replay: shared.replay, camera: shared.camera, start, stepTo, watchFrom, stop };
 }

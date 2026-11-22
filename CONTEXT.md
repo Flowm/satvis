@@ -105,10 +105,14 @@ discussion; sharpen them here when they drift.
   (`imageryType`, ADR 0024). _Avoid_: kind, which is an entry's `rgb` or `outline`, and a
   Map panel layer's `satellite` or `composite`.
 - **Overpass replay**: the clock set back to a pass over a station and playing, with the
-  camera above the station and, where CMR recorded the pass by day, its granule layer on,
+  camera on the pass and, where CMR recorded the pass by day, its granule layer on,
   so the swath builds up behind the satellite. Started from a pass in the Passes table; the
-  replay bar over the clock steps to the station's overpass before or after and exits.
+  replay bar over the clock picks the **replay camera** (nadir, tracking or broadcast), steps
+  to the table's recorded overpass before or after, of any satellite or station, and exits.
   A replay is a link: `imagery`, `time` and `replay`, the station. Not the recorded swath, a layer that follows the clock wherever it is.
+- **Chase**: how tracking frames a satellite while its recorded swath is on: from behind
+  and above, looking down onto the ground under it, so the swath fills the view. The
+  replay camera that tracks is called **Tracking** (`tracking` in code), and takes it.
 - **Data availability**: what satvis has for a satellite: instrument imagery (as a map
   layer the globe draws, or as a viewer link only), CEOS instruments, a 3D model. A
   catalog facet whose picks are all-of (`docs/adr/0021-finding-imagery.md`).
