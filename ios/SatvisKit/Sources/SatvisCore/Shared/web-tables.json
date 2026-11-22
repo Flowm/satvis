@@ -129,17 +129,24 @@
     "gibs": {
       "viewer": "NASA Worldview",
       "link": "https://worldview.earthdata.nasa.gov/?l={layer}",
-      "ended": "&t={end}"
+      "ended": "&t={end}",
+      "maker": "NASA"
     },
     "eumetview": {
       "viewer": "EUMETView",
-      "link": "https://view.eumetsat.int/productviewer?v={layer}"
+      "link": "https://view.eumetsat.int/productviewer?v={layer}",
+      "maker": "EUMETSAT"
     },
     "copernicus-browser": {
       "viewer": "Copernicus Browser",
-      "link": "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId={layer}"
+      "link": "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId={layer}",
+      "maker": "Copernicus"
     },
-    "georing": {},
+    "georing": {
+      "viewer": "satvis",
+      "link": "https://github.com/Flowm/georing-mosaic",
+      "maker": "satvis"
+    },
     "cmr": {}
   },
   "wavebandColumns": [

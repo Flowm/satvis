@@ -236,8 +236,8 @@ import Testing
         #expect(listings.map(\.imagery.detail) == ["hourly, last 7 days", "every 3 h since 2022", "every 10 min, last 90 days"])
         #expect(listings[0].kind == .composite(name: "GeoRing", satellites: [satellite(goes19)], cadence: "hourly"))
         #expect(listings[1].kind == .composite(name: "GeoRing", satellites: [satellite(goes19), satellite(meteosat)], cadence: "3-hourly"))
-        // No viewer, but drawn.
-        #expect(listings[0].imagery.href == nil && listings[0].imagery.viewer == nil)
+        // No viewer: satvis, which makes it, links to its repository.
+        #expect(listings[0].imagery.href == "https://github.com/Flowm/georing-mosaic" && listings[0].imagery.viewer == "satvis")
 
         let untitled = SatelliteDetails.imageryListings([
             record("A", "1", [with(ring, ["label": .string("Natural colour"), "instrument": .string("X")])]),

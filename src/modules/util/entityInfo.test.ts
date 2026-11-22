@@ -209,18 +209,22 @@ describe("getSatelliteInfo", () => {
       { ...geocolor, layer: "Linked" },
       { ...geocolor, layer: "Ended", maxLevel: 7, format: "jpeg", period: "P1D", end: "2026-11-02" },
     ];
-    // A provider with no viewer: a layer the globe draws has no link, one it cannot is left out.
+    // Our own mosaic links to the project that makes it, and credits it.
     const mosaic = { ...geocolor, provider: "georing", layer: "mosaic", maxLevel: 8, format: "webp", period: "PT1H", window: "P7D", merged: true as const };
-    const [ring] = getSatelliteInfo(ISS, "GEO", { instruments: [{ name: "ABI" }], imagery: [mosaic, { ...mosaic, layer: "Undrawn", format: "gif" }] }).instruments;
+    // A provider with no viewer: a layer the globe cannot draw is left out.
+    const outlines = { ...mosaic, provider: "cmr", layer: "Ungranuled" };
+    const [ring] = getSatelliteInfo(ISS, "GEO", { instruments: [{ name: "ABI" }], imagery: [mosaic, outlines] }).instruments;
     expect(ring!.imagery).toEqual([
       {
         key: "georing:mosaic",
         label: "GeoColor",
         detail: "hourly, last 7 days, with other satellites",
+        viewer: "satvis",
+        href: "https://github.com/Flowm/georing-mosaic",
         token: "georing:mosaic",
         preview: { provider: "georing", layer: "mosaic", format: "webp", daily: false },
-        type: "ring",
-        words: { picture: "GeoColor · ABI and others", updates: "Hourly", ended: false, archive: "The last 7 days" },
+        type: "mosaic",
+        words: { picture: "GeoColor · by satvis", updates: "Hourly", ended: false, archive: "The last 7 days" },
       },
     ]);
     const [abi] = getSatelliteInfo(ISS, "LEO", { instruments: [{ name: "ABI" }], imagery }).instruments;

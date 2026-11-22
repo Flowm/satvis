@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  COMPOSITE,
   drawnImagery,
   granulePictureUrl,
   imageryDetail,
@@ -236,7 +235,7 @@ describe("imageryLayers", () => {
       ["GOES 19", "GeoColor", "geo", "gibs:GOES-East_ABI_GeoColor"],
       ["TERRA", "True colour", "leo", "gibs:MODIS_Terra_CorrectedReflectance_TrueColor"],
     ]);
-    expect(layers[0]).toMatchObject({ instrument: "ABI", type: "live", detail: "every 10 min" });
+    expect(layers[0]).toMatchObject({ instrument: "ABI", type: "live" });
   });
 
   test("lists a satellite's layer once, however many groups carry it, and leaves out an entry the Imagery tab would", () => {
@@ -301,7 +300,7 @@ describe("imageryLayers of composites", () => {
     instrument: "ABI",
   };
 
-  test("lists a composite once, first, named by its label's qualifier, from its earliest satellite's start", () => {
+  test("lists a composite once, first, with all its satellites", () => {
     const layers = imageryLayers([
       { name: "GOES 19", satnum: "60133", orbitClass: "GEO", metadata: { imagery: [goes, { ...ring, instrument: "ABI", start: "2025-04-07" }, { ...mosaic, instrument: "ABI" }] } },
       { name: "METEOSAT-9 (MSG-2)", satnum: "28912", orbitClass: "GEO", metadata: { imagery: [{ ...ring, instrument: "SEVIRI", start: "2022-06-01" }] } },
@@ -309,23 +308,19 @@ describe("imageryLayers of composites", () => {
     ]);
     expect(
       layers.map((layer) =>
-        layer.kind === "composite"
-          ? [layer.key, layer.name, layer.cadence, layer.type, layer.satellites, layer.detail]
-          : [layer.key, layer.satellite, layer.instrument, layer.type, layer.detail],
+        layer.kind === "composite" ? [layer.key, layer.type, layer.words.picture, layer.satellites] : [layer.key, layer.satellite, layer.instrument, layer.type],
       ),
     ).toEqual([
-      ["georing:mosaic", "GeoRing", "hourly", "ring", ["GOES 19"], "hourly, last 7 days"],
-      ["eumetview:mumi:wideareacoverage_rgb_natural", "GeoRing", "3-hourly", "ring", ["GOES 19", "METEOSAT-9 (MSG-2)"], "every 3 h since 2022"],
-      ["60133:gibs:GOES-East_ABI_GeoColor", "GOES 19", "ABI", "live", "every 10 min, last 90 days"],
+      ["georing:mosaic", "mosaic", "Day/Night · by satvis", ["GOES 19"]],
+      ["eumetview:mumi:wideareacoverage_rgb_natural", "mosaic", "Natural colour · by EUMETSAT", ["GOES 19", "METEOSAT-9 (MSG-2)"]],
+      ["60133:gibs:GOES-East_ABI_GeoColor", "GOES 19", "ABI", "live"],
     ]);
   });
 
-  test("names a composite with no qualifier Composite", () => {
-    const [layer] = imageryLayers([
-      { name: "A", satnum: "1", orbitClass: "GEO", metadata: { imagery: [{ ...ring, label: "Natural colour", instrument: "X" }] } },
-      { name: "B", satnum: "2", orbitClass: "GEO", metadata: { imagery: [{ ...ring, label: "Natural colour", instrument: "Y" }] } },
-    ]);
-    expect(layer).toMatchObject({ kind: "composite", name: COMPOSITE, satellites: ["A", "B"] });
+  test("links our own mosaic to the project that makes it", () => {
+    const [layer] = imageryLayers([{ name: "GOES 19", satnum: "60133", orbitClass: "GEO", metadata: { imagery: [{ ...mosaic, instrument: "ABI" }] } }]);
+    expect(readImagery({ ...mosaic, instrument: "ABI" })).toMatchObject({ viewer: "satvis", href: "https://github.com/Flowm/georing-mosaic" });
+    expect(layer).toMatchObject({ kind: "composite", type: "mosaic" });
   });
 });
 
@@ -353,7 +348,7 @@ describe("imageryType", () => {
     ["a day a frame", { label: "True colour", period: "P1D", merged: false, drawn }, "daily"],
     ["Metop's stacked orbits, which have no period", { label: "Natural colour and fog, six orbits stacked", merged: false, drawn }, "orbits"],
     ["a frame every few minutes", { label: "GeoColor", period: "PT10M", merged: false, drawn }, "live"],
-    ["a composite the globe draws", { label: "Day/Night, GeoRing", period: "PT1H", merged: true, drawn }, "ring"],
+    ["a composite the globe draws", { label: "Day/Night, GeoRing", period: "PT1H", merged: true, drawn }, "mosaic"],
     ["a composite of viewer links alone", { label: "True colour scenes", merged: true }, "scenes"],
   ])("names %s", (_, entry, type) => {
     expect(imageryType(entry)).toBe(type);
@@ -362,24 +357,29 @@ describe("imageryType", () => {
 
 describe("imageryWords", () => {
   test("says the picture's colours, then its instrument, with the qualifier the type does not say", () => {
-    expect(imageryWords({ type: "daily", instrument: "MISR", label: "True colour, nadir camera" }).picture).toBe("True colour (nadir camera) · MISR");
-    expect(imageryWords({ type: "orbits", instrument: "AVHRR/3", label: "Natural colour and fog, six orbits stacked" }).picture).toBe("Natural colour + fog · AVHRR/3");
-    expect(imageryWords({ type: "ring", instrument: "FCI", label: "Day/Night, GeoRing", merged: true }).picture).toBe("Day/Night · FCI and others");
+    expect(imageryWords({ provider: "gibs", type: "daily", instrument: "MISR", label: "True colour, nadir camera" }).picture).toBe("True colour (nadir camera) · MISR");
+    expect(imageryWords({ provider: "gibs", type: "orbits", instrument: "AVHRR/3", label: "Natural colour and fog, six orbits stacked" }).picture).toBe(
+      "Natural colour + fog · AVHRR/3",
+    );
+    expect(imageryWords({ provider: "georing", type: "mosaic", instrument: "FCI", label: "Day/Night, GeoRing", merged: true }).picture).toBe("Day/Night · by satvis");
+    expect(imageryWords({ provider: "eumetview", type: "mosaic", instrument: "FCI", label: "Natural colour, GeoRing", merged: true }).picture).toBe("Natural colour · by EUMETSAT");
+    expect(imageryWords({ provider: "cmr", type: "mosaic", instrument: "FCI", label: "Natural colour", merged: true }).picture).toBe("Natural colour · FCI and others");
   });
 
   test("says how often it updates, by its type or its period, or the day it ended", () => {
-    expect(imageryWords({ type: "passes", instrument: "VIIRS", label: "True colour", period: "PT6M" }).updates).toBe("With each pass, hours behind live");
-    expect(imageryWords({ type: "daily", instrument: "MODIS", label: "True colour", period: "P1D" }).updates).toBe("Once a day");
-    expect(imageryWords({ type: "live", instrument: "ABI", label: "GeoColor", period: "PT10M" }).updates).toBe("Every 10 min");
-    expect(imageryWords({ type: "ring", instrument: "ABI", label: "Day/Night", period: "PT1H" }).updates).toBe("Hourly");
-    expect(imageryWords({ type: "daily", instrument: "HARP2", label: "True colour", period: "P1D", start: "2025-08-21", end: "2026-06-19" })).toMatchObject({
+    expect(imageryWords({ provider: "gibs", type: "passes", instrument: "VIIRS", label: "True colour", period: "PT6M" }).updates).toBe("With each pass, hours behind live");
+    expect(imageryWords({ provider: "gibs", type: "daily", instrument: "MODIS", label: "True colour", period: "P1D" }).updates).toBe("Once a day");
+    expect(imageryWords({ provider: "gibs", type: "live", instrument: "ABI", label: "GeoColor", period: "PT10M" }).updates).toBe("Every 10 min");
+    expect(imageryWords({ provider: "gibs", type: "mosaic", instrument: "ABI", label: "Day/Night", period: "PT1H" }).updates).toBe("Hourly");
+    expect(imageryWords({ provider: "gibs", type: "daily", instrument: "HARP2", label: "True colour", period: "P1D", start: "2025-08-21", end: "2026-06-19" })).toMatchObject({
       updates: "Ended Jun 19, 2026",
       ended: true,
     });
   });
 
   test("says how far back it goes, a layer that stopped from when to when", () => {
-    const words = (dates: { start?: string; end?: string; window?: string }) => imageryWords({ type: "daily", instrument: "X", label: "True colour", ...dates }).archive;
+    const words = (dates: { start?: string; end?: string; window?: string }) =>
+      imageryWords({ provider: "gibs", type: "daily", instrument: "X", label: "True colour", ...dates }).archive;
     expect(words({ start: "2002-07-03" })).toBe("Back to 2002");
     expect(words({ start: "2024-09-23", window: "P90D" })).toBe("The last 90 days");
     expect(words({ start: "2017-09-01", end: "2022-10-12" })).toBe("2017–2022");
@@ -440,12 +440,12 @@ describe("imageryRows", () => {
     ]);
   });
 
-  test("gives a composite one row, first, with a button for each of its layers named by its cadence", () => {
+  test("gives a group's composites one row, first, named by their type, a button each named by its picture", () => {
     const ring = { provider: "georing", layer: "mosaic", label: "Day/Night, GeoRing", kind: "rgb", period: "PT1H", maxLevel: 8, format: "webp", merged: true, instrument: "ABI" };
     const natural = { ...ring, provider: "eumetview", layer: "mumi", label: "Natural colour, GeoRing", period: "PT3H" };
     const [first, goes] = rows([{ name: "GOES 19", orbitClass: "GEO", imagery: [entry("ABI", "PT10M"), ring, natural] }]);
-    expect(first).toMatchObject({ name: "GeoRing", composite: { kind: "composite" } });
-    expect(first!.cells.map(({ name }) => name)).toEqual(["Hourly", "3-hourly"]);
+    expect(first).toMatchObject({ name: "World mosaic", composite: true });
+    expect(first!.cells.map(({ name }) => name)).toEqual(["Day/Night", "Natural"]);
     expect(goes!.cells.map(({ name }) => name)).toEqual(["Live"]);
   });
 });

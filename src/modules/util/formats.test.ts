@@ -1,6 +1,18 @@
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
-import { formatDate, formatDecimal, formatFixed, formatInteger, formatMeasure, formatNumber, formatWeekdayDate, localeFor, setFormatLocale } from "./formats";
+import {
+  formatDate,
+  formatDecimal,
+  formatFixed,
+  formatInteger,
+  formatMeasure,
+  formatNumber,
+  formatWeekdayDate,
+  localeFor,
+  setFormatLocale,
+  timeAgo,
+  timeAgoInWords,
+} from "./formats";
 
 const AT = new Date("2026-10-25T23:30:00Z");
 
@@ -91,4 +103,20 @@ describe("the clock's day", () => {
     setFormatLocale(tag);
     expect(formatWeekdayDate(Date.parse(at))).toBe(text);
   });
+});
+
+test("timeAgo", () => {
+  const now = Date.parse("2026-10-08T12:00:00Z");
+  expect(timeAgo(now - 30_000, now)).toBe("just now");
+  expect(timeAgo(now - 5 * 60_000, now)).toBe("5 min ago");
+  expect(timeAgo(now - 3 * 3_600_000, now)).toBe("3 h ago");
+  expect(timeAgo(now - 50 * 3_600_000, now)).toBe("2 d ago");
+});
+
+test("timeAgoInWords", () => {
+  const now = Date.parse("2026-10-08T12:00:00Z");
+  expect(timeAgoInWords(now - 5 * 60_000, now)).toBe("5 min ago");
+  expect(timeAgoInWords(now - 90 * 60_000, now)).toBe("1 hour ago");
+  expect(timeAgoInWords(now - 3 * 3_600_000, now)).toBe("3 hours ago");
+  expect(timeAgoInWords(now - 50 * 3_600_000, now)).toBe("2 days ago");
 });

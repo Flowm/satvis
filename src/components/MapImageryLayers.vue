@@ -1,12 +1,14 @@
 <!-- The Map panel's satellite imagery (ADR 0021, 0024): the layers that have not stopped, by orbit, one group open at a time. -->
 <template>
   <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert }">Satellite imagery</div>
-  <!-- Shown before the list arrives, or while its record has not loaded, so a layer on the globe can be taken off. -->
+  <!-- Shown while the list loads, or while a layer's record has not, so a layer on the globe can be taken off. -->
   <label v-for="token in unlisted" :key="token" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert }">
     <input type="checkbox" checked @change="cesiumStore.toggleInstrumentImagery(token, false)" />
     {{ cesiumStore.instrumentImageryLabels[token] ?? token.slice(token.indexOf(":") + 1) }}
   </label>
-  <div v-if="layers.length === 0 && !loading" class="toolbarNote">No satellite has imagery.</div>
+  <!-- The groups wait for every group, so no header or row moves as the rest arrive. -->
+  <div v-if="loading" class="toolbarNote">Loading the imagery list…</div>
+  <div v-else-if="layers.length === 0" class="toolbarNote">No satellite has imagery.</div>
   <template v-for="group in groups" :key="group.key">
     <button type="button" class="toolbarPlace" :class="{ 'toolbarPlace--inert': inert }" :aria-expanded="openGroup === group.key" @click="toggleGroup(group.key)">
       <UIcon :name="GROUP_ICON[group.key]" class="toolbarPlace__icon" />
@@ -17,21 +19,22 @@
       <UIcon :name="openGroup === group.key ? 'lucide:chevron-up' : 'lucide:chevron-down'" class="imageryGroup__chevron" />
     </button>
     <template v-if="openGroup === group.key">
-      <!-- The rows wait for every group, so none moves as the rest arrive. -->
-      <div v-if="loading" class="toolbarNote">Loading the imagery list…</div>
-      <!-- A satellite or composite a row, a button a layer named by its type. The passes, which
-           show nothing until the clock is at one, start as a replay of the newest. Each button's
-           name is fixed: what loads later is in its tooltip and the notice. -->
+      <!-- A satellite or composite a row, a button a layer named by its type. Each button's name
+           is fixed: what loads later, the newest pass, is in its tooltip and the notice. -->
       <div
         v-for="row in group.rows"
-        v-else
         :key="row.key"
         class="toolbarSwitch imageryRow"
         :class="{ 'toolbarSwitch--inert': inert, 'imageryRow--on': row.cells.some(({ layer }) => isShown(layer)) }"
       >
         <!-- A composite is no one satellite's: its name opens a menu of its satellites. -->
-        <UDropdownMenu v-if="row.composite" :items="satelliteItems(row.composite)" :content="MENU_CONTENT" :ui="MENU_UI" :size="MENU_SIZE">
-          <button type="button" class="imageryRow__name" :aria-label="`Show the imagery of a satellite of the ${row.name}`" title="Show the imagery of one of its satellites">
+        <UDropdownMenu v-if="row.composite" :items="satelliteItems(row)" :content="MENU_CONTENT" :ui="MENU_UI" :size="MENU_SIZE">
+          <button
+            type="button"
+            class="imageryRow__name"
+            :aria-label="`Show the imagery of a satellite of the ${row.name.toLowerCase()}`"
+            title="Show the imagery of one of its satellites"
+          >
             {{ row.name }}
           </button>
         </UDropdownMenu>
@@ -49,18 +52,6 @@
           <template v-for="cell in row.cells" :key="cell.layer.key">
             <template v-if="!cell.extra || isShown(cell.layer)">
               <button
-                v-if="cell.layer.type === 'passes' && !isShown(cell.layer)"
-                type="button"
-                class="imageryButton imageryButton--replay"
-                :aria-label="`Replay the newest pass of ${row.name}`"
-                :title="replayTitle(cell.layer)"
-                @click="replay(row.name, cell.layer)"
-              >
-                <UIcon name="lucide:play" />
-                {{ cell.name }}
-              </button>
-              <button
-                v-else
                 type="button"
                 class="imageryButton"
                 :class="{ 'imageryButton--on': isShown(cell.layer) }"
@@ -79,7 +70,8 @@
           <PassNotice
             v-if="layer.type === 'passes' && isShown(layer) && isPastNewest(layer.token)"
             class="imageryRow__notice"
-            :newest="latest.get(layer.token)!.newest.start"
+            :newest="latest.get(layer.token)!.pictured.start"
+            :now="wallClock"
             @go="goToNewest(layer.token)"
           />
         </template>
@@ -96,19 +88,9 @@ import { computed, ref, watch } from "vue";
 import { useController } from "@/composables/useController";
 import { useLatestPasses } from "@/composables/useLatestPasses";
 import { useSelectedEntity } from "@/composables/useSelectedEntity";
-import {
-  type CompositeImageryLayer,
-  granuleLayerOwner,
-  IMAGERY_GROUPS,
-  IMAGERY_TYPES,
-  type ImageryGroup,
-  type ImageryLayer,
-  imageryLayers,
-  type ImageryRow,
-  imageryRows,
-} from "@/config/instrumentImagery";
-import { timeAgo } from "@/modules/util/bookmarks";
+import { granuleLayerOwner, IMAGERY_GROUPS, IMAGERY_TYPES, type ImageryGroup, type ImageryLayer, imageryLayers, type ImageryRow, imageryRows } from "@/config/instrumentImagery";
 import { DeviceDetect } from "@/modules/util/DeviceDetect";
+import { timeAgo } from "@/modules/util/formats";
 import { useCesiumStore } from "@/stores/cesium";
 import { useSatStore } from "@/stores/sat";
 
@@ -177,22 +159,28 @@ function showImagery(name: string): void {
   emit("show-info", name);
 }
 
-/** A composite's satellites, each opening its Imagery tab. */
-const satelliteItems = (layer: CompositeImageryLayer): DropdownMenuItem[] => [
-  { type: "label", label: "Show the imagery of" },
-  ...layer.satellites.map((name) => ({ label: name, icon: "lucide:satellite", onSelect: () => showImagery(name) })),
-];
+/** The satellites of a row's composites, each opening its Imagery tab. */
+function satelliteItems(row: ImageryRow): DropdownMenuItem[] {
+  const names = new Set(row.cells.flatMap(({ layer }) => (layer.kind === "composite" ? layer.satellites : [])));
+  return [
+    { type: "label", label: "Show the imagery of" },
+    ...[...names]
+      .toSorted((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      .map((name) => ({ label: name, icon: "lucide:satellite", onSelect: () => showImagery(name) })),
+  ];
+}
 
-/** The groups that have a layer, each with its rows and how many of its layers are on. */
-const groups = computed(() =>
-  IMAGERY_GROUPS.map((key) => {
+/** The groups that have a layer, each with its rows and how many of its layers are on; none while the list loads. */
+const groups = computed(() => {
+  if (loading.value) return [];
+  return IMAGERY_GROUPS.map((key) => {
     const members = layers.value.filter((layer) => layer.group === key);
     return { key, rows: imageryRows(members), shown: members.filter(isShown).length };
-  }).filter((group) => group.rows.length > 0),
-);
-/** Layers on the globe that no listed layer is. */
+  }).filter((group) => group.rows.length > 0);
+});
+/** Layers on the globe that no row shows: every one while the list loads. */
 const unlisted = computed(() => {
-  const listed = new Set(layers.value.map((layer) => layer.token));
+  const listed = new Set(loading.value ? [] : layers.value.map((layer) => layer.token));
   return [...new Set(cesiumStore.instrumentImagery)].filter((token) => !listed.has(token));
 });
 
@@ -206,8 +194,7 @@ function toggleGroup(key: ImageryGroup): void {
 }
 
 /** The newest pass of each passes layer of the open group, once the list has loaded. */
-const { latest, isPastNewest, goToNewest } = useLatestPasses(() => {
-  if (loading.value) return [];
+const { latest, wallClock, isPastNewest, goToNewest } = useLatestPasses(() => {
   const rows = groups.value.find((group) => group.key === openGroup.value)?.rows ?? [];
   return rows.flatMap((row) =>
     row.cells.flatMap(({ layer }) => {
@@ -217,24 +204,16 @@ const { latest, isPastNewest, goToNewest } = useLatestPasses(() => {
   );
 });
 
-/** "Daily mosaic of PACE", "Daily mosaic of PACE SPEXone" for a second of its type, "World mosaic of the GeoRing, hourly". */
+/** "Daily mosaic of PACE", "Daily mosaic of PACE SPEXone" for a second of its type, "World mosaic, Day/Night". */
 function buttonLabel(row: ImageryRow, { layer, name, extra }: ImageryRow["cells"][number]): string {
-  const title = IMAGERY_TYPES[layer.type].title;
-  return row.composite ? `${title} of the ${row.name}, ${name.toLowerCase()}` : `${title} of ${row.name}${extra ? ` ${name}` : ""}`;
+  return row.composite ? `${row.name}, ${name}` : `${IMAGERY_TYPES[layer.type].title} of ${row.name}${extra ? ` ${name}` : ""}`;
 }
-/** What the layer is, as its card says it. */
-const tooltipOf = (layer: ImageryLayer) => [IMAGERY_TYPES[layer.type].title, layer.words.picture, layer.words.updates].filter(Boolean).join("\n");
-/** How old the newest pass is, once known: in the tooltip, so the button keeps its width. */
-function replayTitle(layer: ImageryLayer): string {
-  const newest = latest.get(layer.token)?.newest.start;
-  return `Shows the passes from just before the newest${newest === undefined ? "" : `, ${timeAgo(newest)}`}`;
-}
-
-/** The passes on, the clock just before the newest, and the satellite selected at its Imagery tab. */
-function replay(satellite: string, layer: ImageryLayer): void {
-  cesiumStore.toggleInstrumentImagery(layer.token, true);
-  goToNewest(layer.token);
-  showImagery(satellite);
+/** What the layer is, as its card says it, and for passes how old the newest is, once known. */
+function tooltipOf(layer: ImageryLayer): string {
+  const newest = layer.type === "passes" ? latest.get(layer.token)?.pictured.start : undefined;
+  return [IMAGERY_TYPES[layer.type].title, layer.words.picture, layer.words.updates, newest === undefined ? undefined : `Newest pass ${timeAgo(newest, wallClock.value)}`]
+    .filter(Boolean)
+    .join("\n");
 }
 </script>
 
@@ -263,6 +242,11 @@ function replay(satellite: string, layer: ImageryLayer): void {
   gap: 4px 6px;
   padding: 4px 8px 4px 12px;
   white-space: normal;
+}
+
+/* The hairline above a row starts at its name, as on the other cards; these rows have no mark before it. */
+.imageryRow.imageryRow::before {
+  left: 12px;
 }
 
 .imageryRow--on {
@@ -323,11 +307,6 @@ function replay(satellite: string, layer: ImageryLayer): void {
   border-color: var(--panel-accent);
   background: color-mix(in srgb, var(--panel-accent) 22%, transparent);
   color: var(--panel-ink);
-}
-
-/* An action, not a switch: it sets the clock. */
-.imageryButton--replay {
-  border-style: dashed;
 }
 
 :is(.imageryRow__name, .imageryButton):focus-visible {

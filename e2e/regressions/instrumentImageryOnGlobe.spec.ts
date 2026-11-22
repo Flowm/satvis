@@ -42,7 +42,7 @@ test("an instrument's imagery is shown on the globe from its tab, follows the cl
   const panel = page.locator(".entity-info-panel");
   await panel.getByRole("tab", { name: "Imagery" }).click();
   await expect.poll(() => previews).toEqual([LAYER]);
-  const card = panel.getByRole("article", { name: "ABI GeoColor" });
+  const card = panel.getByRole("article", { name: "Live view, GeoColor · ABI" });
   const show = card.getByRole("switch", { name: "Show GeoColor as a map layer" });
   await expect(show).not.toBeChecked();
   // The switch sits in the card, which toggles too: a press on it counts once.
@@ -94,9 +94,9 @@ test("the Map panel lists every layer in groups, one open at a time, and shows o
   await expect.poll(() => new URL(page.url()).searchParams.get("imagery")).toBe(`gibs:${LAYER}`);
   await expect(imageryButton(page, "Live view of GOES 19")).toHaveAttribute("aria-pressed", "true");
   await expect(geo).toContainText("1 on");
-  // The geostationary mosaic, which two satellites carry, is one row, first.
-  await expect(imageryButton(page, "World mosaic of the GeoRing, hourly")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Map" }).locator(".imageryRow").first()).toContainText("GeoRing");
+  // The geostationary mosaic, which two satellites carry, is one button, in the first row.
+  await expect(imageryButton(page, "World mosaic, Day/Night")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Map" }).locator(".imageryRow").first()).toContainText("World mosaic");
 
   await geo.click();
   await expect(imageryButton(page, "Live view of GOES 19")).toBeHidden();
@@ -104,7 +104,7 @@ test("the Map panel lists every layer in groups, one open at a time, and shows o
   // A composite's name lists its satellites, and leaves the row as it was; a satellite's
   // opens it at its Imagery tab.
   await geo.click();
-  await page.getByRole("button", { name: "Show the imagery of a satellite of the GeoRing" }).click();
+  await page.getByRole("button", { name: "Show the imagery of a satellite of the world mosaic" }).click();
   await expect(page.getByRole("menuitem")).toHaveText(["GOES 19", "METEOSAT-12 (MTG-I1)"]);
   // By its class: the open menu hides the panel from the accessibility tree.
   await expect(page.locator(".imageryRow .imageryButton").first()).toHaveAttribute("aria-pressed", "false");

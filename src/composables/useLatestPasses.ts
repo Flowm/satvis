@@ -1,4 +1,4 @@
-import { reactive, watch } from "vue";
+import { onScopeDispose, reactive, ref, watch } from "vue";
 
 import { useController } from "@/composables/useController";
 import { useViewerClock } from "@/composables/useViewerClock";
@@ -8,6 +8,8 @@ import { useCesiumStore } from "@/stores/cesium";
 
 /** How often the newest granules are asked again while they are shown: CMR lists one every 6 minutes. */
 const REFRESH_MS = 10 * 60 * 1000;
+/** How often the passes' ages are said again: they are in minutes at the finest. */
+const AGE_TICK_MS = 60 * 1000;
 
 /**
  * The newest pass of each granule layer `layers` gives, by its key: the newest day granule
@@ -18,7 +20,12 @@ export function useLatestPasses(layers: () => readonly { key: string; layer: Gra
   const controller = useController();
   const cesiumStore = useCesiumStore();
   const { now } = useViewerClock();
+  /** The newest passes of each layer, by its key, once the catalogue has answered. */
   const latest = reactive(new Map<string, LatestGranules>());
+  /** The time now, epoch ms, every AGE_TICK_MS, against which a pass's age is said. */
+  const wallClock = ref(Date.now());
+  const ticker = setInterval(() => (wallClock.value = Date.now()), AGE_TICK_MS);
+  onScopeDispose(() => clearInterval(ticker));
 
   watch(
     () =>
@@ -62,5 +69,5 @@ export function useLatestPasses(layers: () => readonly { key: string; layer: Gra
     cesiumStore.setTime(new Date(time).toISOString());
   }
 
-  return { latest, isPastNewest, goToNewest };
+  return { latest, wallClock, isPastNewest, goToNewest };
 }

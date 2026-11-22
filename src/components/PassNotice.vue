@@ -2,7 +2,7 @@
 <template>
   <div class="passNotice" title="Passes come in hours to days after they are sensed: there is none at the clock's time yet" @click.stop>
     <UIcon name="lucide:clock-alert" class="passNotice__icon" />
-    <span class="passNotice__text">Newest pass {{ timeAgoInWords(newest) }}</span>
+    <span class="passNotice__text">Newest pass {{ timeAgoInWords(newest, now) }}</span>
     <button type="button" class="passNotice__go" aria-label="Go to the newest pass" @click="emit('go')">
       <UIcon name="lucide:skip-back" />
       Go
@@ -11,11 +11,13 @@
 </template>
 
 <script setup lang="ts">
-import { timeAgoInWords } from "@/modules/util/bookmarks";
+import { timeAgoInWords } from "@/modules/util/formats";
 
 defineProps<{
-  /** The newest pass's start, epoch ms. */
+  /** The start of the newest pass with pixels, the one Go goes to, epoch ms. */
   newest: number;
+  /** The time now, epoch ms, which the age is said against. */
+  now: number;
 }>();
 
 const emit = defineEmits<{ go: [] }>();

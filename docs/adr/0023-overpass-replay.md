@@ -158,7 +158,7 @@ what a satellite records as it flies.
 
 - **The recorded swath is a layer, not a mode.** The satellite's Imagery tab card ("Recorded
   swath", for the data a satellite recorded, which comes hours to a day behind live; "Passes"
-  since ADR 0024, which also starts it from the Map panel as a replay of the newest pass) and the Map panel's LEO group show it like any layer: it follows the clock,
+  since ADR 0024, whose notice offers to go to the newest pass where the clock is past it) and the Map panel's LEO group show it like any layer: it follows the clock,
   wherever the clock is. The card can track the satellite, as the info panel's camera
   button does. CMR lists a granule hours after it is sensed (about 3 for VIIRS and MODIS,
   a day for OLCI), so nearer live it has nothing: the timeline shades where the layer has granules by day, a day either

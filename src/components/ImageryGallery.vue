@@ -6,7 +6,7 @@
       class="card"
       :class="{ 'card--drawable': imagery.token, 'card--shown': isShown(imagery) }"
       :data-instrument="instrument"
-      :aria-label="`${instrument} ${imagery.label}`"
+      :aria-label="`${IMAGERY_TYPES[imagery.type].title}, ${imagery.words.picture}`"
       @click="toggle(imagery)"
     >
       <div class="card__preview">
@@ -40,7 +40,7 @@
           <USwitch
             v-if="imagery.token"
             :model-value="isShown(imagery)"
-            label="On globe"
+            label="Show"
             size="sm"
             :aria-label="`Show ${imagery.label} as a map layer`"
             @update:model-value="cesiumStore.toggleInstrumentImagery(imagery.token, $event)"
@@ -94,7 +94,13 @@
             </dd>
           </template>
         </dl>
-        <PassNotice v-if="isShown(imagery) && isPastNewest(imagery.key)" class="card__notice" :newest="latest.get(imagery.key)!.newest.start" @go="goToNewest(imagery.key)" />
+        <PassNotice
+          v-if="isShown(imagery) && isPastNewest(imagery.key)"
+          class="card__notice"
+          :newest="latest.get(imagery.key)!.pictured.start"
+          :now="wallClock"
+          @go="goToNewest(imagery.key)"
+        />
       </div>
     </article>
   </div>
@@ -110,9 +116,8 @@ import { IMAGERY_TYPES, imageryPreviewUrl, isGranuleLayer, PREVIEW_HEIGHT, PREVI
 import { geoMosaicPreview } from "@/modules/GeoMosaicImagery";
 import { PICTURE_TRIES } from "@/modules/granulePictures";
 import { granuleCentre } from "@/modules/overpassReplay";
-import { timeAgo } from "@/modules/util/bookmarks";
 import type { ImageryInfo } from "@/modules/util/entityInfo";
-import { formatDate } from "@/modules/util/formats";
+import { formatDate, timeAgo } from "@/modules/util/formats";
 import { useCesiumStore } from "@/stores/cesium";
 
 import PassNotice from "./PassNotice.vue";
@@ -184,7 +189,7 @@ watch(
 );
 onUnmounted(forgetPreviews);
 
-const { latest, isPastNewest, goToNewest } = useLatestPasses(() =>
+const { latest, wallClock, isPastNewest, goToNewest } = useLatestPasses(() =>
   props.layers.flatMap(({ imagery }) => (isGranuleLayer(imagery.granuleLayer) ? [{ key: imagery.key, layer: imagery.granuleLayer }] : [])),
 );
 
@@ -203,7 +208,7 @@ function captionOf(imagery: ImageryInfo): string | undefined {
   if (end !== undefined) return `Last day, ${formatDate(end)}`;
   if (imagery.type === "passes") {
     const pictured = latest.get(imagery.key)?.pictured;
-    return pictured === undefined ? undefined : `Newest pass, ${timeAgo(pictured.start)}`;
+    return pictured === undefined ? undefined : `Newest pass, ${timeAgo(pictured.start, wallClock.value)}`;
   }
   if (imagery.preview === undefined) return undefined;
   return imagery.preview.daily ? "Yesterday" : "Latest";
@@ -215,6 +220,7 @@ watch(
   () => props.layers,
   () => aboutOpen.clear(),
 );
+/** Opens the card's Updates, Archive and Source, or closes them. */
 const toggleAbout = (key: string) => (aboutOpen.has(key) ? aboutOpen.delete(key) : aboutOpen.add(key));
 
 /** Each card's picture by card: a provider's WMS answer, or one made here. */
