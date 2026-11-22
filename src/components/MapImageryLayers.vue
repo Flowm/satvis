@@ -1,4 +1,4 @@
-<!-- The Map panel's satellite imagery (ADR 0021): the layers that have not stopped, by orbit, one group open at a time. -->
+<!-- The Map panel's satellite imagery (ADR 0021, 0024): the layers that have not stopped, by orbit, one group open at a time. -->
 <template>
   <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert }">Satellite imagery</div>
   <!-- Shown before the list arrives, or while its record has not loaded, so a layer on the globe can be taken off. -->
@@ -13,14 +13,81 @@
       <span class="toolbarPlace__label">{{ GROUP_TITLE[group.key] }}</span>
       <!-- One or the other: both cut the name short in the panel's width. -->
       <span v-if="group.shown" class="countBadge imageryGroup__count">{{ group.shown }} on</span>
-      <span v-else class="imageryGroup__count">{{ group.layers.length }}</span>
+      <span v-else class="imageryGroup__count">{{
+        group.key === "leo" ? leoRows.length + group.layers.filter((each) => each.kind === "composite").length : group.layers.length
+      }}</span>
       <UIcon :name="openGroup === group.key ? 'lucide:chevron-up' : 'lucide:chevron-down'" class="imageryGroup__chevron" />
     </button>
+    <template v-if="openGroup === group.key && group.key === 'leo'">
+      <div class="toolbarNote imageryLegend">
+        <span><UIcon :name="IMAGERY_TYPES.daily.icon" /> Daily: the whole day at once</span>
+        <span><UIcon name="lucide:play" /> Replays the newest pass</span>
+      </div>
+      <!-- A satellite a row, without its instruments: each layer a button named by its type. The
+           passes, which show nothing until the clock is at one, start as a replay of the newest. -->
+      <div
+        v-for="row in leoRows"
+        :key="row.satellite"
+        class="toolbarSwitch imagerySatellite"
+        :class="{ 'toolbarSwitch--inert': inert, 'imagerySatellite--on': row.layers.some(({ layer }) => isShown(layer)) }"
+      >
+        <button
+          type="button"
+          class="imagerySatellite__name"
+          :aria-label="`Show the imagery of ${row.satellite}`"
+          :title="`Show the imagery of ${row.satellite}`"
+          @click="showImagery(row.satellite)"
+        >
+          {{ shortName(row.satellite) }}
+        </button>
+        <span class="imagerySatellite__buttons">
+          <template v-for="{ layer, name } in row.layers" :key="layer.key">
+            <button
+              v-if="layer.type === 'passes' && !isShown(layer)"
+              type="button"
+              class="imageryButton imageryButton--replay"
+              :aria-label="`Replay the newest pass of ${row.satellite}`"
+              :title="`Shows ${shortName(row.satellite)}'s passes from just before its newest one`"
+              @click="replay(row.satellite, layer)"
+            >
+              <UIcon name="lucide:play" />
+              {{ newestOf(layer) === undefined ? "Newest pass" : timeAgo(newestOf(layer)!) }}
+            </button>
+            <button
+              v-else
+              type="button"
+              class="imageryButton"
+              :class="{ 'imageryButton--on': isShown(layer) }"
+              :aria-pressed="isShown(layer)"
+              :aria-label="buttonLabel(row.satellite, layer, name)"
+              :title="tooltipOf(layer)"
+              @click="cesiumStore.toggleInstrumentImagery(layer.token, !isShown(layer))"
+            >
+              <UIcon :name="IMAGERY_TYPES[layer.type].icon" />
+              {{ name }}
+            </button>
+          </template>
+        </span>
+        <template v-for="{ layer } in row.layers" :key="layer.key">
+          <PassNotice
+            v-if="layer.type === 'passes' && isShown(layer) && isPastNewest(layer.token)"
+            class="imagerySatellite__notice"
+            :newest="newestOf(layer)!"
+            @go="goToNewest(layer.token)"
+          />
+        </template>
+      </div>
+    </template>
     <template v-if="openGroup === group.key">
       <!-- A press on the button, interactive content inside the label, does not toggle the checkbox.
            A composite's is no one satellite's: it opens a menu of its satellites. The tooltip is the
            text's, so that the button's own shows over it. -->
-      <label v-for="layer in group.layers" :key="layer.key" class="toolbarSwitch imageryRow" :class="{ 'toolbarSwitch--inert': inert }">
+      <label
+        v-for="layer in group.key === 'leo' ? group.layers.filter((each) => each.kind === 'composite') : group.layers"
+        :key="layer.key"
+        class="toolbarSwitch imageryRow"
+        :class="{ 'toolbarSwitch--inert': inert }"
+      >
         <input
           type="checkbox"
           :checked="isShown(layer)"
@@ -62,11 +129,25 @@ import { storeToRefs } from "pinia";
 import { computed, ref, watch } from "vue";
 
 import { useController } from "@/composables/useController";
+import { useLatestPasses } from "@/composables/useLatestPasses";
 import { useSelectedEntity } from "@/composables/useSelectedEntity";
-import { type CompositeImageryLayer, IMAGERY_GROUPS, type ImageryGroup, type ImageryLayer, imageryLayers } from "@/config/instrumentImagery";
+import {
+  type CompositeImageryLayer,
+  granuleLayerOwner,
+  IMAGERY_GROUPS,
+  IMAGERY_TYPES,
+  type ImageryGroup,
+  type ImageryLayer,
+  imageryLayers,
+  imageryRowsBySatellite,
+  type SatelliteImageryLayer,
+} from "@/config/instrumentImagery";
+import { timeAgo } from "@/modules/util/bookmarks";
 import { DeviceDetect } from "@/modules/util/DeviceDetect";
 import { useCesiumStore } from "@/stores/cesium";
 import { useSatStore } from "@/stores/sat";
+
+import PassNotice from "./PassNotice.vue";
 
 const props = defineProps<{
   /** The Map panel is open: the list is read off the records, so its first opening loads every group. */
@@ -161,6 +242,35 @@ const openGroup = computed(() => (chosen.value === undefined ? (groups.value.fin
 function toggleGroup(key: ImageryGroup): void {
   chosen.value = openGroup.value === key ? null : key;
 }
+
+/** The LEO group's satellites, a row each (ADR 0024). */
+const leoRows = computed(() => imageryRowsBySatellite(layers.value.filter((layer): layer is SatelliteImageryLayer => layer.group === "leo" && layer.kind === "satellite")));
+
+/** The newest pass of each LEO passes layer, asked while the group is open. */
+const { latest, isPastNewest, goToNewest } = useLatestPasses(() => {
+  if (openGroup.value !== "leo") return [];
+  return leoRows.value.flatMap((row) =>
+    row.layers.flatMap(({ layer }) => {
+      const owner = layer.type === "passes" ? granuleLayerOwner(sats.catalog.entries, layer.token) : undefined;
+      return owner === undefined ? [] : [{ key: layer.token, layer: owner.layer }];
+    }),
+  );
+});
+/** The start of the layer's newest pass, epoch ms, once known. */
+const newestOf = (layer: SatelliteImageryLayer) => latest.get(layer.token)?.newest.start;
+
+/** "Daily mosaic of PACE", or "Daily mosaic of PACE SPEXone" where the button is named by its instrument. */
+const buttonLabel = (satellite: string, layer: SatelliteImageryLayer, name: string) =>
+  `${IMAGERY_TYPES[layer.type].title} of ${satellite}${name === layer.instrument ? ` ${layer.instrument}` : ""}`;
+/** What the layer is, as its card says it. */
+const tooltipOf = (layer: SatelliteImageryLayer) => [IMAGERY_TYPES[layer.type].title, layer.words.picture, layer.words.updates].filter(Boolean).join("\n");
+
+/** The passes on, the clock just before the newest, and the satellite selected at its Imagery tab. */
+function replay(satellite: string, layer: SatelliteImageryLayer): void {
+  cesiumStore.toggleInstrumentImagery(layer.token, true);
+  goToNewest(layer.token);
+  showImagery(satellite);
+}
 </script>
 
 <style scoped>
@@ -232,6 +342,102 @@ function toggleGroup(key: ImageryGroup): void {
   .imageryRow__product {
     margin-left: 0;
   }
+}
+
+/* The LEO group's key to its buttons. */
+.imageryLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  padding: 0 4px 6px;
+}
+
+.imageryLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* A satellite and its layers' buttons, on one line where they fit; a pass notice under them. */
+.imagerySatellite {
+  display: flex;
+  flex-wrap: wrap;
+  height: auto;
+  min-height: var(--toolbar-row);
+  align-items: center;
+  gap: 4px 6px;
+  padding: 4px 8px 4px 12px;
+  white-space: normal;
+}
+
+.imagerySatellite--on {
+  color: var(--panel-ink);
+}
+
+.imagerySatellite__name {
+  flex: 1 0 auto;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .imagerySatellite__name:hover {
+    text-decoration: underline;
+  }
+}
+
+.imagerySatellite__buttons {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.imagerySatellite__notice {
+  flex-basis: 100%;
+}
+
+.imageryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border: 1px solid var(--panel-hairline);
+  border-radius: 999px;
+  background: none;
+  color: var(--panel-muted);
+  font-size: 11.5px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .imageryButton:hover {
+    border-color: var(--panel-faint);
+    color: var(--panel-ink);
+  }
+}
+
+.imageryButton--on,
+.imageryButton--on:hover {
+  border-color: var(--panel-accent);
+  background: color-mix(in srgb, var(--panel-accent) 22%, transparent);
+  color: var(--panel-ink);
+}
+
+/* An action, not a switch: it sets the clock. */
+.imageryButton--replay {
+  border-style: dashed;
+}
+
+:is(.imagerySatellite__name, .imageryButton):focus-visible {
+  outline: 2px solid var(--panel-accent);
+  outline-offset: 1px;
 }
 
 /* The row's whole height, through its padding. */

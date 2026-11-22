@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
-import { formatDecimal, formatFixed, formatInteger, formatMeasure, formatNumber, formatWeekdayDate, localeFor, setFormatLocale } from "./formats";
+import { formatDate, formatDecimal, formatFixed, formatInteger, formatMeasure, formatNumber, formatWeekdayDate, localeFor, setFormatLocale } from "./formats";
 
 const AT = new Date("2026-10-25T23:30:00Z");
 
@@ -31,6 +31,7 @@ describe.each([
     negative: "-48.14",
     decimal: "12.6",
     weekday: "Sun, Oct 25",
+    day: "Jun 9, 2026",
   },
   {
     language: "de-DE",
@@ -41,6 +42,7 @@ describe.each([
     negative: "-48,14",
     decimal: "12,6",
     weekday: "Sun 25 Oct",
+    day: "9 Jun 2026",
   },
 ])("in a $language browser", ({ language, ...expected }) => {
   beforeAll(() => setFormatLocale(localeFor([language])));
@@ -69,6 +71,10 @@ describe.each([
 
   test("the clock's day is in English words, in the region's order, in UTC", () => {
     expect(formatWeekdayDate(AT)).toBe(expected.weekday);
+  });
+
+  test("an ISO day is in English words, in the region's order", () => {
+    expect(formatDate("2026-06-09")).toBe(expected.day);
   });
 });
 

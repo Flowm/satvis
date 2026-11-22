@@ -19,7 +19,12 @@ for (const [device, options] of Object.entries(DEVICES)) {
 
       await expect(panel.getByRole("tab", { name: "Imagery" })).toHaveAttribute("aria-selected", "true");
       const geocolor = panel.getByRole("article", { name: "ABI GeoColor" });
-      await expect(geocolor).toContainText("every 10 min, last 90 days");
+      await expect(geocolor).toContainText("Live view");
+      await expect(geocolor).toContainText("GeoColor · ABI");
+      // When it updates, how far back it goes and where from are behind its info button.
+      await geocolor.getByRole("button", { name: "About this layer" }).click();
+      await expect(geocolor).toContainText("Every 10 min");
+      await expect(geocolor).toContainText("The last 90 days");
       const link = geocolor.getByRole("link", { name: /NASA Worldview/ });
       await expect(link).toHaveAttribute("href", "https://worldview.earthdata.nasa.gov/?l=GOES-East_ABI_GeoColor");
       await expect(link).toHaveAttribute("target", "_blank");

@@ -2008,7 +2008,14 @@
                 "label": "Natural colour and fog, six orbits stacked",
                 "detail": "since 2020",
                 "viewer": "EUMETView",
-                "href": "https://view.eumetsat.int/productviewer?v=eps:m03_rgb_natural_fog"
+                "href": "https://view.eumetsat.int/productviewer?v=eps:m03_rgb_natural_fog",
+                "type": "orbits",
+                "words": {
+                  "picture": "Natural colour + fog · AVHRR/3",
+                  "updates": "With each orbit",
+                  "ended": false,
+                  "archive": "Back to 2020"
+                }
               }
             ]
           },
@@ -2384,6 +2391,13 @@
                   "layer": "GOES-East_ABI_GeoColor",
                   "format": "png",
                   "daily": false
+                },
+                "type": "live",
+                "words": {
+                  "picture": "GeoColor · ABI",
+                  "updates": "Every 10 min",
+                  "ended": false,
+                  "archive": "The last 90 days"
                 }
               }
             ]

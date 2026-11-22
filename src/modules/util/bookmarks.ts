@@ -208,3 +208,14 @@ export function timeAgo(at: number, now = Date.now()): string {
   const hours = Math.floor(minutes / 60);
   return hours < 24 ? `${hours} h ago` : `${Math.floor(hours / 24)} d ago`;
 }
+
+/** "just now", "5 min ago", "3 hours ago", "2 days ago": timeAgo with room to spell out the units. */
+export function timeAgoInWords(at: number, now = Date.now()): string {
+  const minutes = Math.floor((now - at) / 60_000);
+  if (minutes < 60) {
+    return timeAgo(at, now);
+  }
+  const hours = Math.floor(minutes / 60);
+  const [count, unit] = hours < 24 ? [hours, "hour"] : [Math.floor(hours / 24), "day"];
+  return `${count} ${unit}${count === 1 ? "" : "s"} ago`;
+}

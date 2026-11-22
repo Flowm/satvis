@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { gcatCategoryLabel, gcatClassLabel } from "@/config/gcatCodes";
-import { type DrawnImagery, type ImageryEntry, type ImageryPreview, readImageryList } from "@/config/instrumentImagery";
+import { type DrawnImagery, type ImageryEntry, type ImageryPreview, type ImageryType, type ImageryWords, readImageryList } from "@/config/instrumentImagery";
 import type { OrbitClass } from "@/config/orbitClass";
 import { satcatLabel, SATCAT_LAUNCH_SITE, SATCAT_OPS_STATUS, SATCAT_ORBIT_TYPE } from "@/config/satcatCodes";
 import { swathExtentsOf, type SatelliteInstrument, type SatelliteMetadata } from "@/config/satelliteMetadata";
@@ -47,6 +47,10 @@ export interface ImageryInfo {
   preview?: ImageryPreview;
   /** The layer itself, where it is one of granules a frame: the recorded swath (ADR 0023). */
   granuleLayer?: DrawnImagery;
+  /** What kind of layer it is: the card's title (ADR 0024). */
+  type: ImageryType;
+  /** What the card says of it. */
+  words: ImageryWords;
 }
 
 /** One record entry of `imagery`, read: what the tab shows of it, and the instrument it belongs under. */
@@ -112,7 +116,7 @@ export function getSatelliteInfo(orbit: Orbit, orbitClass: OrbitClass, metadata:
 }
 
 /** What the Imagery tab shows of an entry, under its instrument. */
-function instrumentImagery({ instrument, provider, layer, label, detail, viewer, href, drawn, end }: ImageryEntry): InstrumentImagery {
+function instrumentImagery({ instrument, provider, layer, label, detail, viewer, href, drawn, end, type, words }: ImageryEntry): InstrumentImagery {
   const drawing =
     drawn === undefined
       ? {}
@@ -143,7 +147,7 @@ function instrumentImagery({ instrument, provider, layer, label, detail, viewer,
         };
   return {
     instrument,
-    imagery: { key: `${provider}:${layer}`, label, ...(detail !== undefined && { detail }), ...(href !== undefined && { viewer, href }), ...drawing },
+    imagery: { key: `${provider}:${layer}`, label, ...(detail !== undefined && { detail }), ...(href !== undefined && { viewer, href }), ...drawing, type, words },
   };
 }
 

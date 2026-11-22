@@ -1,7 +1,7 @@
 <template>
   <div ref="galleryEl" class="gallery">
     <article
-      v-for="{ instrument, imagery } in layers"
+      v-for="{ instrument, imagery } in cards"
       :key="imagery.key"
       class="card"
       :class="{ 'card--drawable': imagery.token, 'card--shown': isShown(imagery) }"
@@ -28,56 +28,73 @@
             <span>No preview</span>
           </template>
         </div>
-        <span class="card__badge">{{ instrument }}</span>
-        <span v-if="imagery.preview?.end" class="card__badge card__badge--ended">Ended {{ imagery.preview.end }}</span>
+        <span v-if="captionOf(imagery)" class="card__caption" :class="{ 'card__caption--ended': imagery.words.ended }">{{ captionOf(imagery) }}</span>
       </div>
-      <div v-if="imagery.granuleLayer" class="card__body">
-        <div class="card__title">{{ RECORDED_SWATH }}</div>
-        <div class="card__detail">{{ imagery.label }}, as the clock runs</div>
-        <div class="card__actions">
-          <USwitch
-            :model-value="isShown(imagery)"
-            label="Show"
-            size="sm"
-            :aria-label="`Show ${imagery.label} as a map layer`"
-            @update:model-value="cesiumStore.toggleInstrumentImagery(imagery.token!, $event)"
-            @click.stop
-          />
-          <UTooltip :text="isTracked ? 'Stop tracking' : 'Track the satellite'">
-            <UButton icon="i-lucide-video" variant="ghost" :color="isTracked ? 'primary' : 'neutral'" size="xs" aria-label="Track the satellite" @click.stop="toggleTrack" />
-          </UTooltip>
+      <div class="card__body">
+        <div class="card__title">
+          <UIcon :name="IMAGERY_TYPES[imagery.type].icon" class="card__title-icon" />
+          {{ IMAGERY_TYPES[imagery.type].title }}
         </div>
-        <!-- NASA lists a granule about 3 hours after it is sensed: nearer live there is nothing to show. -->
-        <div v-if="isShown(imagery) && aheadOfData(imagery)" class="card__hint" @click.stop>
-          <UIcon name="lucide:clock-alert" class="card__hint-icon" />
-          <span v-if="imagery.preview?.end">Nothing sensed at this time. The layer ended on {{ imagery.preview.end }}.</span>
-          <span v-else>Nothing sensed yet at this time. The latest is {{ behindLive(latest.get(imagery.key)!.newest) }} behind live.</span>
-          <button type="button" class="card__hint-action" @click="goToLatest(imagery)">Go to latest</button>
-        </div>
-        <a v-if="imagery.href" class="card__open card__open--below" :href="imagery.href" :title="`Open in ${imagery.viewer}`" target="_blank" rel="noopener" @click.stop>
-          {{ imagery.viewer }}
-          <UIcon name="lucide:external-link" />
-        </a>
-      </div>
-      <div v-else class="card__body">
-        <div class="card__title">{{ imagery.label }}</div>
-        <div v-if="imagery.detail" class="card__detail">{{ imagery.detail }}</div>
+        <div class="card__picture">{{ imagery.words.picture }}</div>
         <div class="card__actions">
           <USwitch
             v-if="imagery.token"
             :model-value="isShown(imagery)"
-            label="Show"
+            label="On globe"
             size="sm"
             :aria-label="`Show ${imagery.label} as a map layer`"
             @update:model-value="cesiumStore.toggleInstrumentImagery(imagery.token, $event)"
             @click.stop
           />
           <span v-else />
-          <a v-if="imagery.href" class="card__open" :href="imagery.href" :title="`Open in ${imagery.viewer}`" target="_blank" rel="noopener" @click.stop>
-            {{ imagery.viewer }}
-            <UIcon name="lucide:external-link" />
-          </a>
+          <span class="card__buttons">
+            <UTooltip v-if="imagery.granuleLayer" :text="isTracked ? 'Stop tracking' : 'Track the satellite'">
+              <UButton icon="i-lucide-video" variant="ghost" :color="isTracked ? 'primary' : 'neutral'" size="xs" aria-label="Track the satellite" @click.stop="toggleTrack" />
+            </UTooltip>
+            <!-- A layer the globe cannot draw is its viewer's alone: the link is its action. -->
+            <UTooltip v-if="imagery.href && !imagery.token" :text="`Open in ${imagery.viewer}`">
+              <UButton
+                icon="i-lucide-external-link"
+                variant="ghost"
+                color="neutral"
+                size="xs"
+                :to="imagery.href"
+                target="_blank"
+                :aria-label="`Open in ${imagery.viewer}`"
+                @click.stop
+              />
+            </UTooltip>
+            <UButton
+              icon="i-lucide-info"
+              variant="ghost"
+              :color="aboutOpen.has(imagery.key) ? 'primary' : 'neutral'"
+              size="xs"
+              aria-label="About this layer"
+              :aria-expanded="aboutOpen.has(imagery.key)"
+              @click.stop="toggleAbout(imagery.key)"
+            />
+          </span>
         </div>
+        <dl v-if="aboutOpen.has(imagery.key)" class="card__about" @click.stop>
+          <template v-if="imagery.words.updates">
+            <dt>Updates</dt>
+            <dd :class="{ card__ended: imagery.words.ended }">{{ imagery.words.updates }}</dd>
+          </template>
+          <template v-if="imagery.words.archive">
+            <dt>Archive</dt>
+            <dd>{{ imagery.words.archive }}</dd>
+          </template>
+          <template v-if="imagery.href">
+            <dt>Source</dt>
+            <dd>
+              <a class="card__open" :href="imagery.href" target="_blank" rel="noopener">
+                {{ imagery.viewer }}
+                <UIcon name="lucide:external-link" />
+              </a>
+            </dd>
+          </template>
+        </dl>
+        <PassNotice v-if="isShown(imagery) && isPastNewest(imagery.key)" class="card__notice" :newest="latest.get(imagery.key)!.newest.start" @go="goToNewest(imagery.key)" />
       </div>
     </article>
   </div>
@@ -87,21 +104,25 @@
 import { computed, nextTick, onMounted, onUnmounted, reactive, useTemplateRef, watch } from "vue";
 
 import { useController } from "@/composables/useController";
+import { useLatestPasses } from "@/composables/useLatestPasses";
 import { useSelectedEntity } from "@/composables/useSelectedEntity";
-import { useViewerClock } from "@/composables/useViewerClock";
-import { imageryPreviewUrl, isGranuleLayer, RECORDED_SWATH, PREVIEW_HEIGHT, PREVIEW_WIDTH, type PreviewCentre, previewBounds } from "@/config/instrumentImagery";
+import { IMAGERY_TYPES, imageryPreviewUrl, isGranuleLayer, PREVIEW_HEIGHT, PREVIEW_WIDTH, type PreviewCentre, previewBounds } from "@/config/instrumentImagery";
 import { geoMosaicPreview } from "@/modules/GeoMosaicImagery";
 import { PICTURE_TRIES } from "@/modules/granulePictures";
-import { AFTER_OVERPASS_MS, granuleCentre, latestGranule, type LatestGranules, REPLAY_LEAD_MS } from "@/modules/overpassReplay";
-import type { Granule } from "@/modules/util/cmrGranules";
+import { granuleCentre } from "@/modules/overpassReplay";
+import { timeAgo } from "@/modules/util/bookmarks";
 import type { ImageryInfo } from "@/modules/util/entityInfo";
+import { formatDate } from "@/modules/util/formats";
 import { useCesiumStore } from "@/stores/cesium";
 
+import PassNotice from "./PassNotice.vue";
+
 /**
- * The Imagery tab: a card for each layer that shows one of the satellite's instruments,
- * with a picture of its latest frame, a switch that shows it on the globe where the globe
- * can draw it, and a link to it in its provider's viewer. A granule layer's card can also
- * track the satellite, and sends the clock to its newest granule where it is past it.
+ * The Imagery tab (ADR 0024): a card for each layer that shows one of the satellite's
+ * instruments, titled by its type, with a picture of its latest frame and how fresh it is,
+ * a switch that shows it on the globe where the globe can draw it, and the rest behind its
+ * info button. A granule layer's card can also track the satellite, and sends the clock to
+ * its newest pass where it is past it.
  */
 const props = defineProps<{
   layers: { instrument: string; imagery: ImageryInfo }[];
@@ -163,35 +184,8 @@ watch(
 );
 onUnmounted(forgetPreviews);
 
-/**
- * A granule layer's newest day granule with pixels, by card, which it pictures and goes to:
- * its latest frame is a granule that may be by night, or one GIBS left out.
- */
-const latest = reactive(new Map<string, LatestGranules>());
-/** How often the newest granule is asked again while the tab is open: CMR lists one every 6 minutes. */
-const LATEST_REFRESH_MS = 10 * 60 * 1000;
-watch(
-  () => props.layers,
-  (layers, _, onCleanup) => {
-    latest.clear();
-    const reading = new AbortController();
-    const ask = () => {
-      for (const { imagery } of layers) {
-        const layer = imagery.granuleLayer;
-        if (!isGranuleLayer(layer)) continue;
-        void latestGranule(layer, reading.signal).then((granules) => {
-          if (granules !== undefined && !reading.signal.aborted) latest.set(imagery.key, granules);
-        });
-      }
-    };
-    ask();
-    const timer = layers.some(({ imagery }) => imagery.granuleLayer) ? setInterval(ask, LATEST_REFRESH_MS) : undefined;
-    onCleanup(() => {
-      reading.abort();
-      clearInterval(timer);
-    });
-  },
-  { immediate: true },
+const { latest, isPastNewest, goToNewest } = useLatestPasses(() =>
+  props.layers.flatMap(({ imagery }) => (isGranuleLayer(imagery.granuleLayer) ? [{ key: imagery.key, layer: imagery.granuleLayer }] : [])),
 );
 
 /** Degrees either side of a granule's centre in its picture: a NOAA-20 granule is about 3,000 km across. */
@@ -199,30 +193,29 @@ const GRANULE_HALF_WIDTH = 20;
 
 const controller = useController();
 const { isTracked, toggleTrack } = useSelectedEntity(controller);
-const { now } = useViewerClock();
 
-/** The clock is past the newest granule the layer has, so it shows nothing new. */
-function aheadOfData(imagery: ImageryInfo): boolean {
-  const granule = latest.get(imagery.key)?.newest;
-  return granule !== undefined && now.value.getTime() > granule.end + AFTER_OVERPASS_MS;
+/** The cards in the record's order, a layer that ended after those that have not. */
+const cards = computed(() => props.layers.toSorted((a, b) => Number(a.imagery.words.ended) - Number(b.imagery.words.ended)));
+
+/** How fresh a card's picture is: the day a stopped layer ended, the pass pictured, yesterday's for a day's. */
+function captionOf(imagery: ImageryInfo): string | undefined {
+  const end = imagery.preview?.end;
+  if (end !== undefined) return `Last day, ${formatDate(end)}`;
+  if (imagery.type === "passes") {
+    const pictured = latest.get(imagery.key)?.pictured;
+    return pictured === undefined ? undefined : `Newest pass, ${timeAgo(pictured.start)}`;
+  }
+  if (imagery.preview === undefined) return undefined;
+  return imagery.preview.daily ? "Yesterday" : "Latest";
 }
 
-/** "42 min", "3 h 12 min", "1 d 2 h". */
-function behindLive(granule: Granule): string {
-  const minutes = Math.max(0, Math.round((Date.now() - granule.start) / 60_000));
-  const hours = Math.floor(minutes / 60);
-  if (hours >= 24) return `${Math.floor(hours / 24)} d ${hours % 24} h`;
-  return hours === 0 ? `${minutes} min` : `${hours} h ${minutes % 60} min`;
-}
-
-/** The clock to a few minutes before the newest granule the card pictures, so the satellite flies onto it; pinned in the url. */
-function goToLatest(imagery: ImageryInfo): void {
-  const granule = latest.get(imagery.key)?.pictured;
-  if (granule === undefined) return;
-  const time = granule.start - REPLAY_LEAD_MS;
-  controller.setTime(time);
-  cesiumStore.setTime(new Date(time).toISOString());
-}
+/** The cards whose info button is open: forgotten with the satellite. */
+const aboutOpen = reactive(new Set<string>());
+watch(
+  () => props.layers,
+  () => aboutOpen.clear(),
+);
+const toggleAbout = (key: string) => (aboutOpen.has(key) ? aboutOpen.delete(key) : aboutOpen.add(key));
 
 /** Each card's picture by card: a provider's WMS answer, or one made here. */
 const previews = computed(() => {
@@ -320,62 +313,42 @@ watch(() => props.focus, reveal);
   font-size: 11px;
 }
 
-.card__badge {
+.card__body {
+  padding: 8px 10px 10px;
+}
+
+/* How fresh the picture is, over its corner. */
+.card__caption {
   position: absolute;
-  top: 6px;
+  bottom: 6px;
   left: 6px;
   padding: 1px 6px;
   border-radius: 999px;
   background: #000000b0;
   font-size: 11px;
-  font-weight: 600;
-}
-
-/* The clock past the newest granule: amber, as the clock deck's reset. */
-.card__hint {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 6px;
-  margin-top: 8px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: #ffb02e1a;
-  color: var(--panel-amber);
-  font-size: 11.5px;
-  line-height: 1.35;
-  cursor: default;
-}
-
-.card__hint-icon {
-  flex: none;
-}
-
-.card__hint-action {
-  color: var(--panel-accent);
-  font-weight: 600;
-  cursor: pointer;
 }
 
 /* Amber: the app colour for "away from rest", as on the status chip. */
-.card__badge--ended {
-  right: 6px;
-  left: auto;
+.card__caption--ended,
+.card__ended {
   color: var(--panel-amber);
 }
 
-.card__body {
-  padding: 8px 10px 10px;
-}
-
 .card__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13.5px;
   font-weight: 600;
 }
 
-.card__detail {
+.card__title-icon {
+  flex: none;
   color: var(--panel-muted);
-  font-size: 11.5px;
+}
+
+.card__picture {
+  font-size: 12.5px;
 }
 
 .card__actions {
@@ -393,9 +366,30 @@ watch(() => props.focus, reveal);
   color: var(--panel-muted);
 }
 
-.card__open--below {
-  margin-top: 6px;
+.card__buttons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* What the info button opens: when it updates, how far back it goes, and where it comes from. */
+.card__about {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--panel-hairline);
   font-size: 12px;
+  cursor: default;
+}
+
+.card__about dt {
+  color: var(--panel-muted);
+}
+
+.card__notice {
+  margin-top: 8px;
 }
 
 .card__open:hover {

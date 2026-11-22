@@ -98,3 +98,13 @@ export function formatWeekdayDate(date: Date | number): string {
   const dayFirst = parts.findIndex(({ type }) => type === "day") < parts.findIndex(({ type }) => type === "month");
   return `${WEEKDAYS[at.getUTCDay()]}${dayFirst ? ` ${day} ${month}` : `, ${month} ${day}`}`;
 }
+
+/** "19 Jun 2026" or "Jun 19, 2026": a day as ISO 8601 gives it, in the region's order of day and month. */
+export function formatDate(iso: string): string {
+  const at = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
+  const day = at.getUTCDate();
+  const month = MONTHS[at.getUTCMonth()];
+  const parts = dateFormat({ day: "numeric", month: "short" }).formatToParts(at);
+  const dayFirst = parts.findIndex(({ type }) => type === "day") < parts.findIndex(({ type }) => type === "month");
+  return dayFirst ? `${day} ${month} ${at.getUTCFullYear()}` : `${month} ${day}, ${at.getUTCFullYear()}`;
+}

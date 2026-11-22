@@ -66,9 +66,9 @@ test("an instrument's imagery is shown on the globe from its tab, follows the cl
 
   // A press anywhere on the card shows it and takes it off.
   await closeMenuPanel(page, "Map");
-  await card.getByText("every 10 min").click();
+  await card.getByText("Live view").click();
   await expect(show).toBeChecked();
-  await card.getByText("every 10 min").click();
+  await card.getByText("Live view").click();
   await expect(show).not.toBeChecked();
 });
 

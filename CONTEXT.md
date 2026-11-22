@@ -95,8 +95,13 @@ discussion; sharpen them here when they drift.
   satellite is drawn, the granule under it fills in behind the ground track fan instead, and
   gets its outline and layer once the satellite has passed it. A `cmr` entry,
   of kind `outline`, is one with the outlines alone, for a satellite whose granules no
-  provider pictures. Called the "recorded swath" where its label is not enough
-  (`RECORDED_SWATH`); the timeline shades where it has granules.
+  provider pictures. The "recorded swath" in docs and code; the interface calls it
+  **Passes**, its imagery type. The timeline shades where it has granules.
+- **Imagery type**: what a layer of instrument imagery shows, named for what the user sees:
+  Passes (a granule layer), Daily mosaic, Latest orbits, Live view, World mosaic (a
+  composite the globe draws) and Scene archive (a composite of viewer links). Every card
+  and Map panel button names a layer by it, not by its colours (`imageryType`, ADR 0024).
+  _Avoid_: kind, which is an entry's `rgb` or `outline`.
 - **Overpass replay**: the clock set back to a pass over a station and playing, with the
   camera above the station and, where CMR recorded the pass by day, its granule layer on,
   so the swath builds up behind the satellite. Started from a pass in the Passes table; the

@@ -175,8 +175,17 @@ describe("getSatelliteInfo", () => {
           detail: "daily since 2000",
           viewer: "NASA Worldview",
           href: "https://worldview.earthdata.nasa.gov/?l=MODIS_Terra_CorrectedReflectance_TrueColor",
+          type: "daily",
+          words: { picture: "True colour · MODIS", updates: "Once a day", ended: false, archive: "Back to 2000" },
         },
-        { key: "eumetview:msg_fes:rgb natural", label: "Natural colour", viewer: "EUMETView", href: "https://view.eumetsat.int/productviewer?v=msg_fes:rgb%20natural" },
+        {
+          key: "eumetview:msg_fes:rgb natural",
+          label: "Natural colour",
+          viewer: "EUMETView",
+          href: "https://view.eumetsat.int/productviewer?v=msg_fes:rgb%20natural",
+          type: "live",
+          words: { picture: "Natural colour · MODIS", ended: false },
+        },
       ],
       [
         {
@@ -185,6 +194,8 @@ describe("getSatelliteInfo", () => {
           detail: "daily, 2017–2022",
           viewer: "NASA Worldview",
           href: "https://worldview.earthdata.nasa.gov/?l=MISR_AM1_Ellipsoid_Radiance_RGB_AN&t=2022-10-12",
+          type: "daily",
+          words: { picture: "True colour (camera An) · MISR", updates: "Ended Oct 12, 2022", ended: true, archive: "2017–2022" },
         },
       ],
       [],
@@ -208,6 +219,8 @@ describe("getSatelliteInfo", () => {
         detail: "hourly, last 7 days, with other satellites",
         token: "georing:mosaic",
         preview: { provider: "georing", layer: "mosaic", format: "webp", daily: false },
+        type: "ring",
+        words: { picture: "GeoColor · ABI and others", updates: "Hourly", ended: false, archive: "The last 7 days" },
       },
     ]);
     const [abi] = getSatelliteInfo(ISS, "LEO", { instruments: [{ name: "ABI" }], imagery }).instruments;
@@ -231,7 +244,9 @@ describe("getSatelliteInfo", () => {
     ];
     const [modis] = getSatelliteInfo(ISS, "LEO", { instruments: [{ name: "MODIS" }], imagery: malformed as never }).instruments;
 
-    expect(modis!.imagery).toEqual([{ key: "gibs:a", label: "A", viewer: "NASA Worldview", href: "https://worldview.earthdata.nasa.gov/?l=a" }]);
+    expect(modis!.imagery).toEqual([
+      { key: "gibs:a", label: "A", viewer: "NASA Worldview", href: "https://worldview.earthdata.nasa.gov/?l=a", type: "live", words: { picture: "A · MODIS", ended: false } },
+    ]);
     expect(getSatelliteInfo(ISS, "LEO", { instruments: [{ name: "MODIS" }], imagery: "gibs" as never }).instruments[0]!.imagery).toEqual([]);
   });
 
