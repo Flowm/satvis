@@ -598,8 +598,6 @@ interface ImageryLayerRow extends Pick<ImageryEntry, "label" | "detail" | "type"
   /** Its token on the globe. */
   token: string;
   group: ImageryGroup;
-  /** The label, short (shortImageryLabel). */
-  product: string;
 }
 
 /** One satellite's layer, as the Map panel lists it. */
@@ -615,7 +613,7 @@ export interface CompositeImageryLayer extends ImageryLayerRow {
   name: string;
   /** Its satellites by name, sorted. */
   satellites: string[];
-  /** Its cadence, short, which its row shows where another names the instrument. */
+  /** Its cadence, short: its button's name, as a composite's layers are all of one type. */
   cadence: string | undefined;
 }
 
@@ -650,7 +648,7 @@ export function imageryLayers(entries: readonly { name: string; satnum: string; 
       const key = `${satnum}:${token}`;
       if (layers.has(key)) continue;
       const { instrument, label, detail, type, words } = entry;
-      layers.set(key, { kind: "satellite", key, token, group, satellite: name, instrument, label, product: shortImageryLabel(label), detail, type, words });
+      layers.set(key, { kind: "satellite", key, token, group, satellite: name, instrument, label, detail, type, words });
     }
   }
   const byName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
@@ -667,7 +665,6 @@ export function imageryLayers(entries: readonly { name: string; satnum: string; 
       satellites: [...satellites.values()].toSorted(byName),
       cadence: period === undefined ? undefined : cadence(period, true),
       label,
-      product: shortImageryLabel(label),
       detail: imageryDetail({ period, start, window }),
     };
   });
@@ -677,30 +674,51 @@ export function imageryLayers(entries: readonly { name: string; satnum: string; 
   ];
 }
 
-/** The order of a satellite's buttons: what shows at once first, the passes, which may not, last. */
+/** The order of a row's buttons: what shows at once first, the passes, which may not, last. */
 const TYPE_ORDER: readonly ImageryType[] = ["daily", "orbits", "live", "ring", "scenes", "passes"];
 
-/** One satellite's row in the Map panel's LEO group: a button for each of its layers. */
-export interface SatelliteImageryRow {
-  satellite: string;
-  /** Each named by its type, or by its instrument where the satellite has two of that type (PACE's SPEXone). */
-  layers: { layer: SatelliteImageryLayer; name: string }[];
+/** A Map panel row: a satellite, or a composite, and a button for each of its layers (ADR 0024). */
+export interface ImageryRow {
+  key: string;
+  /** The satellite's whole name, or the composite's ("GeoRing"). */
+  name: string;
+  /** A composite's row: its first layer, which names its satellites. */
+  composite?: CompositeImageryLayer;
+  /**
+   * Each named by its type, or a composite's by its cadence. A satellite's second layer of a
+   * type is `extra`, named by its instrument or, where that is the same, its colours: the
+   * panel shows it only while it is on, and the satellite's Imagery tab always.
+   */
+  cells: { layer: ImageryLayer; name: string; extra: boolean }[];
 }
 
-/** The layers by satellite, in the order they come, each satellite's in TYPE_ORDER (ADR 0024). */
-export function imageryRowsBySatellite(layers: readonly SatelliteImageryLayer[]): SatelliteImageryRow[] {
-  const rows = new Map<string, SatelliteImageryLayer[]>();
+/** A group's rows: its composites first, by name, then its satellites, in the order they come. */
+export function imageryRows(layers: readonly ImageryLayer[]): ImageryRow[] {
+  const rows = new Map<string, ImageryRow>();
   for (const layer of layers) {
-    rows.set(layer.satellite, [...(rows.get(layer.satellite) ?? []), layer]);
-  }
-  return [...rows].map(([satellite, own]) => {
-    const sorted = own.toSorted((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
-    return {
-      satellite,
-      layers: sorted.map((layer, index) => ({
-        layer,
-        name: sorted.slice(0, index).some((other) => other.type === layer.type) ? layer.instrument : IMAGERY_TYPES[layer.type].short,
-      })),
+    const key = layer.kind === "composite" ? `composite:${layer.name}` : layer.satellite;
+    const row = rows.get(key) ?? {
+      key,
+      name: layer.kind === "composite" ? layer.name : layer.satellite,
+      ...(layer.kind === "composite" && { composite: layer }),
+      cells: [],
     };
-  });
+    row.cells.push({ layer, name: "", extra: false });
+    rows.set(key, row);
+  }
+  for (const row of rows.values()) {
+    row.cells.sort((a, b) => TYPE_ORDER.indexOf(a.layer.type) - TYPE_ORDER.indexOf(b.layer.type));
+    row.cells.forEach((cell, index) => {
+      const { layer } = cell;
+      if (layer.kind === "composite") {
+        cell.name = layer.cadence === undefined ? IMAGERY_TYPES[layer.type].short : layer.cadence[0]!.toUpperCase() + layer.cadence.slice(1);
+        return;
+      }
+      const before = row.cells.slice(0, index).flatMap(({ layer: other }) => (other.kind === "satellite" && other.type === layer.type ? [other] : []));
+      cell.extra = before.length > 0;
+      cell.name = !cell.extra ? IMAGERY_TYPES[layer.type].short : before.some((other) => other.instrument === layer.instrument) ? shortImageryLabel(layer.label) : layer.instrument;
+    });
+  }
+  const all = [...rows.values()];
+  return [...all.filter((row) => row.composite !== undefined), ...all.filter((row) => row.composite === undefined)];
 }

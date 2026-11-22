@@ -7,12 +7,11 @@ import {
   imageryDetail,
   imageryLayers,
   imageryPreviewUrl,
-  imageryRowsBySatellite,
+  imageryRows,
   imageryType,
   imageryWords,
   previewBounds,
   readImagery,
-  type SatelliteImageryLayer,
   shortImageryLabel,
 } from "./instrumentImagery";
 
@@ -237,7 +236,7 @@ describe("imageryLayers", () => {
       ["GOES 19", "GeoColor", "geo", "gibs:GOES-East_ABI_GeoColor"],
       ["TERRA", "True colour", "leo", "gibs:MODIS_Terra_CorrectedReflectance_TrueColor"],
     ]);
-    expect(layers[0]).toMatchObject({ instrument: "ABI", product: "GeoColor", detail: "every 10 min" });
+    expect(layers[0]).toMatchObject({ instrument: "ABI", type: "live", detail: "every 10 min" });
   });
 
   test("lists a satellite's layer once, however many groups carry it, and leaves out an entry the Imagery tab would", () => {
@@ -311,13 +310,13 @@ describe("imageryLayers of composites", () => {
     expect(
       layers.map((layer) =>
         layer.kind === "composite"
-          ? [layer.key, layer.name, layer.cadence, layer.product, layer.satellites, layer.detail]
-          : [layer.key, layer.satellite, layer.instrument, layer.product, layer.detail],
+          ? [layer.key, layer.name, layer.cadence, layer.type, layer.satellites, layer.detail]
+          : [layer.key, layer.satellite, layer.instrument, layer.type, layer.detail],
       ),
     ).toEqual([
-      ["georing:mosaic", "GeoRing", "hourly", "Day/Night", ["GOES 19"], "hourly, last 7 days"],
-      ["eumetview:mumi:wideareacoverage_rgb_natural", "GeoRing", "3-hourly", "Natural", ["GOES 19", "METEOSAT-9 (MSG-2)"], "every 3 h since 2022"],
-      ["60133:gibs:GOES-East_ABI_GeoColor", "GOES 19", "ABI", "GeoColor", "every 10 min, last 90 days"],
+      ["georing:mosaic", "GeoRing", "hourly", "ring", ["GOES 19"], "hourly, last 7 days"],
+      ["eumetview:mumi:wideareacoverage_rgb_natural", "GeoRing", "3-hourly", "ring", ["GOES 19", "METEOSAT-9 (MSG-2)"], "every 3 h since 2022"],
+      ["60133:gibs:GOES-East_ABI_GeoColor", "GOES 19", "ABI", "live", "every 10 min, last 90 days"],
     ]);
   });
 
@@ -389,41 +388,64 @@ describe("imageryWords", () => {
   });
 });
 
-describe("imageryRowsBySatellite", () => {
-  const layer = (satellite: string, instrument: string, period: string, granules = false): SatelliteImageryLayer => {
-    const [listed] = imageryLayers([
-      {
-        name: satellite,
-        satnum: satellite,
-        orbitClass: "LEO",
-        metadata: {
-          imagery: [
-            granules
-              ? { instrument, provider: "cmr", layer: `${instrument}-granules`, label: "True colour", kind: "rgb", period, granules: ["C1"] }
-              : { instrument, provider: "gibs", layer: `${instrument}-${period}`, label: "True colour", kind: "rgb", period, maxLevel: 7, format: "jpeg" },
-          ],
-        },
-      },
-    ]);
-    return listed as SatelliteImageryLayer;
-  };
+describe("imageryRows", () => {
+  const entry = (instrument: string, period: string, extra: object = {}) => ({
+    instrument,
+    provider: "gibs",
+    layer: `${instrument}-${period}-${JSON.stringify(extra)}`,
+    label: "True colour",
+    kind: "rgb",
+    period,
+    maxLevel: 7,
+    format: "jpeg",
+    ...extra,
+  });
+  const rows = (records: { name: string; orbitClass?: "LEO" | "GEO"; imagery: object[] }[]) =>
+    imageryRows(imageryLayers(records.map(({ name, orbitClass = "LEO", imagery }) => ({ name, satnum: name, orbitClass, metadata: { imagery } }))));
+  const named = (list: ReturnType<typeof imageryRows>) => list.map((row) => [row.name, row.cells.map(({ layer, name, extra }) => [layer.type, name, extra])]);
 
   test("gives a satellite one row, the picture that shows at once first and its passes last", () => {
-    const rows = imageryRowsBySatellite([layer("AQUA", "MODIS", "PT5M", true), layer("AQUA", "MODIS", "P1D"), layer("NOAA 20", "VIIRS", "P1D")]);
-    expect(rows.map((row) => [row.satellite, row.layers.map(({ layer: { type }, name }) => [type, name])])).toEqual([
+    const passes = { instrument: "MODIS", provider: "cmr", layer: "MYD03", label: "True colour", kind: "rgb", period: "PT5M", granules: ["C1"] };
+    expect(
+      named(
+        rows([
+          { name: "AQUA", imagery: [passes, entry("MODIS", "P1D")] },
+          { name: "NOAA 20", imagery: [entry("VIIRS", "P1D")] },
+        ]),
+      ),
+    ).toEqual([
       [
         "AQUA",
         [
-          ["daily", "Daily"],
-          ["passes", "Passes"],
+          ["daily", "Daily", false],
+          ["passes", "Passes", false],
         ],
       ],
-      ["NOAA 20", [["daily", "Daily"]]],
+      ["NOAA 20", [["daily", "Daily", false]]],
     ]);
   });
 
-  test("names a second layer of the same type by its instrument", () => {
-    const [pace] = imageryRowsBySatellite([layer("PACE", "OCI", "P1D"), layer("PACE", "SPEXone", "P1D")]);
-    expect(pace!.layers.map(({ name }) => name)).toEqual(["Daily", "SPEXone"]);
+  test("names a second layer of a type by its instrument, or by its colours where the instrument is the same", () => {
+    const [meteosat, pace] = rows([
+      { name: "PACE", imagery: [entry("OCI", "P1D"), entry("SPEXone", "P1D")] },
+      { name: "METEOSAT-12", orbitClass: "GEO", imagery: [entry("FCI", "PT10M", { label: "GeoColour" }), entry("FCI", "PT10M", { label: "True colour" })] },
+    ]);
+    expect(pace!.cells.map(({ name, extra }) => [name, extra])).toEqual([
+      ["Daily", false],
+      ["SPEXone", true],
+    ]);
+    expect(meteosat!.cells.map(({ name, extra }) => [name, extra])).toEqual([
+      ["Live", false],
+      ["True", true],
+    ]);
+  });
+
+  test("gives a composite one row, first, with a button for each of its layers named by its cadence", () => {
+    const ring = { provider: "georing", layer: "mosaic", label: "Day/Night, GeoRing", kind: "rgb", period: "PT1H", maxLevel: 8, format: "webp", merged: true, instrument: "ABI" };
+    const natural = { ...ring, provider: "eumetview", layer: "mumi", label: "Natural colour, GeoRing", period: "PT3H" };
+    const [first, goes] = rows([{ name: "GOES 19", orbitClass: "GEO", imagery: [entry("ABI", "PT10M"), ring, natural] }]);
+    expect(first).toMatchObject({ name: "GeoRing", composite: { kind: "composite" } });
+    expect(first!.cells.map(({ name }) => name)).toEqual(["Hourly", "3-hourly"]);
+    expect(goes!.cells.map(({ name }) => name)).toEqual(["Live"]);
   });
 });
