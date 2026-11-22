@@ -67,12 +67,23 @@ describe("drawnImagery", () => {
       format: "png",
       granules: ["C2208781576-LANCEMODIS", "C2105084593-LAADS"],
     };
-    expect(drawnImagery(granule)).toMatchObject({ daily: false, granules: ["C2208781576-LANCEMODIS", "C2105084593-LAADS"] });
+    expect(drawnImagery(granule)).toMatchObject({
+      daily: false,
+      granules: ["C2208781576-LANCEMODIS", "C2105084593-LAADS"],
+      pictures: { provider: "gibs", layer: granule.layer, frame: "granule" },
+    });
     expect(drawnImagery({ ...granule, period: "P1D" })).not.toHaveProperty("granules");
     expect(drawnImagery({ ...granule, granules: [] })).not.toHaveProperty("granules");
     expect(drawnImagery({ ...granule, granules: "VJ103MOD" })).not.toHaveProperty("granules");
     expect(drawnImagery({ ...geoColour, granules: ["C2105084593-LAADS"] })).not.toHaveProperty("granules");
-    expect(drawnImagery({ ...geoColour, period: "PT3M", granules: ["C1577017384-OB_DAAC"] })).toMatchObject({ provider: "eumetview", granules: ["C1577017384-OB_DAAC"] });
+    // A EUMETView one says when its frame of a granule is stamped, or it is no granule layer.
+    const swath = { ...geoColour, period: "PT3M", granules: ["EO:EUM:DAT:0409"], platform: "Sentinel-3A" };
+    expect(drawnImagery(swath)).not.toHaveProperty("granules");
+    expect(drawnImagery({ ...swath, frame: "PT25M" })).toMatchObject({
+      granules: ["EO:EUM:DAT:0409"],
+      platform: "Sentinel-3A",
+      pictures: { provider: "eumetview", layer: geoColour.layer, frame: 25 * 60 * 1000 },
+    });
   });
 
   test("reads a cmr layer as its granule outlines, without tiles", () => {
@@ -89,6 +100,31 @@ describe("drawnImagery", () => {
     expect(drawnImagery({ ...outlines, granules: [] })).toBeUndefined();
     expect(readImagery(outlines)).toMatchObject({ detail: "every 6 min", drawn: { token: "cmr:VJ203MOD" } });
     expect(readImagery(outlines)).not.toHaveProperty("href");
+  });
+
+  test("reads a cmr layer whose granules are cut from another layer's frames, and leaves out pictures that do not read", () => {
+    const cut = {
+      instrument: "OLI-2",
+      provider: "cmr",
+      layer: "HLSL30.LANDSAT-9",
+      label: "True colour",
+      kind: "rgb",
+      period: "PT1M",
+      granules: ["C2021957657-LPCLOUD"],
+      platform: "LANDSAT-9",
+      pictures: { provider: "gibs", layer: "HLS_L30_Nadir_BRDF_Adjusted_Reflectance", frame: "day" },
+    };
+    expect(drawnImagery(cut)).toEqual({
+      token: "cmr:HLSL30.LANDSAT-9",
+      provider: "cmr",
+      layer: "HLSL30.LANDSAT-9",
+      granules: ["C2021957657-LPCLOUD"],
+      platform: "LANDSAT-9",
+      pictures: { provider: "gibs", layer: "HLS_L30_Nadir_BRDF_Adjusted_Reflectance", frame: "day" },
+    });
+    expect(drawnImagery({ ...cut, pictures: { provider: "eumetview", layer: "eps:m01", frame: "PT35M" } })).toMatchObject({ pictures: { frame: 35 * 60 * 1000 } });
+    expect(drawnImagery({ ...cut, pictures: { provider: "georing", layer: "x", frame: "day" } })).not.toHaveProperty("pictures");
+    expect(drawnImagery({ ...cut, pictures: { provider: "gibs", layer: "x", frame: "daily" } })).not.toHaveProperty("pictures");
   });
 
   test("reads a EUMETView entry, whose service names its own frames, with or without a period", () => {
@@ -140,11 +176,14 @@ describe("imageryPreviewUrl", () => {
     expect(params(url)).toMatchObject({ LAYERS: "mtg_fd:rgb_geocolour", FORMAT: "image/png", TRANSPARENT: "TRUE" });
   });
 
-  test("names a granule's frame: GIBS by its start, EUMETView by when its pass ended, which its swath is stamped nearest", () => {
+  test("names a granule's frame: by its start, by its day, or by when its frame is stamped", () => {
     const start = Date.parse("2026-11-20T23:55:00Z");
     const bounds = previewBounds({ latitude: -30, longitude: 145 }, 20);
-    expect(params(imageryPreviewUrl({ provider: "gibs", layer: "a", format: "png", daily: false, granule: start }, bounds, now)).TIME).toBe("2026-11-20T23:55:00Z");
-    expect(params(imageryPreviewUrl({ provider: "eumetview", layer: "b", format: "png", daily: false, granule: start }, bounds, now)).TIME).toBe("2026-11-21T00:20:00Z");
+    const preview = (provider: "gibs" | "eumetview", frame: "granule" | "day" | number) =>
+      params(imageryPreviewUrl({ provider, layer: "a", format: "png", daily: false, pictures: { provider, layer: "a", frame }, granule: start }, bounds, now)).TIME;
+    expect(preview("gibs", "granule")).toBe("2026-11-20T23:55:00Z");
+    expect(preview("gibs", "day")).toBe("2026-11-20");
+    expect(preview("eumetview", 25 * 60 * 1000)).toBe("2026-11-21T00:20:00Z");
   });
 });
 
@@ -153,14 +192,18 @@ describe("granulePictureUrl", () => {
   const params = (url: string) => Object.fromEntries(new URL(url).searchParams);
 
   test("asks GIBS for the granule's own frame", () => {
-    const url = granulePictureUrl({ provider: "gibs", layer: "a" }, Date.parse("2026-11-21T10:06:00Z"), bounds, 2048, 1593);
+    const url = granulePictureUrl({ provider: "gibs", layer: "a", frame: "granule" }, Date.parse("2026-11-21T10:06:00Z"), bounds, 2048, 1593);
     expect(url.startsWith("https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?")).toBe(true);
-    expect(params(url)).toMatchObject({ LAYERS: "a", TIME: "2026-11-21T10:06:00Z", FORMAT: "image/jpeg", BBOX: "138.000,-35.000,156.000,-21.000" });
-    expect(params(url)).not.toHaveProperty("BGCOLOR");
+    expect(params(url)).toMatchObject({ LAYERS: "a", TIME: "2026-11-21T10:06:00Z", FORMAT: "image/jpeg", BGCOLOR: "0x000000", BBOX: "138.000,-35.000,156.000,-21.000" });
+  });
+
+  test("asks GIBS for a daily layer's frame of the granule's day", () => {
+    const url = granulePictureUrl({ provider: "gibs", layer: "a", frame: "day" }, Date.parse("2026-11-21T23:59:00Z"), bounds, 512, 398);
+    expect(params(url).TIME).toBe("2026-11-21");
   });
 
   test("asks EUMETView for its pass's swath, black where it has none", () => {
-    const url = granulePictureUrl({ provider: "eumetview", layer: "b" }, Date.parse("2026-11-20T23:55:00Z"), bounds, 2048, 1593);
+    const url = granulePictureUrl({ provider: "eumetview", layer: "b", frame: 25 * 60 * 1000 }, Date.parse("2026-11-20T23:55:00Z"), bounds, 2048, 1593);
     expect(url.startsWith("https://view.eumetsat.int/geoserver/ows?")).toBe(true);
     expect(params(url)).toMatchObject({ LAYERS: "b", TIME: "2026-11-21T00:20:00Z", FORMAT: "image/jpeg", BGCOLOR: "0x000000" });
   });

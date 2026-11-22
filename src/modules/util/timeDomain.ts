@@ -10,7 +10,8 @@ export interface TimeRange {
 
 const DURATION = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/;
 
-function durationMs(duration: string): number | undefined {
+/** An ISO 8601 duration of days to seconds in milliseconds; undefined for another or a zero one. */
+export function durationMs(duration: string): number | undefined {
   const match = DURATION.exec(duration);
   if (!match) {
     return undefined;

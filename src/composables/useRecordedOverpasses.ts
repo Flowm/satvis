@@ -77,7 +77,7 @@ export function useRecordedOverpasses(passes: Ref<readonly { name: string; groun
   /** What the overpass shows; asks GIBS the first time it is wanted. */
   function imageryOf(entry: RecordedOverpass): PassImagery {
     const { signal } = alive;
-    if (entry.day && entry.layer.provider !== "cmr" && !asked.has(entry)) {
+    if (entry.day && entry.layer.pictures !== undefined && !asked.has(entry)) {
       asked.add(entry);
       const granules = entry.overpass.granules.filter((granule) => granule.day);
       void Promise.all(granules.map((granule) => hasPixels(entry.layer, granule))).then((answers) => {

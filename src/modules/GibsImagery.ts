@@ -64,6 +64,12 @@ async function fetchDomain(options: GibsOptions, range: string, signal: AbortSig
   }
 }
 
+/** The days a daily layer lists, its newest maybe still filling in; undefined where GIBS does not answer. */
+export function gibsDays(layer: string, signal: AbortSignal): Promise<TimeRange[] | undefined> {
+  // Every daily true colour layer has a level-9 set, and its domain is the same in each.
+  return fetchDomain({ layer, maximumLevel: 9, format: "jpeg", daily: false }, "all", signal);
+}
+
 /**
  * A layer's frames a day either side of `around`, or all of them: for a daily layer, whose
  * whole list is short, and for one with none that near, as one that ended. Not when GIBS
@@ -116,7 +122,7 @@ const granulePixels = new Map<string, Promise<boolean>>();
 const MIN_OPAQUE_PIXELS = 50;
 
 /** The opaque pixels of a tile, or undefined where it cannot be decoded here. */
-export async function opaquePixels(tile: Blob): Promise<number | undefined> {
+async function opaquePixels(tile: Blob): Promise<number | undefined> {
   if (typeof createImageBitmap !== "function" || typeof OffscreenCanvas !== "function") {
     return undefined;
   }

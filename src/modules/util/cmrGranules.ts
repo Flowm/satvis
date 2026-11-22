@@ -1,8 +1,12 @@
 // A layer's granules as NASA's Common Metadata Repository lists them (ADR 0023): when each
 // was sensed and the ground it covers. GIBS draws a granule's pixels but cannot say which
-// granules cover a place: its DescribeDomains ignores the bounding box.
+// granules cover a place: its DescribeDomains ignores the bounding box. A layer whose
+// collection is EUMETSAT's lists them from its Data Store (eumetsatGranules.ts).
 //
 // Cesium-free, so node-env vitest reads it.
+
+import { DATA_STORE_COLLECTION_RE, fetchDataStoreGranules } from "./eumetsatGranules";
+import { sunlit } from "./granuleDay";
 
 const CMR = "https://cmr.earthdata.nasa.gov/search/granules.json";
 
@@ -45,8 +49,10 @@ export function granuleExtent(granule: Granule): { west: number; south: number; 
 
 /** The granules from `start` to `end` (epoch ms), or only those covering `point`, or only the `newest` few. */
 export interface GranuleQuery {
-  /** CMR concept ids, the preferred collection first. */
+  /** CMR concept ids, the preferred collection first, or one Data Store collection's id. */
   collections: readonly string[];
+  /** The satellite's name, where a collection lists several. */
+  platform?: string;
   start: number;
   end: number;
   point?: GroundPoint;
@@ -81,7 +87,9 @@ export function parseGranule(entry: unknown): Granule | undefined {
   if (!Number.isFinite(start) || !Number.isFinite(end) || outline === undefined) {
     return undefined;
   }
-  return { start, end, day: day_night_flag !== "NIGHT", outline };
+  // NOAA's Metop granules say neither: the sun does.
+  const day = day_night_flag === "DAY" || day_night_flag === "BOTH" ? true : day_night_flag === "NIGHT" ? false : sunlit(outline, start, end);
+  return { start, end, day, outline };
 }
 
 /** CMR's address for `query`, sorted by start, or newest first for `newest`. */
@@ -89,6 +97,9 @@ export function granuleSearchUrl(query: GranuleQuery): string {
   const params = new URLSearchParams();
   for (const collection of query.collections) {
     params.append("collection_concept_id", collection);
+  }
+  if (query.platform !== undefined) {
+    params.set("platform", query.platform);
   }
   params.set("temporal", `${new Date(query.start).toISOString()},${new Date(query.end).toISOString()}`);
   if (query.point) {
@@ -118,6 +129,9 @@ function uniqueGranules(granules: readonly Granule[]): Granule[] {
  * with an error. Where two collections list a granule, the one listed first in `query` wins.
  */
 export async function fetchGranules(query: GranuleQuery, signal: AbortSignal): Promise<Granule[] | undefined> {
+  if (DATA_STORE_COLLECTION_RE.test(query.collections[0] ?? "")) {
+    return fetchDataStoreGranules(query, signal);
+  }
   try {
     const response = await fetch(granuleSearchUrl(query), { signal, headers: { "Client-Id": CLIENT_ID } });
     if (!response.ok) {

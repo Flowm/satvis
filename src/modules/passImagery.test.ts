@@ -6,7 +6,7 @@ import { passImagery, passTable, type RecordedOverpass, recordedFor } from "./pa
 import type { PassRow } from "./PassPredictor";
 
 const MINUTE = 60 * 1000;
-const layer = { token: "gibs:L", provider: "gibs", layer: "L", granules: ["C"] } as unknown as GranuleLayer;
+const layer = { token: "gibs:L", provider: "gibs", layer: "L", granules: ["C"], pictures: { provider: "gibs", layer: "L", frame: "granule" } } as unknown as GranuleLayer;
 
 function recorded(start: number, end: number, { satellite = "NOAA 20", station = "Munich", day = true } = {}): RecordedOverpass {
   return { pair: `${satellite}|${station}`, satellite, station, layer, day, overpass: { start: start * MINUTE, end: end * MINUTE, granules: [] } };
@@ -67,7 +67,7 @@ describe("passTable", () => {
 describe("passImagery", () => {
   test("night, outlines alone, still asking, or how much GIBS has", () => {
     expect(passImagery(recorded(0, 1, { day: false }), [true])).toBe("night");
-    expect(passImagery({ ...recorded(0, 1), layer: { ...layer, provider: "cmr" } }, undefined)).toBe("outline");
+    expect(passImagery({ ...recorded(0, 1), layer: { ...layer, provider: "cmr", pictures: undefined } }, undefined)).toBe("outline");
     expect(passImagery(recorded(0, 1), undefined)).toBe("asking");
     expect(passImagery(recorded(0, 1), [true, true])).toBe("image");
     expect(passImagery(recorded(0, 1), [true, false])).toBe("part");

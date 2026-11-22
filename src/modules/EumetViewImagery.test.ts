@@ -1,7 +1,7 @@
 import { Math as CesiumMath } from "@cesium/core";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { eumetViewFrames, eumetViewHasGranule, parseCapabilities } from "./EumetViewImagery";
+import { eumetViewFrames, parseCapabilities } from "./EumetViewImagery";
 
 const box = (west: number, south: number, east: number, north: number) => `<EX_GeographicBoundingBox>
   <westBoundLongitude>${west}</westBoundLongitude>
@@ -69,33 +69,5 @@ describe("eumetViewFrames", () => {
     const frames = eumetViewFrames(OPTIONS);
     expect(await frames.fetchRanges(new AbortController().signal, 0)).toBeUndefined();
     expect(frames.show().rectangle.west).toBeCloseTo(-Math.PI);
-  });
-});
-
-describe("eumetViewHasGranule", () => {
-  const granule = (start: string) => ({
-    start: Date.parse(start),
-    end: Date.parse(start) + 3 * 60 * 1000,
-    day: true,
-    outline: [
-      { latitude: -20, longitude: 140 },
-      { latitude: -22, longitude: 152 },
-      { latitude: -32, longitude: 150 },
-      { latitude: -30, longitude: 138 },
-      { latitude: -20, longitude: 140 },
-    ],
-  });
-
-  test("asks for the swath of the granule's pass around its centre", async () => {
-    const fetchMock = vi.fn(async (_url: string) => new Response(new Uint8Array([0x89]), { headers: { "content-type": "image/png" } }));
-    vi.stubGlobal("fetch", fetchMock);
-    expect(await eumetViewHasGranule("copernicus:a", granule("2026-11-20T23:55:00Z"))).toBe(true);
-    const params = Object.fromEntries(new URL(fetchMock.mock.calls[0]![0]).searchParams);
-    expect(params).toMatchObject({ layers: "copernicus:a", time: "2026-11-21T00:20:00Z", bbox: "144.000,-27.000,146.000,-25.000", transparent: "true" });
-  });
-
-  test("has none where EUMETView answers with an exception, though its status is 200", async () => {
-    vi.stubGlobal("fetch", async () => new Response("<ServiceExceptionReport/>", { headers: { "content-type": "application/vnd.ogc.se_xml" } }));
-    expect(await eumetViewHasGranule("copernicus:a", granule("2026-11-20T21:00:00Z"))).toBe(false);
   });
 });

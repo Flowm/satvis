@@ -29,6 +29,9 @@ describe("parseGranule", () => {
   test("counts a granule CMR calls BOTH as day, and NIGHT not", () => {
     expect(parseGranule(entry("2026-11-20T09:54:00Z", "C2105084593-LAADS", "BOTH"))?.day).toBe(true);
     expect(parseGranule(entry("2026-11-20T09:54:00Z", "C2105084593-LAADS", "NIGHT"))?.day).toBe(false);
+    // NOAA's Metop granules say neither: the sun does. This one is over the Arabian Sea.
+    expect(parseGranule(entry("2026-11-20T09:54:00Z", "C2205121394-POCLOUD", "UNSPECIFIED"))?.day).toBe(true);
+    expect(parseGranule(entry("2026-11-20T21:54:00Z", "C2205121394-POCLOUD", "UNSPECIFIED"))?.day).toBe(false);
   });
 
   test.each([
@@ -73,6 +76,11 @@ describe("granuleSearchUrl", () => {
     const url = new URL(granuleSearchUrl({ collections: ["C1-P"], start: 0, end: 1, newest: 36 }));
     expect(url.searchParams.get("page_size")).toBe("36");
     expect(url.searchParams.get("sort_key")).toBe("-start_date");
+  });
+
+  test("names the satellite in a collection that lists several", () => {
+    const url = new URL(granuleSearchUrl({ collections: ["C2021957657-LPCLOUD"], platform: "LANDSAT-9", start: 0, end: 1 }));
+    expect(url.searchParams.get("platform")).toBe("LANDSAT-9");
   });
 });
 

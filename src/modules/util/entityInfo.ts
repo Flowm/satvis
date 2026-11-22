@@ -118,9 +118,27 @@ function instrumentImagery({ instrument, provider, layer, label, detail, viewer,
       ? {}
       : {
           token: drawn.token,
-          ...(drawn.provider !== "cmr" && {
-            preview: { provider: drawn.provider, layer: drawn.layer, format: drawn.format, daily: drawn.daily, ...(end !== undefined && { end }) },
-          }),
+          ...(drawn.pictures !== undefined && drawn.pictures.frame !== "granule"
+            ? // Cut from another layer's frames: its frame of the newest granule.
+              {
+                preview: {
+                  provider: drawn.pictures.provider,
+                  layer: drawn.pictures.layer,
+                  format: "jpeg" as const,
+                  daily: drawn.pictures.frame === "day",
+                  pictures: drawn.pictures,
+                },
+              }
+            : drawn.provider !== "cmr" && {
+                preview: {
+                  provider: drawn.provider,
+                  layer: drawn.layer,
+                  format: drawn.format,
+                  daily: drawn.daily,
+                  ...(drawn.pictures !== undefined && { pictures: drawn.pictures }),
+                  ...(end !== undefined && { end }),
+                },
+              }),
           ...(drawn.granules !== undefined && { granuleLayer: drawn }),
         };
   return {

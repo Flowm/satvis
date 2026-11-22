@@ -10,9 +10,16 @@
       @click="toggle(imagery)"
     >
       <div class="card__preview">
-        <img v-if="previews.get(imagery.key) && !failed.has(imagery.key)" :src="previews.get(imagery.key)" alt="" loading="lazy" @error="failed.add(imagery.key)" />
+        <img
+          v-if="previews.get(imagery.key) && !failed.has(imagery.key)"
+          :key="`${imagery.key}#${previewErrors.get(imagery.key) ?? 0}`"
+          :src="previews.get(imagery.key)"
+          alt=""
+          loading="lazy"
+          @error="previewFailed(imagery.key)"
+        />
         <div v-else class="card__placeholder">
-          <template v-if="imagery.granuleLayer?.provider === 'cmr'">
+          <template v-if="imagery.granuleLayer && !imagery.granuleLayer.pictures">
             <UIcon name="lucide:square-dashed" />
             <span>Outlines only</span>
           </template>
@@ -84,6 +91,7 @@ import { useSelectedEntity } from "@/composables/useSelectedEntity";
 import { useViewerClock } from "@/composables/useViewerClock";
 import { imageryPreviewUrl, isGranuleLayer, RECORDED_SWATH, PREVIEW_HEIGHT, PREVIEW_WIDTH, type PreviewCentre, previewBounds } from "@/config/instrumentImagery";
 import { geoMosaicPreview } from "@/modules/GeoMosaicImagery";
+import { PICTURE_TRIES } from "@/modules/granulePictures";
 import { AFTER_OVERPASS_MS, granuleCentre, latestGranule, type LatestGranules, REPLAY_LEAD_MS } from "@/modules/overpassReplay";
 import type { Granule } from "@/modules/util/cmrGranules";
 import type { ImageryInfo } from "@/modules/util/entityInfo";
@@ -106,6 +114,17 @@ const props = defineProps<{
 const cesiumStore = useCesiumStore();
 /** Previews that could not be had, by card, which show the placeholder instead; forgotten with the satellite. */
 const failed = reactive(new Set<string>());
+/** Errors of each card's preview so far; a new one asks again, up to PICTURE_TRIES. */
+const previewErrors = reactive(new Map<string, number>());
+
+/** A preview that did not load is asked for again: GIBS's WMS answers about one in five with an error. */
+function previewFailed(key: string): void {
+  const errors = (previewErrors.get(key) ?? 0) + 1;
+  previewErrors.set(key, errors);
+  if (errors >= PICTURE_TRIES) {
+    failed.add(key);
+  }
+}
 
 /**
  * Where the pictures are, built once per satellite. A geostationary imager sees a disc
@@ -123,6 +142,7 @@ function forgetPreviews(): void {
   madePreviews.forEach((url) => URL.revokeObjectURL(url));
   madePreviews.clear();
   failed.clear();
+  previewErrors.clear();
 }
 watch(
   [() => props.layers, bounds],

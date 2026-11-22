@@ -39,8 +39,9 @@ Measured on 2026-11-20 and 21, from this app's origin:
 **A granule layer is an entry of the imagery manifest (ADR 0019) that names its CMR
 collections by concept id**: `granules: [C2208781576-LANCEMODIS, C2105084593-LAADS]`
 (`VJ103MOD_NRT` and `VJ103MOD`), the near-real-time one first, beside NOAA-20's daily
-VIIRS layer. Only a GIBS or EUMETView layer the globe draws may have it, its `period`
-then the granules'.
+VIIRS layer, or one collection of EUMETSAT's Data Store, and with `platform` the
+satellite where a collection lists several (HLS, Sentinel-3). Only a GIBS or EUMETView
+layer the globe draws, or a `cmr` one, may have it, its `period` then the granules'.
 The record carries the collections' ids, not a query, as it carries a layer's id and
 not a url. A short name is not enough: MODIS's near-real-time and standard collections
 are both `MOD03`, told apart by version alone, and their granule ids start alike. With
@@ -48,13 +49,18 @@ the concept id, CMR says which collection each granule is of, so the code knows 
 of any instrument: a satellite is added in the manifest alone.
 
 **A EUMETView layer of a swath an orbit is cut to its granules**: Sentinel-3A's and 3B's
-OLCI, with the granules of OB.DAAC's `OLCIS3A_L1_EFR` and `OLCIS3B_L1_EFR`. A frame is a
-whole day pass, so a tile layer of it would show the pass ahead of the satellite; each
-granule is instead its fill (below), the frame's WMS picture cut to its outline, kept once
-passed. EUMETView stamps a pass about when it ended, from 9 minutes after the equator in
-June to 22 in November as the pass reaches further south, and answers a time with the pass
-stamped nearest it: a granule's picture asks for its start plus 25 minutes, within 50 of
-its pass's stamp, as a day pass lasts up to an hour and the passes come 101 minutes apart.
+OLCI, with the granules of `OL_1_EFR___` as EUMETSAT's Data Store lists them
+(`EO:EUM:DAT:0409`, `platform: Sentinel-3A`): 2 hours behind live, where CMR's
+`OLCIS3A_L1_EFR` was 26, from 2024-07-26 on. The Data Store answers any origin without a
+key, lists a granule twice for three weeks (near-real-time and archived, starts within
+microseconds, kept once), and splits one across the antimeridian in two, joined again.
+A frame is a whole day pass, so a tile layer of it would show the pass ahead of the
+satellite; each granule is instead its fill (below), the frame's WMS picture cut to its
+outline, kept once passed. EUMETView stamps a pass about when it ended, from 9 minutes
+after the equator in June to 22 in November as the pass reaches further south, and
+answers a time with the pass stamped nearest it: the entry's `frame: PT25M` asks for a
+granule's start plus 25 minutes, within 50 of its pass's stamp, as a day pass lasts up to
+an hour and the passes come 101 minutes apart.
 The times its capabilities list are no guide: 101 minutes apart from February 2020, they
 drift from the passes by 33 minutes a year (measured 2021 to 2026-11-22, both satellites),
 and the frame stamped nearest the clock, as a frame layer shows, is often the orbit before.
@@ -66,13 +72,28 @@ is 56 MB of textures, 220 MB at GIBS's 2,048. EUMETView's JPEG is white where it
 pixels. EUMETView draws a box across the antimeridian, given as running past 180° east,
 so a Sentinel-3 granule there has its picture, which a GIBS one does not.
 
-**A satellite whose granules no provider pictures has its outlines alone**: a `cmr`
-entry of kind `outline`, its `layer` the standard collection, its `granules` as above,
-and no tiles: NOAA-21's beside its daily VIIRS layer, and Terra's and Aqua's MODIS and
-PACE's OCI. It is a granule layer whose
-granules all keep their outline in the replay's colour, as nothing is missing from it;
-its card says "Outlines only" where a picture would be, and a station's rows say "Outline
-only". When GIBS has NOAA-21 granules, the entry becomes a GIBS one like NOAA-20's.
+**A `cmr` layer's granules are cut from another layer's frames**, named in its `pictures`:
+
+- **A daily layer** (`frame: day`): Terra's and Aqua's MODIS, NOAA-21's VIIRS and PACE's
+  OCI from their GIBS daily pictures, and Landsat 8 and 9 and Sentinel-2A and 2B from
+  GIBS's daily HLS pictures of each pair, with the 110 km scenes of `HLSL30` and `HLSS30`
+  by `platform`, about three days behind live. A granule's frame is its UTC day's. Within
+  60° of the equator the day's picture holds that granule's pixels, as the day's passes do
+  not overlap there but at the swath's edge; past it a granule fills without a picture.
+- **EUMETView's six orbits stacked** (`frame: PT35M`): Metop-B's and Metop-C's AVHRR, with
+  the 10-minute granules of NOAA's sea surface temperature from it (`AVHRRF_MB-STAR-L2P`),
+  an hour behind live. Those say neither day nor night, so the sun at their corners does.
+  EUMETView stamps a frame when its newest orbit's data ends, 20 to 55 minutes after a
+  day granule starts (Metop-B and C, 2026-10-02 and 11-18/21): start plus 35 minutes is
+  the frame where the granule's orbit is the newest, over the orbits before it. The
+  Data Store lists Metop's AVHRR only by whole orbit.
+
+A kept picture is at most 256 pixels a degree and 1,024 across: an HLS scene is 1.4°, and a
+trail of 60 is 32 MB of textures. Without `pictures`, a `cmr` entry of kind `outline` has
+the outlines alone: its granules all keep their outline in the replay's colour, its card
+says "Outlines only" where a picture would be, and a station's rows say "Outline only".
+No satellite has one now. When GIBS has NOAA-21 granules, its entry becomes a GIBS one
+like NOAA-20's.
 
 **The globe shows the granules behind the clock** (`GranuleImagery.ts`): every day
 granule that started in the last 50 minutes, about the daylit half of an orbit, each as
@@ -155,13 +176,26 @@ what a satellite records as it flies.
 
 ## Consequences
 
-- **NOAA-20 and Suomi NPP have granule layers from GIBS, Sentinel-3A and 3B from
-  EUMETView**, the only ones GIBS has (read 2026-11-21). Suomi NPP's stopped on
-  2026-11-02, and GIBS keeps its granules 90 days. NOAA-21, Terra, Aqua and PACE have
-  outlines: MODIS and OCI have no picture per granule at GIBS, and Sentinel-2's are per tile.
+- **Fourteen satellites have a recorded swath with pictures**: NOAA-20 and Suomi NPP from
+  GIBS's granule layers, the only ones it has (read 2026-11-22); Sentinel-3A and 3B and
+  Metop-B and C from EUMETView; Terra, Aqua, NOAA-21, PACE, Landsat 8 and 9 and
+  Sentinel-2A and 2B cut from GIBS's daily pictures. Suomi NPP's stopped on 2026-11-02,
+  and GIBS keeps its granules 90 days. Sentinel-2C has no HLS scenes yet.
+- **A granule cut from a daily picture may show another pass at its edges**, where the
+  next orbit's swath overlaps it: VIIRS's from about 20° from the equator, MODIS's from 35°.
+  Which pass a daily picture keeps there is GIBS's.
+- **Metop's recorded swath is natural colour**, EUMETView's day RGB, not true colour.
 - **A card pictures the newest granule within 50° of the equator**, as its picture is held
   there, and "Go to latest" goes to it; Sentinel-3's passes end at 84° S in November. Its
   hint that nothing is sensed yet still counts from the newest granule.
+- **"Latest" is the pictures', not the catalogue's**: the newest granule is looked for up
+  to the newest frame its pictures list, as GIBS's daily DescribeDomains or EUMETView's
+  capabilities give it (plus an hour, as that grid drifts from the frames). On 2026-11-22
+  PACE's daily OCI ended on 11-09 and EUMETView's Sentinel-3 swaths were five hours behind
+  the Data Store's granules, so the newest granules had no picture yet.
+- **A cut picture is asked for up to three times**: GIBS's WMS answers about one small
+  request in five with an empty exception, status 200 (2026-11-22), and the next with the
+  picture. The card previews do the same.
 - **A Sentinel-3 granule has a picture of fixed detail**, 1.2 km a pixel, where a GIBS
   granule's tile layer sharpens to 300 m as the camera comes closer.
 - **Sentinel-3's fan is SLSTR's swath, not OLCI's**: the swath is one a satellite, in the

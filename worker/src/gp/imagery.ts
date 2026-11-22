@@ -1,6 +1,6 @@
 // The imagery manifest (ADR 0019), apart from generate-groups.mjs so the worker tests reach it.
 
-import type { ImageryEntry, SatelliteImagery, TileFormat } from "./types.ts";
+import type { GranulePictures, ImageryEntry, SatelliteImagery, TileFormat } from "./types.ts";
 
 type Raw = Record<string, unknown>;
 
@@ -12,6 +12,10 @@ const GRANULE_PROVIDERS = new Set(["gibs", "eumetview"]);
 const PROVIDER_RE = /^[a-z][a-z0-9-]*$/;
 /** A CMR collection's concept id: "C2208781576-LANCEMODIS". */
 const CMR_COLLECTION_RE = /^C\d+-[A-Z0-9_]+$/;
+/** A collection of EUMETSAT's Data Store: "EO:EUM:DAT:0409". */
+const DATA_STORE_COLLECTION_RE = /^EO:EUM:DAT:[A-Z0-9:_-]+$/;
+/** The providers whose frames a `cmr` layer's granules can be cut from. */
+const PICTURE_PROVIDERS = new Set(["gibs", "eumetview"]);
 /** ISO 8601, without weeks: "P1D", "PT10M", "P90D". */
 const DURATION_RE = /^P(?=\d|T\d)(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+S)?)?$/;
 
@@ -36,7 +40,19 @@ const OPTIONAL_FIELDS: readonly { key: "period" | "start" | "end" | "window"; is
 
 const TILE_FORMATS: readonly string[] = ["png", "jpeg", "webp"] satisfies TileFormat[];
 
-const ENTRY_KEYS = new Set<string>(["provider", "layer", "label", "kind", ...OPTIONAL_FIELDS.map(({ key }) => key), "maxLevel", "format", "granules"]);
+const ENTRY_KEYS = new Set<string>([
+  "provider",
+  "layer",
+  "label",
+  "kind",
+  ...OPTIONAL_FIELDS.map(({ key }) => key),
+  "maxLevel",
+  "format",
+  "granules",
+  "platform",
+  "frame",
+  "pictures",
+]);
 const COMPOSITE_KEYS = new Set<string>([...ENTRY_KEYS, "satellites"]);
 const MEMBER_KEYS = new Set<string>(["noradId", "name", "instrument", "start", "end"]);
 
@@ -65,7 +81,7 @@ function imageryEntry(entry: unknown, where: string): ImageryEntry {
     throw new Error(`${where}: a layer that shows several satellites is a composite, listed once under "composites" with its satellites`);
   }
   checkKeys(entry, ENTRY_KEYS, where);
-  const { provider, layer, label, kind, maxLevel, format, granules } = entry;
+  const { provider, layer, label, kind, maxLevel, format, granules, platform, frame, pictures } = entry;
   if (typeof provider !== "string" || !PROVIDER_RE.test(provider)) {
     throw new Error(`${where}: "provider" must be a lower-case name (got ${JSON.stringify(provider)})`);
   }
@@ -102,19 +118,67 @@ function imageryEntry(entry: unknown, where: string): ImageryEntry {
     throw new Error(`${where}: "format" must be one of ${TILE_FORMATS.join(", ")} (got ${JSON.stringify(format)})`);
   }
   const tiles = maxLevel === undefined ? undefined : { maxLevel: maxLevel as number, format: format as ImageryEntry["format"] & string };
-  if (granules !== undefined && (!Array.isArray(granules) || granules.length === 0 || !granules.every((id) => typeof id === "string" && CMR_COLLECTION_RE.test(id)))) {
-    throw new Error(`${where}: "granules" must list the CMR collections of the layer's granules, by concept id (got ${JSON.stringify(granules)})`);
+  const cmrIds = Array.isArray(granules) && granules.length > 0 && granules.every((id) => typeof id === "string" && CMR_COLLECTION_RE.test(id));
+  const dataStoreId = Array.isArray(granules) && granules.length === 1 && typeof granules[0] === "string" && DATA_STORE_COLLECTION_RE.test(granules[0]);
+  if (granules !== undefined && !cmrIds && !dataStoreId) {
+    throw new Error(
+      `${where}: "granules" must list the CMR collections of the layer's granules, by concept id, or name one collection of EUMETSAT's Data Store (got ${JSON.stringify(granules)})`,
+    );
   }
-  if ((provider === "cmr") !== (kind === "outline")) {
-    throw new Error(`${where}: "kind" outline and "provider" cmr go together: CMR has the granules' outlines and no pixels`);
+  if (platform !== undefined && (granules === undefined || !isText(platform))) {
+    throw new Error(`${where}: "platform" names the satellite in a collection of "granules" that lists several (got ${JSON.stringify(platform)})`);
+  }
+  const cut = pictures === undefined ? undefined : granulePictures(pictures, `${where} pictures`);
+  if ((provider === "cmr" && cut === undefined) !== (kind === "outline")) {
+    throw new Error(`${where}: "kind" outline is a cmr layer's without "pictures": the granules' outlines and no pixels`);
   }
   if (provider === "cmr" && (granules === undefined || tiles !== undefined || !fields.period?.startsWith("PT"))) {
-    throw new Error(`${where}: a cmr layer is a satellite's granule outlines: "granules", a "period" of minutes, and no "maxLevel" or "format"`);
+    throw new Error(`${where}: a cmr layer is a satellite's granules: "granules", a "period" of minutes, and no "maxLevel" or "format"`);
+  }
+  if (cut !== undefined && provider !== "cmr") {
+    throw new Error(`${where}: "pictures" is for a cmr layer, cut from another layer's frames`);
   }
   if (granules !== undefined && provider !== "cmr" && (!GRANULE_PROVIDERS.has(provider) || tiles === undefined || !fields.period?.startsWith("PT"))) {
     throw new Error(`${where}: "granules" is for a GIBS or EUMETView layer the globe draws granule by granule: the granules' "period" of minutes, "maxLevel" and "format"`);
   }
-  return { provider, layer, label, kind, ...fields, ...tiles, ...(granules !== undefined && { granules: granules as string[] }) };
+  if ((provider === "eumetview" && granules !== undefined) !== (frame !== undefined) || (frame !== undefined && !isMinutes(frame))) {
+    throw new Error(
+      `${where}: a EUMETView granule layer, and it alone, says in "frame" how long after a granule's start its frame is stamped: a duration of minutes (got ${JSON.stringify(frame)})`,
+    );
+  }
+  return {
+    provider,
+    layer,
+    label,
+    kind,
+    ...fields,
+    ...tiles,
+    ...(granules !== undefined && { granules: granules as string[] }),
+    ...(platform !== undefined && { platform: platform as string }),
+    ...(frame !== undefined && { frame: frame as string }),
+    ...(cut !== undefined && { pictures: cut }),
+  };
+}
+
+/** A duration of minutes or hours: "PT25M". */
+function isMinutes(value: unknown): value is string {
+  return isDuration(value) && (value as string).startsWith("PT");
+}
+
+/** A `cmr` layer's `pictures`, checked. */
+function granulePictures(pictures: unknown, where: string): GranulePictures {
+  if (!isObject(pictures)) {
+    throw new Error(`${where}: must be an object`);
+  }
+  checkKeys(pictures, new Set(["provider", "layer", "frame"]), where);
+  const { provider, layer, frame } = pictures;
+  if (typeof provider !== "string" || !PICTURE_PROVIDERS.has(provider) || !isText(layer)) {
+    throw new Error(`${where}: names the layer the granules are cut from: a "provider" of ${[...PICTURE_PROVIDERS].join(" or ")} and its "layer"`);
+  }
+  if (frame !== "day" && !isMinutes(frame)) {
+    throw new Error(`${where}: "frame" is "day", for a daily layer, or how long after a granule's start the frame holding it is stamped (got ${JSON.stringify(frame)})`);
+  }
+  return { provider: provider as GranulePictures["provider"], layer, frame };
 }
 
 /**

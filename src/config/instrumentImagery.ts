@@ -3,6 +3,8 @@
 // globe can draw. Nothing here is fetched. Cesium-free: node-env vitest and the parity
 // generator read it.
 
+import { durationMs } from "@/modules/util/timeDomain";
+
 import type { OrbitClass } from "./orbitClass";
 
 /** Worker `SatelliteImagery` (worker/src/gp/types.ts): one layer that shows one instrument. */
@@ -31,8 +33,14 @@ export interface SatelliteImagery {
   maxLevel?: number;
   /** The type of its tiles, one of TILE_FORMATS. */
   format?: string;
-  /** The NASA CMR collections that list its granules, the near-real-time one first: a layer of one granule a frame, or a `cmr` layer of their outlines (ADR 0023). */
+  /** The collections that list its granules, CMR's or EUMETSAT's Data Store's, the preferred one first: a layer replayed granule by granule (ADR 0023). */
   granules?: string[];
+  /** The satellite's name in a collection that lists several: "LANDSAT-9", "Sentinel-3A". */
+  platform?: string;
+  /** A EUMETView granule layer's: how long after a granule's start the frame holding it is stamped nearest. */
+  frame?: string;
+  /** A `cmr` layer's pictures: the layer whose frames each granule is cut from. */
+  pictures?: { provider: string; layer: string; frame: string };
 }
 
 /**
@@ -130,23 +138,43 @@ export interface TiledImagery {
   format: TileFormat;
   /** A GIBS layer with a frame a day, which GIBS names by its date; any other's it names to the second. */
   daily: boolean;
-  /** The CMR collections that list the layer's granules, where the globe draws it granule by granule (ADR 0023). */
+  /** The collections that list the layer's granules, where the globe draws it granule by granule (ADR 0023). */
   granules?: string[];
+  /** The satellite's name in a collection that lists several. */
+  platform?: string;
+  /** Its own frames, as a granule layer's pictures. */
+  pictures?: GranulePictures;
 }
 
-/** A satellite's granules as their outlines alone, from CMR, where no provider has their pixels (ADR 0023). */
+/** A satellite's granules from a catalogue, as outlines, or cut from another layer's frames (ADR 0023). */
 export interface OutlineImagery {
   token: string;
   provider: "cmr";
-  /** CMR's short name of the collection. */
+  /** Names the layer: the collection's short name, with the satellite where it lists several. */
   layer: string;
-  /** The CMR collections that list the granules, the near-real-time one first. */
+  /** The collections that list the granules, the preferred one first. */
   granules: string[];
+  platform?: string;
+  /** Where its granules' pictures are cut from; absent for outlines alone. */
+  pictures?: GranulePictures;
+}
+
+/** Where a granule layer's pictures come from, and how the frame holding a granule is named (ADR 0023). */
+export interface GranulePictures {
+  provider: "gibs" | "eumetview";
+  layer: string;
+  /**
+   * "granule": a frame a granule, named by its start and drawn as a tile layer once passed
+   * (GIBS's granule layers); "day": a frame a UTC day; or the milliseconds after a granule's
+   * start that the frame holding it is stamped nearest (EUMETView's swaths and orbits).
+   */
+  frame: "granule" | "day" | number;
 }
 
 /**
  * A layer the globe draws granule by granule: a GIBS layer of one granule a frame, a
- * EUMETView one of a swath an orbit, each granule cut from it, or a `cmr` one of outlines.
+ * EUMETView one of a swath an orbit, each granule cut from it, or a `cmr` one of outlines,
+ * with or without pictures cut from another layer.
  */
 export type GranuleLayer = DrawnImagery & { granules: string[] };
 
@@ -187,9 +215,24 @@ function imageryToken(provider: string, layer: string): string {
   return `${provider}:${layer}`;
 }
 
-/** An entry's CMR collections, the empty ones left out. */
+/** An entry's collections, the empty ones left out. */
 function collections(granules: unknown): string[] {
   return Array.isArray(granules) ? granules.filter((name): name is string => typeof name === "string" && name !== "") : [];
+}
+
+/** "day", or a duration in milliseconds, of an entry's `frame`; undefined for another. */
+function readFrame(frame: unknown): "day" | number | undefined {
+  if (frame === "day") return "day";
+  return typeof frame === "string" ? durationMs(frame) : undefined;
+}
+
+/** A `cmr` entry's `pictures`, or undefined where they do not read. */
+function readPictures(pictures: unknown): GranulePictures | undefined {
+  if (typeof pictures !== "object" || pictures === null) return undefined;
+  const { provider, layer, frame } = pictures as Record<string, unknown>;
+  const named = readFrame(frame);
+  if ((provider !== "gibs" && provider !== "eumetview") || typeof layer !== "string" || named === undefined) return undefined;
+  return { provider, layer, frame: named };
 }
 
 /**
@@ -201,10 +244,15 @@ export function drawnImagery(entry: unknown): DrawnImagery | undefined {
   if (typeof entry !== "object" || entry === null) {
     return undefined;
   }
-  const { provider, layer, maxLevel, format, period, granules } = entry as Record<keyof SatelliteImagery, unknown>;
+  const { provider, layer, maxLevel, format, period, granules, platform, frame, pictures } = entry as Record<keyof SatelliteImagery, unknown>;
+  const named = typeof platform === "string" && platform !== "" ? { platform } : {};
   if (provider === "cmr") {
     const listed = collections(granules);
-    return typeof layer === "string" && listed.length > 0 ? { token: imageryToken(provider, layer), provider, layer, granules: listed } : undefined;
+    if (typeof layer !== "string" || listed.length === 0) {
+      return undefined;
+    }
+    const cut = readPictures(pictures);
+    return { token: imageryToken(provider, layer), provider, layer, granules: listed, ...named, ...(cut !== undefined && { pictures: cut }) };
   }
   const drawing = DRAWING_PROVIDERS.find((name) => name === provider);
   const tiles = TILE_FORMATS.find((type) => type === format);
@@ -215,7 +263,15 @@ export function drawnImagery(entry: unknown): DrawnImagery | undefined {
   if (drawing === "gibs" && !daily && !(typeof period === "string" && period.startsWith("PT"))) {
     return undefined;
   }
-  const listed = drawing !== "georing" && typeof period === "string" && period.startsWith("PT") ? collections(granules) : [];
+  // A GIBS granule layer has a frame a granule; a EUMETView one says when its frame of a granule is stamped.
+  const after = drawing === "eumetview" ? readFrame(frame) : undefined;
+  const own: GranulePictures | undefined =
+    drawing === "gibs"
+      ? { provider: drawing, layer, frame: "granule" }
+      : drawing === "eumetview" && typeof after === "number"
+        ? { provider: drawing, layer, frame: after }
+        : undefined;
+  const listed = own !== undefined && typeof period === "string" && period.startsWith("PT") ? collections(granules) : [];
   return {
     token: imageryToken(drawing, layer),
     provider: drawing,
@@ -223,7 +279,7 @@ export function drawnImagery(entry: unknown): DrawnImagery | undefined {
     maxLevel: maxLevel as number,
     format: tiles,
     daily,
-    ...(listed.length > 0 && { granules: listed }),
+    ...(listed.length > 0 && { granules: listed, ...named, pictures: own }),
   };
 }
 
@@ -231,6 +287,8 @@ export function drawnImagery(entry: unknown): DrawnImagery | undefined {
 export interface ImageryPreview extends Pick<TiledImagery, "provider" | "layer" | "format" | "daily"> {
   /** The last frame's date, of a layer that stopped. */
   end?: string;
+  /** A granule layer's pictures, which name the frame of `granule`. */
+  pictures?: GranulePictures;
   /** The start (epoch ms) of the granule to picture, where the latest frame is not wanted. */
   granule?: number;
 }
@@ -289,14 +347,14 @@ export function imageryPreviewUrl(preview: ImageryPreview, bounds: PreviewBounds
     // Transparent, or the night side of a true colour disc comes back white.
     query.set("FORMAT", "image/png");
     query.set("TRANSPARENT", "TRUE");
-    if (preview.granule !== undefined) {
-      query.set("TIME", granuleFrame("eumetview", preview.granule));
+    if (preview.granule !== undefined && preview.pictures !== undefined) {
+      query.set("TIME", granuleFrame(preview.pictures, preview.granule));
     }
     return `${EUMETVIEW_WMS}?${query}`;
   }
   query.set("FORMAT", `image/${preview.format}`);
   const time =
-    (preview.granule !== undefined ? granuleFrame("gibs", preview.granule) : undefined) ??
+    (preview.granule !== undefined && preview.pictures !== undefined ? granuleFrame(preview.pictures, preview.granule) : undefined) ??
     preview.end ??
     (preview.daily ? new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10) : undefined);
   if (time !== undefined) {
@@ -305,46 +363,37 @@ export function imageryPreviewUrl(preview: ImageryPreview, bounds: PreviewBounds
   return `${GIBS_WMS}?${query}`;
 }
 
-/**
- * EUMETView stamps the swath of one orbit, a layer's frame, about when its day pass ended,
- * and answers a time with the frame stamped nearest it. A day pass lasts up to an hour and
- * the frames come 101 minutes apart, so a granule's start plus this is within 50 minutes of
- * its own frame. Not the capabilities' frames: they drift from the orbits by 33 minutes a
- * year (Sentinel-3A and 3B, measured from 2021 to 2026-11-22).
- */
-const EUMETVIEW_PASS_AFTER_MS = 25 * 60 * 1000;
-
-/** The time that names the frame holding the granule that starts at `start` (epoch ms). */
-export function granuleFrame(provider: "gibs" | "eumetview", start: number): string {
-  const at = new Date(provider === "eumetview" ? start + EUMETVIEW_PASS_AFTER_MS : start).toISOString();
+/** The time that names the frame of `pictures` holding the granule that starts at `start` (epoch ms). */
+export function granuleFrame(pictures: GranulePictures, start: number): string {
+  if (pictures.frame === "day") {
+    return new Date(start).toISOString().slice(0, 10);
+  }
+  const at = new Date(pictures.frame === "granule" ? start : start + pictures.frame).toISOString();
   return `${at.slice(0, 19)}Z`;
 }
 
 /**
  * The frame of the granule that starts at `start` (epoch ms) over `bounds`, as one WMS
  * picture `width` pixels across, stretched to the bounds' shape in plate carrée. JPEG: a
- * tenth of PNG's size for a granule, black where it has no pixels.
+ * tenth of PNG's size for a granule, on black where it has no pixels, as EUMETView's and
+ * GIBS's PNG layers would otherwise answer white.
  */
-export function granulePictureUrl(drawn: Pick<TiledImagery, "provider" | "layer">, start: number, bounds: PreviewBounds, width: number, height: number): string {
-  const eumetview = drawn.provider === "eumetview";
+export function granulePictureUrl(pictures: GranulePictures, start: number, bounds: PreviewBounds, width: number, height: number): string {
   const query = new URLSearchParams({
     SERVICE: "WMS",
     REQUEST: "GetMap",
     VERSION: "1.1.1",
     SRS: "EPSG:4326",
     STYLES: "",
-    LAYERS: drawn.layer,
+    LAYERS: pictures.layer,
     WIDTH: String(width),
     HEIGHT: String(height),
     BBOX: [bounds.west, bounds.south, bounds.east, bounds.north].map((value) => value.toFixed(3)).join(","),
     FORMAT: "image/jpeg",
-    TIME: granuleFrame(eumetview ? "eumetview" : "gibs", start),
+    BGCOLOR: "0x000000",
+    TIME: granuleFrame(pictures, start),
   });
-  // EUMETView's JPEG is white where it has no pixels.
-  if (eumetview) {
-    query.set("BGCOLOR", "0x000000");
-  }
-  return `${eumetview ? EUMETVIEW_WMS : GIBS_WMS}?${query}`;
+  return `${pictures.provider === "eumetview" ? EUMETVIEW_WMS : GIBS_WMS}?${query}`;
 }
 
 /**

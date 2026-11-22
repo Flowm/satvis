@@ -104,7 +104,7 @@ export function passTable(
 /** What a recorded overpass shows, from how many of its day granules GIBS has, once it has said. */
 export function passImagery(entry: RecordedOverpass, pixels: readonly boolean[] | undefined): PassImagery {
   if (!entry.day) return "night";
-  if (entry.layer.provider === "cmr") return "outline";
+  if (entry.layer.pictures === undefined) return "outline";
   if (pixels === undefined) return "asking";
   const count = pixels.filter(Boolean).length;
   return count === 0 ? "outline" : count === pixels.length ? "image" : "part";

@@ -1,7 +1,8 @@
-// Granule layers on the globe (ADR 0023): CMR lists the granules and their outlines, and
-// for a GIBS layer of one granule a frame, GIBS draws each one's pixels, transparent outside
-// it, as a layer of its own. A EUMETView frame is a swath an orbit, so each granule is its
-// fill, a picture cut to the outline, kept once passed. A `cmr` layer has the outlines
+// Granule layers on the globe (ADR 0023): a catalogue, CMR or EUMETSAT's Data Store, lists
+// the granules and their outlines, and for a GIBS layer of one granule a frame, GIBS draws
+// each one's pixels, transparent outside it, as a layer of its own. Any other layer's frame
+// holds more than a granule (a swath, six orbits, a day), so each granule is its fill, a
+// picture cut to the outline, kept once passed. A layer without pictures has the outlines
 // alone. Where its satellite is drawn, the granule under it fills in behind its scan line,
 // the ground track fan's.
 
@@ -31,13 +32,14 @@ import {
   type TileProviderError,
 } from "@cesium/engine";
 
-import { type GranuleLayer, granulePictureUrl, type TiledImagery } from "@/config/instrumentImagery";
-import { hasPixels } from "@/modules/overpassReplay";
+import { type GranuleLayer, type GranulePictures, granulePictureUrl } from "@/config/instrumentImagery";
+import { catalogueQuery, granuleCentre, hasPixels } from "@/modules/overpassReplay";
 import { fetchGranules, type Granule, granuleExtent } from "@/modules/util/cmrGranules";
 
 import { trackRequests } from "./FramedImagery";
 import { gibsFrames, gibsHasGranule } from "./GibsImagery";
 import type { GranuleOutlines, GranulePixels, GranuleSensing, GranuleSource } from "./GranuleImagery";
+import { PICTURE_TRIES } from "./granulePictures";
 import type { ScanPlane } from "./satelliteGraphics";
 
 /** A granule's outline on the ground; its primitive is replaced when it is marked missing. */
@@ -75,11 +77,26 @@ const TILE_RETRIES = 2;
 const PICTURE_WIDTH = 2048;
 
 /**
- * Pixels across the picture of a granule that keeps it once passed, a EUMETView one: 1.2 km
- * a pixel across OLCI's 1,270 km. A trail of 17 granules is 56 MB of textures, where at
+ * Pixels across the picture of a granule that keeps it once passed, at most: 1.2 km a pixel
+ * across OLCI's 1,270 km. A trail of 17 granules is 56 MB of textures, where at
  * PICTURE_WIDTH it would be 220 MB, past what an iPad mini can spare.
  */
 const KEPT_PICTURE_WIDTH = 1024;
+
+/**
+ * Pixels a degree of a kept picture, at most: 430 m a pixel. An HLS scene is 1.4° across,
+ * and a trail of Landsat 9's has 60 of them: 32 MB of textures at this, 250 MB at 1,024.
+ */
+const KEPT_PIXELS_PER_DEGREE = 256;
+
+/** Pixels across a kept picture, at least, so a small granule near the camera is not a blur. */
+const KEPT_PICTURE_MIN_WIDTH = 256;
+
+/**
+ * Degrees from the equator past which a granule cut from a daily layer gets no picture:
+ * there its day's later passes overlap it, and the day's picture holds one of them.
+ */
+const DAILY_MAX_LATITUDE = 60;
 
 /** Degrees of longitude past which a granule, near a pole, gets no picture while it fills: a plate carrée one would be mostly stretch. */
 const PICTURE_MAX_SPAN = 90;
@@ -207,17 +224,17 @@ function outlinePrimitive(granule: Granule, color: Color): GroundPolylinePrimiti
 }
 
 /**
- * The provider's pixels of the granules of `drawn`: for GIBS, a layer of one granule a frame,
- * a tile layer each; for EUMETView, whose frame is a swath an orbit, the fills alone.
+ * The pixels of the granules of `drawn`: for a GIBS layer of one granule a frame, a tile
+ * layer each; for one whose frames hold more than a granule, the fills alone.
  */
-function providerPixels(drawn: GranuleLayer & TiledImagery, primitives: PrimitiveCollection): GranulePixels<ImageryLayer, GranuleOutline> {
+function providerPixels(drawn: GranuleLayer, primitives: PrimitiveCollection): GranulePixels<ImageryLayer, GranuleOutline> {
   const markMissing = (outline: GranuleOutline) => {
     if (primitives.contains(outline.primitive)) {
       primitives.remove(outline.primitive);
       outline.primitive = primitives.add(outlinePrimitive(outline.granule, MISSING_COLOR)) as GroundPolylinePrimitive;
     }
   };
-  if (drawn.provider !== "gibs") {
+  if (drawn.provider !== "gibs" || drawn.pictures?.frame !== "granule") {
     return { has: (granule) => hasPixels(drawn, granule), markMissing };
   }
   const options = { layer: drawn.layer, maximumLevel: drawn.maxLevel, format: drawn.format, daily: false };
@@ -247,7 +264,7 @@ export interface GranuleFollow {
 }
 
 /** The granule's picture in its fill, where the provider has its pixels and it is not near a pole; grey where it has none. */
-async function loadPicture(drawn: GranuleLayer & TiledImagery, granule: Granule, fill: GranuleFill): Promise<void> {
+async function loadPicture(drawn: GranuleLayer, pictures: GranulePictures, granule: Granule, fill: GranuleFill): Promise<void> {
   const has = await hasPixels(drawn, granule);
   if (fill.gone) {
     return;
@@ -261,8 +278,9 @@ async function loadPicture(drawn: GranuleLayer & TiledImagery, granule: Granule,
   // GIBS's WMS draws nothing for a box across the antimeridian. EUMETView's draws one that
   // runs past 180° east, which the shader samples by adding a turn to the longitudes west of it.
   const across = extent.west < -180 || extent.east > 180;
-  const eumetview = drawn.provider === "eumetview";
-  if (span > PICTURE_MAX_SPAN || (across && !eumetview)) {
+  const eumetview = pictures.provider === "eumetview";
+  const polar = pictures.frame === "day" && Math.abs(granuleCentre(granule).latitude) > DAILY_MAX_LATITUDE;
+  if (span > PICTURE_MAX_SPAN || (across && !eumetview) || polar) {
     return;
   }
   const west = extent.west < -180 ? extent.west + 360 : extent.west;
@@ -272,23 +290,30 @@ async function loadPicture(drawn: GranuleLayer & TiledImagery, granule: Granule,
     east: Math.min(eumetview ? 360 : 180, west + span + PICTURE_MARGIN),
     north: Math.min(90, extent.north + PICTURE_MARGIN),
   };
-  const width = eumetview ? KEPT_PICTURE_WIDTH : PICTURE_WIDTH;
+  const kept = pictures.frame !== "granule";
+  const width = kept ? Math.min(KEPT_PICTURE_WIDTH, Math.max(KEPT_PICTURE_MIN_WIDTH, Math.round((bounds.east - bounds.west) * KEPT_PIXELS_PER_DEGREE))) : PICTURE_WIDTH;
   const height = Math.round((width * (bounds.north - bounds.south)) / (bounds.east - bounds.west));
-  const image = new Image();
-  image.crossOrigin = "anonymous";
-  image.src = granulePictureUrl(drawn, granule.start, bounds, width, Math.min(width, Math.max(1, height)));
-  try {
-    await image.decode();
-  } catch {
-    return;
-  }
-  if (fill.gone) {
+  const image = await decodePicture(granulePictureUrl(pictures, granule.start, bounds, width, Math.min(width, Math.max(1, height))));
+  if (image === undefined || fill.gone) {
     return;
   }
   const radians = (degrees: number) => (degrees * Math.PI) / 180;
   fill.material.uniforms.bounds = new Cartesian4(radians(bounds.west), radians(bounds.south), radians(bounds.east), radians(bounds.north));
   fill.material.uniforms.image = image;
   fill.material.uniforms.picture = 1;
+}
+
+/** The picture at `url`, asked for again where the service answers with an error; undefined where each try failed. */
+async function decodePicture(url: string, tries = PICTURE_TRIES): Promise<HTMLImageElement | undefined> {
+  const image = new Image();
+  image.crossOrigin = "anonymous";
+  image.src = url;
+  try {
+    await image.decode();
+    return image;
+  } catch {
+    return tries > 1 ? decodePicture(url, tries - 1) : undefined;
+  }
 }
 
 /** The granules of `drawn` filling in behind its satellite's scan line. */
@@ -374,8 +399,8 @@ function sensing(drawn: GranuleLayer, primitives: PrimitiveCollection, follow: G
       }
       primitives.add(primitive);
       fills.add(fill);
-      if (drawn.provider !== "cmr") {
-        void loadPicture(drawn, granule, fill);
+      if (drawn.pictures !== undefined) {
+        void loadPicture(drawn, drawn.pictures, granule, fill);
       }
       return fill;
     },
@@ -403,9 +428,9 @@ export function granuleLayer(
 ): { source: GranuleSource<ImageryLayer, GranuleOutline, GranuleFill>; outlines: GranuleOutlines<GranuleOutline> } {
   const source: GranuleSource<ImageryLayer, GranuleOutline, GranuleFill> = {
     name: drawn.layer,
-    fetchGranules: (signal, start, end) => fetchGranules({ collections: drawn.granules, start, end }, signal),
+    fetchGranules: (signal, start, end) => fetchGranules({ ...catalogueQuery(drawn), start, end }, signal),
     outline: (granule) => ({ granule, primitive: outlinePrimitive(granule, OUTLINE_COLOR) }),
-    ...(drawn.provider !== "cmr" && { pixels: providerPixels(drawn, primitives) }),
+    ...(drawn.pictures !== undefined && { pixels: providerPixels(drawn, primitives) }),
     ...(follow !== undefined && { sensing: sensing(drawn, primitives, follow) }),
   };
   const outlines: GranuleOutlines<GranuleOutline> = {

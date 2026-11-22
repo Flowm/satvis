@@ -86,9 +86,10 @@ discussion; sharpen them here when they drift.
 - **Granule**: a few minutes of one instrument's swath as its provider files it: six
   minutes for VIIRS, with its start, whether it was sensed by day, and the ground it
   covers, as NASA's CMR lists it (`Granule` in `src/modules/util/cmrGranules.ts`).
-- **Granule layer**: instrument imagery shown granule by granule, whose entry names the CMR
-  collections that list its granules (`granules`): a GIBS layer of one granule a frame, or a
-  EUMETView one of a swath an orbit, cut to each granule. The globe shows it as the granules
+- **Granule layer**: instrument imagery shown granule by granule, whose entry names the
+  collections that list its granules (`granules`), CMR's or EUMETSAT's Data Store's: a GIBS
+  layer of one granule a frame, or a layer whose frames hold more (a EUMETView swath or
+  orbits, a GIBS day), cut to each granule. The globe shows it as the granules
   behind the clock, not one frame: each appears, outline and pixels, once the clock passes
   its start, and goes 50 minutes later (`GranuleImagery.ts`, ADR 0023). Where the
   satellite is drawn, the granule under it fills in behind the ground track fan instead, and
