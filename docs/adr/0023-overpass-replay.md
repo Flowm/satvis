@@ -69,8 +69,11 @@ says whether the pass has it: Sentinel-3A's lacked most of 2 of 10 passes on 202
 a granule it lacks turns grey, outline and fill, as a GIBS one does. As JPEG on black, the
 picture is 1,024 pixels across, as it is kept for the granule's 50 minutes: a trail of 17
 is 56 MB of textures, 220 MB at GIBS's 2,048. EUMETView's JPEG is white where it has no
-pixels. EUMETView draws a box across the antimeridian, given as running past 180° east,
-so a Sentinel-3 granule there has its picture, which a GIBS one does not.
+pixels. EUMETView draws a box across the antimeridian, given as running past 180° east;
+GIBS's WMS draws nothing for one, so a GIBS picture there is joined from its two sides, and
+a probe is kept to one side. Without its picture, such a granule's tint showed the triangle
+where Cesium cuts its polygon at 180°, and the overlap of neighbouring granules (Terra,
+2026-11-09 20:10Z); a picture is opaque, and hides both.
 
 **A `cmr` layer's granules are cut from another layer's frames**, named in its `pictures`:
 
@@ -110,6 +113,9 @@ and is not drawn.
   and no layer asks for tiles that cannot come. A day granule covered 294 to 770 of
   that tile's pixels; the one that crossed the antimeridian at 23:30Z on 2026-11-20, 1,
   and GIBS's WMS drew nothing of it.
+- A granule found without pixels is asked again after 10 minutes, as a provider may still
+  be taking it in: a daily picture fills over its day, and EUMETView's swaths come hours
+  after the Data Store lists their granules. One found with them stays.
 - A tile GIBS fails is asked for twice more. Of 461 granule tile requests in one replay,
   7 came back 500, and each came on a second request.
 
@@ -128,8 +134,7 @@ and under EUMETView's. The fill, the fan and the ribbon so meet at the satellite
 an old element set puts it: an old NOAA-20 granule fills up to 17 s early or late, not
 with its edge apart from the fan. A granule more than two minutes past its end counts as
 passed, as the plane, through the Earth, turns back toward it half an orbit later; one
-more than 90° of longitude across, near a pole, fills without a picture, as does a GIBS
-one across the antimeridian; one its provider has no pixels of fills grey, as its outline
+more than 90° of longitude across, near a pole, fills without a picture; one its provider has no pixels of fills grey, as its outline
 will be.
 
 **The fill is shaded as the globe shades its tiles.** A ground primitive gets none of the

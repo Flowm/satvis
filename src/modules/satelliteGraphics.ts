@@ -83,7 +83,7 @@ export function nadirAngle(groundMeters: number, altitudeMeters: number, earthRa
 }
 
 /** A ground track fan at one moment: a rectangular sensor, tilted toward starboard by `rollRad`. */
-export interface FanShape {
+interface FanShape {
   /** Half the angle across the track, from port edge to starboard edge. */
   xHalfAngleRad: number;
   /** Toward starboard from nadir: a sensor whose sides differ is tilted. */

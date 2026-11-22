@@ -5,7 +5,10 @@ import type { GranulePictures, ImageryEntry, SatelliteImagery, TileFormat } from
 type Raw = Record<string, unknown>;
 
 const IMAGERY_KINDS: readonly string[] = ["rgb", "outline"];
-/** The providers whose pictures an app can cut granule by granule: GIBS's a granule a frame, EUMETView's a swath an orbit. */
+/**
+ * The providers whose frames an app can cut granule by granule, for a layer of their own
+ * (GIBS's a granule a frame, EUMETView's a swath an orbit) or a `cmr` layer's `pictures`.
+ */
 const GRANULE_PROVIDERS = new Set(["gibs", "eumetview"]);
 
 /** A provider's name is a key of each app's provider table. */
@@ -14,8 +17,6 @@ const PROVIDER_RE = /^[a-z][a-z0-9-]*$/;
 const CMR_COLLECTION_RE = /^C\d+-[A-Z0-9_]+$/;
 /** A collection of EUMETSAT's Data Store: "EO:EUM:DAT:0409". */
 const DATA_STORE_COLLECTION_RE = /^EO:EUM:DAT:[A-Z0-9:_-]+$/;
-/** The providers whose frames a `cmr` layer's granules can be cut from. */
-const PICTURE_PROVIDERS = new Set(["gibs", "eumetview"]);
 /** ISO 8601, without weeks: "P1D", "PT10M", "P90D". */
 const DURATION_RE = /^P(?=\d|T\d)(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+S)?)?$/;
 
@@ -172,8 +173,8 @@ function granulePictures(pictures: unknown, where: string): GranulePictures {
   }
   checkKeys(pictures, new Set(["provider", "layer", "frame"]), where);
   const { provider, layer, frame } = pictures;
-  if (typeof provider !== "string" || !PICTURE_PROVIDERS.has(provider) || !isText(layer)) {
-    throw new Error(`${where}: names the layer the granules are cut from: a "provider" of ${[...PICTURE_PROVIDERS].join(" or ")} and its "layer"`);
+  if (typeof provider !== "string" || !GRANULE_PROVIDERS.has(provider) || !isText(layer)) {
+    throw new Error(`${where}: names the layer the granules are cut from: a "provider" of ${[...GRANULE_PROVIDERS].join(" or ")} and its "layer"`);
   }
   if (frame !== "day" && !isMinutes(frame)) {
     throw new Error(`${where}: "frame" is "day", for a daily layer, or how long after a granule's start the frame holding it is stamped (got ${JSON.stringify(frame)})`);

@@ -319,9 +319,9 @@ watch(onlyImaged, (on) => {
 });
 /** A recorded pass's mark, and what it says. */
 const PASS_IMAGERY: Record<PassImagery, { icon: string; title: string }> = {
-  asking: { icon: "lucide:ellipsis", title: "Asking NASA GIBS for the image" },
-  image: { icon: "lucide:image", title: "Imaged: NASA GIBS has the picture" },
-  part: { icon: "lucide:image", title: "Imaged: NASA GIBS has part of the picture" },
+  asking: { icon: "lucide:ellipsis", title: "Asking for the image" },
+  image: { icon: "lucide:image", title: "Imaged: the picture is there" },
+  part: { icon: "lucide:image", title: "Imaged: part of the picture is there" },
   outline: { icon: "lucide:square-dashed", title: "Recorded, but no picture: granule outlines only" },
   night: { icon: "lucide:moon", title: "Recorded by night: no true colour picture" },
 };

@@ -24,7 +24,7 @@ export interface RecordedOverpass {
   day: boolean;
 }
 
-/** What a recorded overpass shows: still being asked, GIBS's image of all of it or part, its outline alone, or night. */
+/** What a recorded overpass shows: still being asked, its pictures' image of all of it or part, its outline alone, or night. */
 export type PassImagery = "asking" | "image" | "part" | "outline" | "night";
 
 /** A row of the Passes table, with the overpass recorded in it. */
@@ -101,7 +101,7 @@ export function passTable(
   return table.toSorted((a, b) => a.startMs - b.startMs);
 }
 
-/** What a recorded overpass shows, from how many of its day granules GIBS has, once it has said. */
+/** What a recorded overpass shows, from how many of its day granules its pictures have, once asked. */
 export function passImagery(entry: RecordedOverpass, pixels: readonly boolean[] | undefined): PassImagery {
   if (!entry.day) return "night";
   if (entry.layer.pictures === undefined) return "outline";

@@ -10,7 +10,7 @@ import { useCesiumStore } from "@/stores/cesium";
 import { useSatStore } from "@/stores/sat";
 
 /** The station a replay steps through the overpasses of. */
-export interface ReplayStation {
+interface ReplayStation {
   name: string;
   point: GroundPoint;
   /** By day, oldest first. */
@@ -18,14 +18,14 @@ export interface ReplayStation {
 }
 
 /** A granule layer on the globe, and the satellite and instrument whose it is. */
-export interface GranuleLayerOn {
+interface GranuleLayerOn {
   layer: GranuleLayer;
   satellite: string;
   instrument: string;
 }
 
 /** A station's overpass replay: the newest granule layer on, over the station the url names. */
-export interface StationReplay extends GranuleLayerOn {
+interface StationReplay extends GranuleLayerOn {
   station: ReplayStation;
 }
 

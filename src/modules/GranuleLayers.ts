@@ -32,7 +32,7 @@ import {
   type TileProviderError,
 } from "@cesium/engine";
 
-import { type GranuleLayer, type GranulePictures, granulePictureUrl } from "@/config/instrumentImagery";
+import { type GranuleLayer, type GranulePictures, granulePictureUrl, type PreviewBounds } from "@/config/instrumentImagery";
 import { catalogueQuery, granuleCentre, hasPixels } from "@/modules/overpassReplay";
 import { fetchGranules, type Granule, granuleExtent } from "@/modules/util/cmrGranules";
 
@@ -43,13 +43,13 @@ import { PICTURE_TRIES } from "./granulePictures";
 import type { ScanPlane } from "./satelliteGraphics";
 
 /** A granule's outline on the ground; its primitive is replaced when it is marked missing. */
-export interface GranuleOutline {
+interface GranuleOutline {
   granule: Granule;
   primitive: GroundPolylinePrimitive;
 }
 
 /** A granule filling in behind the scan line. */
-export interface GranuleFill {
+interface GranuleFill {
   primitive: GroundPrimitive;
   material: Material;
   /** Set once it is taken off, so a picture that arrives later is dropped. */
@@ -255,7 +255,7 @@ function providerPixels(drawn: GranuleLayer, primitives: PrimitiveCollection): G
 }
 
 /** Where the satellite a granule layer belongs to scans at a time, while it is drawn. */
-export interface GranuleFollow {
+interface GranuleFollow {
   scan: (time: JulianDate) => ScanPlane | undefined;
   clock: Clock;
   scene: Scene;
@@ -275,25 +275,26 @@ async function loadPicture(drawn: GranuleLayer, pictures: GranulePictures, granu
   }
   const extent = granuleExtent(granule);
   const span = extent.east - extent.west;
-  // GIBS's WMS draws nothing for a box across the antimeridian. EUMETView's draws one that
-  // runs past 180° east, which the shader samples by adding a turn to the longitudes west of it.
-  const across = extent.west < -180 || extent.east > 180;
-  const eumetview = pictures.provider === "eumetview";
   const polar = pictures.frame === "day" && Math.abs(granuleCentre(granule).latitude) > DAILY_MAX_LATITUDE;
-  if (span > PICTURE_MAX_SPAN || (across && !eumetview) || polar) {
+  if (span > PICTURE_MAX_SPAN || polar) {
     return;
   }
+  // A box across the antimeridian runs past 180° east, which the shader samples by adding a
+  // turn to the longitudes west of it.
   const west = extent.west < -180 ? extent.west + 360 : extent.west;
   const bounds = {
     west: Math.max(-180, west - PICTURE_MARGIN),
     south: Math.max(-90, extent.south - PICTURE_MARGIN),
-    east: Math.min(eumetview ? 360 : 180, west + span + PICTURE_MARGIN),
+    east: Math.min(360, west + span + PICTURE_MARGIN),
     north: Math.min(90, extent.north + PICTURE_MARGIN),
   };
   const kept = pictures.frame !== "granule";
   const width = kept ? Math.min(KEPT_PICTURE_WIDTH, Math.max(KEPT_PICTURE_MIN_WIDTH, Math.round((bounds.east - bounds.west) * KEPT_PIXELS_PER_DEGREE))) : PICTURE_WIDTH;
-  const height = Math.round((width * (bounds.north - bounds.south)) / (bounds.east - bounds.west));
-  const image = await decodePicture(granulePictureUrl(pictures, granule.start, bounds, width, Math.min(width, Math.max(1, height))));
+  const height = Math.min(width, Math.max(1, Math.round((width * (bounds.north - bounds.south)) / (bounds.east - bounds.west))));
+  const image =
+    bounds.east > 180 && pictures.provider === "gibs"
+      ? await joinedPicture(pictures, granule.start, bounds, width, height)
+      : await decodePicture(granulePictureUrl(pictures, granule.start, bounds, width, height));
   if (image === undefined || fill.gone) {
     return;
   }
@@ -314,6 +315,28 @@ async function decodePicture(url: string, tries = PICTURE_TRIES): Promise<HTMLIm
   } catch {
     return tries > 1 ? decodePicture(url, tries - 1) : undefined;
   }
+}
+
+/**
+ * The picture of a box that runs past 180° east, from its two sides: GIBS's WMS draws
+ * nothing for a box across the antimeridian, where EUMETView's draws one past it.
+ */
+async function joinedPicture(pictures: GranulePictures, start: number, bounds: PreviewBounds, width: number, height: number): Promise<HTMLCanvasElement | undefined> {
+  const westWidth = Math.max(1, Math.round((width * (180 - bounds.west)) / (bounds.east - bounds.west)));
+  const [west, east] = await Promise.all([
+    decodePicture(granulePictureUrl(pictures, start, { ...bounds, east: 180 }, westWidth, height)),
+    decodePicture(granulePictureUrl(pictures, start, { ...bounds, west: -180, east: bounds.east - 360 }, Math.max(1, width - westWidth), height)),
+  ]);
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (west === undefined || east === undefined || context === null) {
+    return undefined;
+  }
+  canvas.width = west.width + east.width;
+  canvas.height = height;
+  context.drawImage(west, 0, 0);
+  context.drawImage(east, west.width, 0);
+  return canvas;
 }
 
 /** The granules of `drawn` filling in behind its satellite's scan line. */

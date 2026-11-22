@@ -67,7 +67,7 @@ export const IMAGERY_PROVIDERS: Readonly<Record<string, InstrumentImageryProvide
   "copernicus-browser": { viewer: "Copernicus Browser", link: "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId={layer}" },
   // The georing-mosaic project's bucket (ADR 0022).
   georing: {},
-  // NASA's CMR: a satellite's granule outlines, where no provider has their pixels (ADR 0023).
+  // A satellite's granules as NASA's CMR or EUMETSAT's Data Store lists them, with pictures cut from another layer's frames or outlines alone (ADR 0023).
   cmr: {},
 };
 
@@ -364,7 +364,7 @@ export function imageryPreviewUrl(preview: ImageryPreview, bounds: PreviewBounds
 }
 
 /** The time that names the frame of `pictures` holding the granule that starts at `start` (epoch ms). */
-export function granuleFrame(pictures: GranulePictures, start: number): string {
+function granuleFrame(pictures: GranulePictures, start: number): string {
   if (pictures.frame === "day") {
     return new Date(start).toISOString().slice(0, 10);
   }

@@ -12,14 +12,14 @@ const MAX_PAIRS = 10;
 /**
  * The overpasses CMR lists of the passes in view (ADR 0023): for each satellite with a
  * granule layer and station among `passes`, the last STATION_DAYS over the station, which the
- * Passes table matches to its rows, with whether GIBS has their pixels and a replay of each.
+ * Passes table matches to its rows, with whether their pictures have their pixels and a replay of each.
  */
 export function useRecordedOverpasses(passes: Ref<readonly { name: string; groundStationName?: string }[]>) {
   const cc = useController();
   const { sats } = cc;
   const replay = useOverpassReplay();
 
-  /** The pairs to ask about, as a key that changes only when they do. */
+  // The pairs to ask about, as a key that changes only when they do.
   const pairs = computed(() => {
     const found = new Map<string, { satellite: string; station: string; layer: GranuleLayer; latitude: number; longitude: number }>();
     for (const { name, groundStationName } of passes.value) {
@@ -39,12 +39,12 @@ export function useRecordedOverpasses(passes: Ref<readonly { name: string; groun
   });
   const pairsKey = computed(() => [...pairs.value.keys()].toSorted().join("\n"));
 
-  /** By pair, as `pairs` keys them. */
+  // By pair, as `pairs` keys them.
   const byPair = shallowRef(new Map<string, RecordedOverpass[]>());
   const recorded = computed(() => [...byPair.value.values()].flat());
-  /** Every pair's overpasses once listed: the passes empty while they are computed, as after a replay's jump. */
+  // Every pair's overpasses once listed: the passes empty while they are computed, as after a replay's jump.
   const listed = new Map<string, RecordedOverpass[]>();
-  /** GIBS's answer for each day granule of an overpass, by overpass. */
+  // The pictures' answer for each day granule of an overpass, by overpass.
   const pixels = reactive(new Map<RecordedOverpass, boolean[]>());
   const asked = new Set<RecordedOverpass>();
   const alive = new AbortController();
@@ -74,7 +74,7 @@ export function useRecordedOverpasses(passes: Ref<readonly { name: string; groun
     alive.abort();
   });
 
-  /** What the overpass shows; asks GIBS the first time it is wanted. */
+  /** What the overpass shows; asks the pictures' provider the first time it is wanted. */
   function imageryOf(entry: RecordedOverpass): PassImagery {
     const { signal } = alive;
     if (entry.day && entry.layer.pictures !== undefined && !asked.has(entry)) {

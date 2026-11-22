@@ -83,8 +83,8 @@ function layerFrames(source: FrameSource<ImageryProvider>): FrameSource<Frame<Im
 
 function sameDrawn(a: DrawnImagery, b: DrawnImagery): boolean {
   const keys = new Set([...Object.keys(a), ...Object.keys(b)] as (keyof DrawnImagery)[]);
-  // `granules` is a list, read afresh from each record.
-  return [...keys].every((key) => String(a[key]) === String(b[key]));
+  // `granules` and `pictures` are read afresh from each record.
+  return [...keys].every((key) => JSON.stringify(a[key]) === JSON.stringify(b[key]));
 }
 
 /** Wall milliseconds between looks for the satellite a granule layer follows. */
@@ -172,6 +172,8 @@ export class CesiumController {
   #basemaps: Shown[] = [];
   #instruments: Instrument[] = [];
   #overlays: Shown[] = [];
+  /** By satellite, the granule layers following its scan line, which keep its ground track fan on. */
+  #scanHolds = new Map<SatelliteComponentCollection, number>();
 
   /** "Fixed" or "Inertial". The sky view suppresses it with "Fixed". */
   readonly #camera: Suppressible<string>;
@@ -423,8 +425,20 @@ export class CesiumController {
     let sat: SatelliteComponentCollection | undefined;
     let lookedAt = Number.NEGATIVE_INFINITY;
     const next = new JulianDate();
+    const holds = this.#scanHolds;
+    const hold = (on: SatelliteComponentCollection | undefined) => {
+      if (on !== undefined) holds.set(on, (holds.get(on) ?? 0) + 1);
+    };
+    // Off only when no other granule layer of the satellite still follows it.
     const release = (from: SatelliteComponentCollection | undefined) => {
-      if (from !== undefined && !this.sats.enabledComponents.includes(SCAN_COMPONENT)) {
+      if (from === undefined) return;
+      const left = (holds.get(from) ?? 1) - 1;
+      if (left > 0) {
+        holds.set(from, left);
+        return;
+      }
+      holds.delete(from);
+      if (!this.sats.enabledComponents.includes(SCAN_COMPONENT)) {
         from.disableComponent(SCAN_COMPONENT);
       }
     };
@@ -436,6 +450,7 @@ export class CesiumController {
         const found = owner && this.sats.getSatellite(owner.entry.name);
         if (found !== sat) {
           release(sat);
+          hold(found);
         }
         sat = found;
         // A no-op where it is drawn; brings it back to a satellite rebuilt, or after the component is switched off.

@@ -25,6 +25,11 @@ describe("probeBounds", () => {
     const scene = probeBounds(granule("2026-11-20T23:55:00Z", 1.2, 1));
     expect(scene.east - scene.west).toBeCloseTo(0.5);
   });
+
+  test("keeps to one side of the antimeridian", () => {
+    const across = granule("2026-11-09T20:05:00Z", 80);
+    expect(probeBounds(across)).toEqual({ west: -180, south: -26, east: -178, north: -24 });
+  });
 });
 
 describe("cutHasGranule", () => {

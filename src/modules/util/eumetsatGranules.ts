@@ -41,8 +41,10 @@ export function dataStoreSearchUrl(query: GranuleQuery, page = 0): string {
   return `${DATA_STORE}?${params}`;
 }
 
+/** A polygon's ring as GeoJSON gives it: longitude, latitude pairs. */
 type Ring = [number, number][];
 
+/** Degrees from 180° a point may be and still lie on the cut. */
 const ON_MERIDIAN = 1e-6;
 
 /**

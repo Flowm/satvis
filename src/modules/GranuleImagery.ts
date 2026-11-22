@@ -37,6 +37,7 @@ export interface GranuleSensing<Sensing> {
   show: (granule: Granule) => Sensing;
   /** Filled whole, as the satellite has passed it, or behind the scan line again. */
   setPassed: (sensing: Sensing, passed: boolean) => void;
+  /** Taken off the globe, its picture with it. */
   hide: (sensing: Sensing) => void;
 }
 
@@ -52,10 +53,13 @@ export interface GranulePixels<Layer, Outline> {
 
 /** Where the outlines are drawn. */
 export interface GranuleOutlines<Outline> {
+  /** Puts an outline on the globe. */
   add(outline: Outline): void;
+  /** Takes an outline off the globe. */
   remove(outline: Outline): void;
 }
 
+/** A granule layer as the globe shows it. */
 export interface GranuleImagery<Layer> {
   /** Its upper layer on the globe, while it has one. */
   readonly top: Layer | undefined;
@@ -67,9 +71,10 @@ export interface GranuleImagery<Layer> {
  */
 export const TRAIL_MS = 50 * 60 * 1000;
 
+/** An hour in milliseconds. */
 const HOUR_MS = 60 * 60 * 1000;
 
-/** How far before and after the clock's hour the granules are listed at once: the trail, and the hour to come. */
+// How far before and after the clock's hour the granules are listed at once: the trail, and the hour to come.
 const LIST_BEFORE_MS = 2 * HOUR_MS;
 const LIST_AFTER_MS = 2 * HOUR_MS;
 
@@ -108,14 +113,14 @@ export function showGranuleImagery<Layer, Outline, Sensing = never>(
 ): GranuleImagery<Layer> {
   interface Shown {
     granule: Granule;
-    /** Drawn once the satellite has passed the granule. */
+    // Drawn once the satellite has passed the granule.
     outline?: Outline;
     layer?: Frame<Layer>;
-    /** Whether the provider has its pixels, once it has said. */
+    // Whether the provider has its pixels, once it has said.
     pixels?: boolean;
     sensing?: Sensing;
   }
-  /** By start. */
+  // By start.
   const shown = new Map<number, Shown>();
   let listing: { granules: Granule[]; start: number; end: number } | undefined;
   let asking = false;
@@ -145,7 +150,7 @@ export function showGranuleImagery<Layer, Outline, Sensing = never>(
     onTick();
   };
 
-  /** Over the newest of its own layers older than `granule`, or at the bottom of them. */
+  // Over the newest of its own layers older than `granule`, or at the bottom of them.
   const indexFor = (granule: Granule): number => {
     let below: Layer | undefined;
     let belowStart = Number.NEGATIVE_INFINITY;
@@ -158,7 +163,7 @@ export function showGranuleImagery<Layer, Outline, Sensing = never>(
     return below === undefined ? position() : layers.indexOf(below) + 1;
   };
 
-  /** Where the satellite is: past the granule, over it, or before it; without one to follow, past it once it has begun. */
+  // Where the satellite is: past the granule, over it, or before it; without one to follow, past it once it has begun.
   const stage = ({ granule }: Shown, time: number): "before" | "over" | "past" => {
     const past = source.sensing === undefined || time > granule.end + SENSING_SLACK_MS ? undefined : source.sensing.passed(granule, time);
     if (past === undefined) {
@@ -167,7 +172,7 @@ export function showGranuleImagery<Layer, Outline, Sensing = never>(
     return past ? "past" : "over";
   };
 
-  /** Draws what the granule needs at `time`: passed, its outline and pixels; under the satellite, its fill alone. */
+  // Draws what the granule needs at `time`: passed, its outline and pixels; under the satellite, its fill alone.
   const settle = (entry: Shown, time: number): boolean => {
     const { sensing, pixels } = source;
     const where = stage(entry, time);

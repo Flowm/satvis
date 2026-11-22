@@ -11,12 +11,12 @@
     >
       <div class="card__preview">
         <img
-          v-if="previews.get(imagery.key) && !failed.has(imagery.key)"
-          :key="`${imagery.key}#${previewErrors.get(imagery.key) ?? 0}`"
+          v-if="previews.get(imagery.key) && !failed.has(imagery.key) && previewErrorsOf(imagery.key) < PICTURE_TRIES"
+          :key="`${previews.get(imagery.key)}#${previewErrorsOf(imagery.key)}`"
           :src="previews.get(imagery.key)"
           alt=""
           loading="lazy"
-          @error="previewFailed(imagery.key)"
+          @error="previewErrors.set(previews.get(imagery.key)!, previewErrorsOf(imagery.key) + 1)"
         />
         <div v-else class="card__placeholder">
           <template v-if="imagery.granuleLayer && !imagery.granuleLayer.pictures">
@@ -114,17 +114,12 @@ const props = defineProps<{
 const cesiumStore = useCesiumStore();
 /** Previews that could not be had, by card, which show the placeholder instead; forgotten with the satellite. */
 const failed = reactive(new Set<string>());
-/** Errors of each card's preview so far; a new one asks again, up to PICTURE_TRIES. */
+/**
+ * Errors of each preview so far, by its url; a new one asks again, up to PICTURE_TRIES, as
+ * GIBS's WMS answers about one request in five with an error. A newer granule's is a new url.
+ */
 const previewErrors = reactive(new Map<string, number>());
-
-/** A preview that did not load is asked for again: GIBS's WMS answers about one in five with an error. */
-function previewFailed(key: string): void {
-  const errors = (previewErrors.get(key) ?? 0) + 1;
-  previewErrors.set(key, errors);
-  if (errors >= PICTURE_TRIES) {
-    failed.add(key);
-  }
-}
+const previewErrorsOf = (key: string) => previewErrors.get(previews.value.get(key) ?? "") ?? 0;
 
 /**
  * Where the pictures are, built once per satellite. A geostationary imager sees a disc

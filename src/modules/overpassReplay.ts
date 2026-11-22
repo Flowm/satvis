@@ -9,6 +9,7 @@ import { fetchGranules, type Granule, type GroundPoint, groupOverpasses, type Ov
 import { gibsHasGranule } from "./GibsImagery";
 import { cutHasGranule, picturesEnd } from "./granulePictures";
 
+// Milliseconds.
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;

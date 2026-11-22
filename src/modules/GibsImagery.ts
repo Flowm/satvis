@@ -111,7 +111,13 @@ export function gibsFrames(options: GibsOptions): FrameSource<WebMapTileServiceI
   };
 }
 
-/** Whether GIBS has a granule's pixels, by layer and start: a granule's answer does not change. */
+/**
+ * How long a granule found without pixels is taken as without them: its provider may still
+ * be taking it in, as a daily picture fills over its day, or EUMETView's swaths come hours on.
+ */
+export const RECHECK_MS = 10 * 60 * 1000;
+
+/** Whether GIBS has a granule's pixels, by layer and start; a "no" is forgotten after RECHECK_MS, as GIBS may be taking the granule in. */
 const granulePixels = new Map<string, Promise<boolean>>();
 
 /**
@@ -162,6 +168,10 @@ export function gibsHasGranule(options: Pick<GibsOptions, "layer" | "maximumLeve
         }
         const opaque = await opaquePixels(await response.blob()).catch(() => undefined);
         return opaque === undefined || opaque >= MIN_OPAQUE_PIXELS;
+      })
+      .then((has) => {
+        if (!has) setTimeout(() => granulePixels.delete(key), RECHECK_MS);
+        return has;
       })
       .catch(() => {
         granulePixels.delete(key);

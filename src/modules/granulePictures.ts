@@ -5,8 +5,9 @@ import { type GranulePictures, granulePictureUrl } from "@/config/instrumentImag
 import { type Granule, granuleExtent } from "@/modules/util/cmrGranules";
 
 import { fetchCapabilities } from "./EumetViewImagery";
-import { gibsDays } from "./GibsImagery";
+import { gibsDays, RECHECK_MS } from "./GibsImagery";
 
+/** A day in milliseconds. */
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -16,7 +17,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 const EUMETVIEW_GRID_SLACK_MS = 60 * 60 * 1000;
 
-/** By layer and start: a granule's answer does not change. */
+/** By layer and start: a granule's pixels, once there, stay; a "no" is forgotten after RECHECK_MS. */
 const answers = new Map<string, Promise<boolean>>();
 
 /** Degrees either side of a granule's centre asked for at most: well inside a 3-minute OLCI granule, 11° across. */
@@ -63,7 +64,9 @@ export function probeBounds(granule: Granule): { west: number; south: number; ea
   const longitude = (((((west + east) / 2 + 180) % 360) + 360) % 360) - 180;
   const latitude = (south + north) / 2;
   const half = Math.min(PROBE_HALF_WIDTH, (east - west) / 4, (north - south) / 4);
-  return { west: longitude - half, south: latitude - half, east: longitude + half, north: latitude + half };
+  // On one side of the antimeridian, where GIBS's WMS draws nothing across it: still within a granule four times as wide.
+  const centre = Math.min(180 - half, Math.max(-180 + half, longitude));
+  return { west: centre - half, south: latitude - half, east: centre + half, north: latitude + half };
 }
 
 /**
@@ -84,6 +87,10 @@ export function cutHasGranule(pictures: GranulePictures, granule: Granule): Prom
         }
         const lit = await litPixels(picture).catch(() => undefined);
         return lit === undefined || lit >= (PROBE_SIZE * PROBE_SIZE) / 2;
+      })
+      .then((has) => {
+        if (!has) setTimeout(() => answers.delete(key), RECHECK_MS);
+        return has;
       })
       .catch(() => {
         answers.delete(key);
