@@ -1,6 +1,18 @@
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
-import { formatDecimal, formatFixed, formatInteger, formatMeasure, formatNumber, formatWeekdayDate, localeFor, setFormatLocale } from "./formats";
+import {
+  formatDate,
+  formatDecimal,
+  formatFixed,
+  formatInteger,
+  formatMeasure,
+  formatNumber,
+  formatWeekdayDate,
+  localeFor,
+  setFormatLocale,
+  timeAgo,
+  timeAgoInWords,
+} from "./formats";
 
 const AT = new Date("2026-10-25T23:30:00Z");
 
@@ -31,6 +43,7 @@ describe.each([
     negative: "-48.14",
     decimal: "12.6",
     weekday: "Sun, Oct 25",
+    day: "Jun 9, 2026",
   },
   {
     language: "de-DE",
@@ -41,6 +54,7 @@ describe.each([
     negative: "-48,14",
     decimal: "12,6",
     weekday: "Sun 25 Oct",
+    day: "9 Jun 2026",
   },
 ])("in a $language browser", ({ language, ...expected }) => {
   beforeAll(() => setFormatLocale(localeFor([language])));
@@ -70,6 +84,10 @@ describe.each([
   test("the clock's day is in English words, in the region's order, in UTC", () => {
     expect(formatWeekdayDate(AT)).toBe(expected.weekday);
   });
+
+  test("an ISO day is in English words, in the region's order", () => {
+    expect(formatDate("2026-06-09")).toBe(expected.day);
+  });
 });
 
 describe("the clock's day", () => {
@@ -85,4 +103,20 @@ describe("the clock's day", () => {
     setFormatLocale(tag);
     expect(formatWeekdayDate(Date.parse(at))).toBe(text);
   });
+});
+
+test("timeAgo", () => {
+  const now = Date.parse("2026-10-08T12:00:00Z");
+  expect(timeAgo(now - 30_000, now)).toBe("just now");
+  expect(timeAgo(now - 5 * 60_000, now)).toBe("5 min ago");
+  expect(timeAgo(now - 3 * 3_600_000, now)).toBe("3 h ago");
+  expect(timeAgo(now - 50 * 3_600_000, now)).toBe("2 d ago");
+});
+
+test("timeAgoInWords", () => {
+  const now = Date.parse("2026-10-08T12:00:00Z");
+  expect(timeAgoInWords(now - 5 * 60_000, now)).toBe("5 min ago");
+  expect(timeAgoInWords(now - 90 * 60_000, now)).toBe("1 hour ago");
+  expect(timeAgoInWords(now - 3 * 3_600_000, now)).toBe("3 hours ago");
+  expect(timeAgoInWords(now - 50 * 3_600_000, now)).toBe("2 days ago");
 });

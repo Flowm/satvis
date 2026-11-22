@@ -16,7 +16,8 @@ every overview level, and no tile service in front of it.
 **A composite of the imagery manifest (ADR 0019), `georing:mosaic`, that follows the
 clock** as instrument imagery does (ADR 0020): one Cesium layer a frame
 (`FramedImagery.ts`), the Slot at or before the clock's time. `georing` is an imagery
-provider with no viewer of its own, so its cards have no link. The composite names the
+provider with no viewer of its own; its cards name satvis as the source and link to the
+georing-mosaic repository (ADR 0024). The composite names the
 satellites of the georing plan: GOES-19, GOES-18, Meteosat-12 and Himawari-9. Each of
 their Imagery tabs has it, and the Map panel lists it once among the GEO satellites'
 imagery (ADR 0021), beside EUMETSAT's 3-hourly natural colour of the ring. It was a

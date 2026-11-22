@@ -69,6 +69,9 @@ group's row says how many of its layers are on.
   can still be taken off.
 - An entry with a viewer link alone is not listed: the satellite's Imagery tab has it, and
   a third group of links was a second place for it in a panel of what the map draws.
+- Both groups' rows are now one per satellite or composite, its layers named by their type,
+  and the Imagery tab's cards are said in fixed slots (ADR 0024). The rows below, and the
+  image buttons, are superseded.
 - A row names the satellite, its instrument and the picture, short: "PACE OCI True",
   "METEOSAT-12 FCI GeoColour" (`shortImageryLabel`). The instrument tells two layers of one
   satellite apart; the picture drops "colour" and any qualifier ("one swath per orbit",

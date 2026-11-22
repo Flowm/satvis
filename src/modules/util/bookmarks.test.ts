@@ -1,19 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  type Bookmark,
-  defaultName,
-  OPENED_LIMIT,
-  parseBookmarks,
-  sameLink,
-  sameQuery,
-  summarize,
-  timeAgo,
-  withOpened,
-  withoutBenchmarkRun,
-  withoutTime,
-  withoutViewer,
-} from "./bookmarks";
+import { type Bookmark, defaultName, OPENED_LIMIT, parseBookmarks, sameLink, sameQuery, summarize, withOpened, withoutBenchmarkRun, withoutTime, withoutViewer } from "./bookmarks";
 
 /** The `/` preset's. */
 const DEFAULTS = { tags: "Weather" };
@@ -123,14 +110,6 @@ describe("parseBookmarks", () => {
     expect(parseBookmarks('{"a":1}', "saved")).toEqual([]);
     expect(parseBookmarks(null, "saved")).toEqual([]);
   });
-});
-
-test("timeAgo", () => {
-  const now = Date.parse("2026-10-08T12:00:00Z");
-  expect(timeAgo(now - 30_000, now)).toBe("just now");
-  expect(timeAgo(now - 5 * 60_000, now)).toBe("5 min ago");
-  expect(timeAgo(now - 3 * 3_600_000, now)).toBe("3 h ago");
-  expect(timeAgo(now - 50 * 3_600_000, now)).toBe("2 d ago");
 });
 
 // The performance panel is the viewer's, not the scene's.

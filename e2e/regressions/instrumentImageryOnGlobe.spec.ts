@@ -4,7 +4,7 @@
 
 import { openApp, PIXEL, setClock } from "../support/app";
 import { expect, test } from "../support/test";
-import { closeMenuPanel, imageryRow, menuSwitch, openMenu, showInfo } from "../support/ui";
+import { closeMenuPanel, imageryButton, menuSwitch, openMenu, showInfo } from "../support/ui";
 
 const LAYER = "GOES-East_ABI_GeoColor";
 
@@ -42,7 +42,7 @@ test("an instrument's imagery is shown on the globe from its tab, follows the cl
   const panel = page.locator(".entity-info-panel");
   await panel.getByRole("tab", { name: "Imagery" }).click();
   await expect.poll(() => previews).toEqual([LAYER]);
-  const card = panel.getByRole("article", { name: "ABI GeoColor" });
+  const card = panel.getByRole("article", { name: "Live view, GeoColor · ABI" });
   const show = card.getByRole("switch", { name: "Show GeoColor as a map layer" });
   await expect(show).not.toBeChecked();
   // The switch sits in the card, which toggles too: a press on it counts once.
@@ -59,16 +59,16 @@ test("an instrument's imagery is shown on the globe from its tab, follows the cl
   await expect.poll(() => [...new Set(times)]).toEqual(["2026-10-03T16:00:00Z"]);
 
   await openMenu(page, "Map");
-  await imageryRow(page, "GOES 19 ABI GeoColor").click();
+  await imageryButton(page, "Live view of GOES 19").click();
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.imageryLayers.length)).toBe(1);
   expect(new URL(page.url()).searchParams.get("imagery")).toBeNull();
   await expect(show).not.toBeChecked();
 
   // A press anywhere on the card shows it and takes it off.
   await closeMenuPanel(page, "Map");
-  await card.getByText("every 10 min").click();
+  await card.getByText("Live view").click();
   await expect(show).toBeChecked();
-  await card.getByText("every 10 min").click();
+  await card.getByText("Live view").click();
   await expect(show).not.toBeChecked();
 });
 
@@ -87,24 +87,27 @@ test("the Map panel lists every layer in groups, one open at a time, and shows o
   const geo = page.getByRole("button", { name: /GEO satellites/ });
   await expect(geo).toHaveAttribute("aria-expanded", "false");
   await geo.click();
-  await expect(imageryRow(page, "METEOSAT-12 (MTG-I1) FCI True colour")).toBeVisible();
-  await imageryRow(page, "GOES 19 ABI GeoColor").click();
+  // A satellite's second layer of a type is in its Imagery tab, not its row.
+  await expect(imageryButton(page, "Live view of METEOSAT-12 (MTG-I1)")).toBeVisible();
+  await expect(imageryButton(page, "Live view of METEOSAT-12 (MTG-I1) True")).toHaveCount(0);
+  await imageryButton(page, "Live view of GOES 19").click();
   await expect.poll(() => new URL(page.url()).searchParams.get("imagery")).toBe(`gibs:${LAYER}`);
+  await expect(imageryButton(page, "Live view of GOES 19")).toHaveAttribute("aria-pressed", "true");
   await expect(geo).toContainText("1 on");
-  // The geostationary mosaic, which two satellites carry, is one row, first.
-  await expect(imageryRow(page, "Day/Night, GeoRing")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Map" }).locator("label.imageryRow").first()).toContainText("GeoRing");
+  // The geostationary mosaic, which two satellites carry, is one button, in the first row.
+  await expect(imageryButton(page, "World mosaic, Day/Night")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Map" }).locator(".imageryRow").first()).toContainText("World mosaic");
 
   await geo.click();
-  await expect(imageryRow(page, "GOES 19 ABI GeoColor")).toBeHidden();
+  await expect(imageryButton(page, "Live view of GOES 19")).toBeHidden();
 
-  // A composite's image button lists its satellites, and leaves the row as it was; a satellite's
+  // A composite's name lists its satellites, and leaves the row as it was; a satellite's
   // opens it at its Imagery tab.
   await geo.click();
-  await page.getByRole("button", { name: "Show the imagery of a satellite of the GeoRing" }).click();
+  await page.getByRole("button", { name: "Show the imagery of a satellite of the world mosaic" }).click();
   await expect(page.getByRole("menuitem")).toHaveText(["GOES 19", "METEOSAT-12 (MTG-I1)"]);
-  // By its input: the open menu hides the panel from the accessibility tree.
-  await expect(page.locator("label.imageryRow input").first()).not.toBeChecked();
+  // By its class: the open menu hides the panel from the accessibility tree.
+  await expect(page.locator(".imageryRow .imageryButton").first()).toHaveAttribute("aria-pressed", "false");
   await page.getByRole("menuitem", { name: "METEOSAT-12 (MTG-I1)" }).click();
   await expect(page.locator(".entity-info-panel").getByRole("tab", { name: /Imagery/ })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".entity-info-panel")).toContainText("METEOSAT-12");
@@ -131,7 +134,7 @@ test("a link's instrument imagery is drawn once its satellite has loaded", async
 
   await expect.poll(() => [...layers]).toEqual([LAYER]);
   await openMenu(page, "Map");
-  await expect(imageryRow(page, "GOES 19 ABI GeoColor")).toBeChecked();
+  await expect(imageryButton(page, "Live view of GOES 19")).toHaveAttribute("aria-pressed", "true");
 });
 
 test("a EUMETView layer is drawn by its WMS, at the frame for the clock", async ({ page }) => {
@@ -171,7 +174,7 @@ test("a EUMETView layer is drawn by its WMS, at the frame for the clock", async 
   await expect.poll(() => asked("time")).toEqual(["2026-10-03T16:00:00Z"]);
 
   await openMenu(page, "Map");
-  await expect(imageryRow(page, "METEOSAT-12 (MTG-I1) FCI GeoColour")).toBeChecked();
+  await expect(imageryButton(page, "Live view of METEOSAT-12 (MTG-I1)")).toHaveAttribute("aria-pressed", "true");
 });
 
 // A layer that follows the clock is on the globe only once its service has listed its frames.

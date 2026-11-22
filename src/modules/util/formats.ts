@@ -85,6 +85,12 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 /** See `WEEKDAYS`. */
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+/** The region writes the day before the month: "25 Oct", not "Oct 25". */
+function dayFirst(at: Date): boolean {
+  const parts = dateFormat({ day: "numeric", month: "short" }).formatToParts(at);
+  return parts.findIndex(({ type }) => type === "day") < parts.findIndex(({ type }) => type === "month");
+}
+
 /**
  * "Sun, Oct 25" or "Sun 25 Oct": the clock deck's day, in UTC, in the region's order of day
  * and month. Punctuation is the comma English writes before a month, none of the region's,
@@ -94,7 +100,37 @@ export function formatWeekdayDate(date: Date | number): string {
   const at = new Date(date);
   const day = String(at.getUTCDate()).padStart(2, "0");
   const month = MONTHS[at.getUTCMonth()];
-  const parts = dateFormat({ day: "2-digit", month: "short" }).formatToParts(at);
-  const dayFirst = parts.findIndex(({ type }) => type === "day") < parts.findIndex(({ type }) => type === "month");
-  return `${WEEKDAYS[at.getUTCDay()]}${dayFirst ? ` ${day} ${month}` : `, ${month} ${day}`}`;
+  return `${WEEKDAYS[at.getUTCDay()]}${dayFirst(at) ? ` ${day} ${month}` : `, ${month} ${day}`}`;
+}
+
+/** "19 Jun 2026" or "Jun 19, 2026": a day as ISO 8601 gives it, in the region's order of day and month. */
+export function formatDate(iso: string): string {
+  const at = new Date(`${iso.slice(0, 10)}T00:00:00Z`);
+  const day = at.getUTCDate();
+  const month = MONTHS[at.getUTCMonth()];
+  return dayFirst(at) ? `${day} ${month} ${at.getUTCFullYear()}` : `${month} ${day}, ${at.getUTCFullYear()}`;
+}
+
+/** "just now", "5 min ago", "3 h ago", "2 d ago". */
+export function timeAgo(at: number, now = Date.now()): string {
+  const minutes = Math.floor((now - at) / 60_000);
+  if (minutes < 1) {
+    return "just now";
+  }
+  if (minutes < 60) {
+    return `${minutes} min ago`;
+  }
+  const hours = Math.floor(minutes / 60);
+  return hours < 24 ? `${hours} h ago` : `${Math.floor(hours / 24)} d ago`;
+}
+
+/** "just now", "5 min ago", "3 hours ago", "2 days ago": timeAgo with room to spell out the units. */
+export function timeAgoInWords(at: number, now = Date.now()): string {
+  const minutes = Math.floor((now - at) / 60_000);
+  if (minutes < 60) {
+    return timeAgo(at, now);
+  }
+  const hours = Math.floor(minutes / 60);
+  const [count, unit] = hours < 24 ? [hours, "hour"] : [Math.floor(hours / 24), "day"];
+  return `${count} ${unit}${count === 1 ? "" : "s"} ago`;
 }

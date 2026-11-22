@@ -1,57 +1,81 @@
-<!-- The Map panel's satellite imagery (ADR 0021): the layers that have not stopped, by orbit, one group open at a time. -->
+<!-- The Map panel's satellite imagery (ADR 0021, 0024): the layers that have not stopped, by orbit, one group open at a time. -->
 <template>
   <div class="toolbarTitle" :class="{ 'toolbarTitle--inert': inert }">Satellite imagery</div>
-  <!-- Shown before the list arrives, or while its record has not loaded, so a layer on the globe can be taken off. -->
+  <!-- Shown while the list loads, or while a layer's record has not, so a layer on the globe can be taken off. -->
   <label v-for="token in unlisted" :key="token" class="toolbarSwitch" :class="{ 'toolbarSwitch--inert': inert }">
     <input type="checkbox" checked @change="cesiumStore.toggleInstrumentImagery(token, false)" />
     {{ cesiumStore.instrumentImageryLabels[token] ?? token.slice(token.indexOf(":") + 1) }}
   </label>
-  <div v-if="layers.length === 0" class="toolbarNote">{{ loading ? "Loading the imagery list…" : "No satellite has imagery." }}</div>
+  <!-- The groups wait for every group, so no header or row moves as the rest arrive. -->
+  <div v-if="loading" class="toolbarNote">Loading the imagery list…</div>
+  <div v-else-if="layers.length === 0" class="toolbarNote">No satellite has imagery.</div>
   <template v-for="group in groups" :key="group.key">
     <button type="button" class="toolbarPlace" :class="{ 'toolbarPlace--inert': inert }" :aria-expanded="openGroup === group.key" @click="toggleGroup(group.key)">
       <UIcon :name="GROUP_ICON[group.key]" class="toolbarPlace__icon" />
       <span class="toolbarPlace__label">{{ GROUP_TITLE[group.key] }}</span>
       <!-- One or the other: both cut the name short in the panel's width. -->
       <span v-if="group.shown" class="countBadge imageryGroup__count">{{ group.shown }} on</span>
-      <span v-else class="imageryGroup__count">{{ group.layers.length }}</span>
+      <span v-else class="imageryGroup__count">{{ group.rows.length }}</span>
       <UIcon :name="openGroup === group.key ? 'lucide:chevron-up' : 'lucide:chevron-down'" class="imageryGroup__chevron" />
     </button>
     <template v-if="openGroup === group.key">
-      <!-- A press on the button, interactive content inside the label, does not toggle the checkbox.
-           A composite's is no one satellite's: it opens a menu of its satellites. The tooltip is the
-           text's, so that the button's own shows over it. -->
-      <label v-for="layer in group.layers" :key="layer.key" class="toolbarSwitch imageryRow" :class="{ 'toolbarSwitch--inert': inert }">
-        <input
-          type="checkbox"
-          :checked="isShown(layer)"
-          :aria-label="layer.kind === 'composite' ? layer.label : `${layer.satellite} ${layer.instrument} ${layer.label}`"
-          @change="cesiumStore.toggleInstrumentImagery(layer.token, ($event.target as HTMLInputElement).checked)"
-        />
-        <span class="imageryRow__text" :title="titleOf(layer)">
-          <template v-if="layer.kind === 'composite'">
-            <span class="imageryRow__name">{{ layer.name }}</span> <span class="imageryRow__instrument">{{ layer.cadence }}</span>
-          </template>
-          <template v-else>
-            <span class="imageryRow__name">{{ shortName(layer.satellite) }}</span> <span class="imageryRow__instrument">{{ layer.instrument }}</span>
-          </template>
-          <span class="imageryRow__product">{{ layer.product }}</span>
-        </span>
-        <UDropdownMenu v-if="layer.kind === 'composite'" :items="satelliteItems(layer)" :content="MENU_CONTENT" :ui="MENU_UI" :size="MENU_SIZE">
-          <button type="button" class="imageryRow__info" :aria-label="`Show the imagery of a satellite of the ${layer.name}`" title="Show the imagery of one of its satellites">
-            <UIcon name="lucide:image" />
+      <!-- A satellite or composite a row, a button a layer named by its type. Each button's name
+           is fixed: what loads later, the newest pass, is in its tooltip and the notice. -->
+      <div
+        v-for="row in group.rows"
+        :key="row.key"
+        class="toolbarSwitch imageryRow"
+        :class="{ 'toolbarSwitch--inert': inert, 'imageryRow--on': row.cells.some(({ layer }) => isShown(layer)) }"
+      >
+        <!-- A composite is no one satellite's: its name opens a menu of its satellites. -->
+        <UDropdownMenu v-if="row.composite" :items="satelliteItems(row)" :content="MENU_CONTENT" :ui="MENU_UI" :size="MENU_SIZE">
+          <button
+            type="button"
+            class="imageryRow__name"
+            :aria-label="`Show the imagery of a satellite of the ${row.name.toLowerCase()}`"
+            title="Show the imagery of one of its satellites"
+          >
+            {{ row.name }}
           </button>
         </UDropdownMenu>
         <button
           v-else
           type="button"
-          class="imageryRow__info"
-          :aria-label="`Show the imagery of ${layer.satellite}`"
-          :title="`Show the imagery of ${layer.satellite}`"
-          @click="showImagery(layer.satellite)"
+          class="imageryRow__name"
+          :aria-label="`Show the imagery of ${row.name}`"
+          :title="`Show the imagery of ${row.name}`"
+          @click="showImagery(row.name)"
         >
-          <UIcon name="lucide:image" />
+          {{ shortName(row.name) }}
         </button>
-      </label>
+        <span class="imageryRow__buttons">
+          <template v-for="cell in row.cells" :key="cell.layer.key">
+            <template v-if="!cell.extra || isShown(cell.layer)">
+              <button
+                type="button"
+                class="imageryButton"
+                :class="{ 'imageryButton--on': isShown(cell.layer) }"
+                :aria-pressed="isShown(cell.layer)"
+                :aria-label="buttonLabel(row, cell)"
+                :title="tooltipOf(cell.layer)"
+                @click="cesiumStore.toggleInstrumentImagery(cell.layer.token, !isShown(cell.layer))"
+              >
+                <UIcon :name="IMAGERY_TYPES[cell.layer.type].icon" />
+                {{ cell.name }}
+              </button>
+            </template>
+          </template>
+        </span>
+        <template v-for="{ layer } in row.cells" :key="layer.key">
+          <PassNotice
+            v-if="layer.type === 'passes' && isShown(layer) && isPastNewest(layer.token)"
+            class="imageryRow__notice"
+            :newest="latest.get(layer.token)!.pictured.start"
+            :now="wallClock"
+            @go="goToNewest(layer.token)"
+          />
+        </template>
+      </div>
     </template>
   </template>
 </template>
@@ -62,11 +86,15 @@ import { storeToRefs } from "pinia";
 import { computed, ref, watch } from "vue";
 
 import { useController } from "@/composables/useController";
+import { useLatestPasses } from "@/composables/useLatestPasses";
 import { useSelectedEntity } from "@/composables/useSelectedEntity";
-import { type CompositeImageryLayer, IMAGERY_GROUPS, type ImageryGroup, type ImageryLayer, imageryLayers } from "@/config/instrumentImagery";
+import { granuleLayerOwner, IMAGERY_GROUPS, IMAGERY_TYPES, type ImageryGroup, type ImageryLayer, imageryLayers, type ImageryRow, imageryRows } from "@/config/instrumentImagery";
 import { DeviceDetect } from "@/modules/util/DeviceDetect";
+import { timeAgo } from "@/modules/util/formats";
 import { useCesiumStore } from "@/stores/cesium";
 import { useSatStore } from "@/stores/sat";
+
+import PassNotice from "./PassNotice.vue";
 
 const props = defineProps<{
   /** The Map panel is open: the list is read off the records, so its first opening loads every group. */
@@ -124,9 +152,6 @@ watch(
 const isShown = (layer: ImageryLayer) => cesiumStore.instrumentImagery.includes(layer.token);
 /** "METEOSAT-12", not "METEOSAT-12 (MTG-I1)": the row is narrow, its title has the whole name. */
 const shortName = (name: string) => name.replace(/\s*\(.*\)$/, "");
-/** The row's tooltip: the whole satellite name and instrument, or a composite's satellites, then what the picture is and when it has frames. */
-const titleOf = (layer: ImageryLayer) =>
-  [layer.kind === "composite" ? `${layer.name} of ${layer.satellites.join(", ")}` : `${layer.satellite} ${layer.instrument}`, layer.label, layer.detail].filter(Boolean).join("\n");
 
 /** Selects the satellite, turning it on if need be, at its info panel's Imagery tab. */
 function showImagery(name: string): void {
@@ -134,22 +159,28 @@ function showImagery(name: string): void {
   emit("show-info", name);
 }
 
-/** A composite's satellites, each opening its Imagery tab. */
-const satelliteItems = (layer: CompositeImageryLayer): DropdownMenuItem[] => [
-  { type: "label", label: "Show the imagery of" },
-  ...layer.satellites.map((name) => ({ label: name, icon: "lucide:satellite", onSelect: () => showImagery(name) })),
-];
+/** The satellites of a row's composites, each opening its Imagery tab. */
+function satelliteItems(row: ImageryRow): DropdownMenuItem[] {
+  const names = new Set(row.cells.flatMap(({ layer }) => (layer.kind === "composite" ? layer.satellites : [])));
+  return [
+    { type: "label", label: "Show the imagery of" },
+    ...[...names]
+      .toSorted((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      .map((name) => ({ label: name, icon: "lucide:satellite", onSelect: () => showImagery(name) })),
+  ];
+}
 
-/** The groups that have a layer, each with how many of its layers are on. */
-const groups = computed(() =>
-  IMAGERY_GROUPS.map((key) => {
+/** The groups that have a layer, each with its rows and how many of its layers are on; none while the list loads. */
+const groups = computed(() => {
+  if (loading.value) return [];
+  return IMAGERY_GROUPS.map((key) => {
     const members = layers.value.filter((layer) => layer.group === key);
-    return { key, layers: members, shown: members.filter(isShown).length };
-  }).filter((group) => group.layers.length > 0),
-);
-/** Layers on the globe that no listed layer is. */
+    return { key, rows: imageryRows(members), shown: members.filter(isShown).length };
+  }).filter((group) => group.rows.length > 0);
+});
+/** Layers on the globe that no row shows: every one while the list loads. */
 const unlisted = computed(() => {
-  const listed = new Set(layers.value.map((layer) => layer.token));
+  const listed = new Set(loading.value ? [] : layers.value.map((layer) => layer.token));
   return [...new Set(cesiumStore.instrumentImagery)].filter((token) => !listed.has(token));
 });
 
@@ -160,6 +191,29 @@ const openGroup = computed(() => (chosen.value === undefined ? (groups.value.fin
 /** Opens the group, closing the one open, or closes it. */
 function toggleGroup(key: ImageryGroup): void {
   chosen.value = openGroup.value === key ? null : key;
+}
+
+/** The newest pass of each passes layer of the open group, once the list has loaded. */
+const { latest, wallClock, isPastNewest, goToNewest } = useLatestPasses(() => {
+  const rows = groups.value.find((group) => group.key === openGroup.value)?.rows ?? [];
+  return rows.flatMap((row) =>
+    row.cells.flatMap(({ layer }) => {
+      const owner = layer.type === "passes" ? granuleLayerOwner(sats.catalog.entries, layer.token) : undefined;
+      return owner === undefined ? [] : [{ key: layer.token, layer: owner.layer }];
+    }),
+  );
+});
+
+/** "Daily mosaic of PACE", "Daily mosaic of PACE SPEXone" for a second of its type, "World mosaic, Day/Night". */
+function buttonLabel(row: ImageryRow, { layer, name, extra }: ImageryRow["cells"][number]): string {
+  return row.composite ? `${row.name}, ${name}` : `${IMAGERY_TYPES[layer.type].title} of ${row.name}${extra ? ` ${name}` : ""}`;
+}
+/** What the layer is, as its card says it, and for passes how old the newest is, once known. */
+function tooltipOf(layer: ImageryLayer): string {
+  const newest = layer.type === "passes" ? latest.get(layer.token)?.pictured.start : undefined;
+  return [IMAGERY_TYPES[layer.type].title, layer.words.picture, layer.words.updates, newest === undefined ? undefined : `Newest pass ${timeAgo(newest, wallClock.value)}`]
+    .filter(Boolean)
+    .join("\n");
 }
 </script>
 
@@ -178,86 +232,85 @@ function toggleGroup(key: ImageryGroup): void {
   color: var(--panel-faint);
 }
 
-/* The satellite, its instrument and the picture, then the button that opens the satellite's Imagery tab.
-   One line, 32px as the other switches, or two where the name leaves the rest no room. */
+/* A satellite or composite and its layers' buttons, on one line where they fit; a pass notice under them. */
 .imageryRow {
   display: flex;
+  flex-wrap: wrap;
   height: auto;
   min-height: var(--toolbar-row);
   align-items: center;
-  padding-block: 6px;
-  padding-right: 0;
-  line-height: 20px;
+  gap: 4px 6px;
+  padding: 4px 8px 4px 12px;
+  white-space: normal;
 }
 
-.imageryRow__text {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0 5px;
-  min-width: 0;
-  padding-right: 4px;
+/* The hairline above a row starts at its name, as on the other cards; these rows have no mark before it. */
+.imageryRow.imageryRow::before {
+  left: 12px;
 }
 
-/* Alone on its line, the name gives way; the instrument and the picture tell two rows of one satellite apart. */
+.imageryRow--on {
+  color: var(--panel-ink);
+}
+
 .imageryRow__name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.imageryRow__instrument {
-  flex: none;
-  color: var(--panel-muted);
-  font-size: var(--text-note);
-}
-
-.imageryRow__product {
-  flex: none;
-  margin-left: auto;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--panel-selected);
-  font-size: 11px;
-  line-height: 16px;
-}
-
-/* A phone's panel is too narrow for one line (PHONE_WIDTH, src/config/layout.ts): the instrument and the picture go under the name. */
-@media (max-width: 639px) {
-  .imageryRow__name {
-    flex-basis: 100%;
-  }
-
-  .imageryRow__product {
-    margin-left: 0;
-  }
-}
-
-/* The row's whole height, through its padding. */
-.imageryRow__info {
-  display: grid;
-  flex: none;
-  align-self: stretch;
-  width: 32px;
-  margin-block: -6px;
-  margin-right: 2px;
-  place-items: center;
+  flex: 1 0 auto;
   padding: 0;
   border: none;
   background: none;
-  color: var(--panel-muted);
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
 @media (hover: hover) {
-  .imageryRow__info:hover {
+  .imageryRow__name:hover {
+    text-decoration: underline;
+  }
+}
+
+.imageryRow__buttons {
+  display: flex;
+  flex: none;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.imageryRow__notice {
+  flex-basis: 100%;
+}
+
+.imageryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border: 1px solid var(--panel-hairline);
+  border-radius: 999px;
+  background: none;
+  color: var(--panel-muted);
+  font-size: 11.5px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .imageryButton:hover {
+    border-color: var(--panel-faint);
     color: var(--panel-ink);
   }
 }
 
-.imageryRow__info:focus-visible {
+.imageryButton--on,
+.imageryButton--on:hover {
+  border-color: var(--panel-accent);
+  background: color-mix(in srgb, var(--panel-accent) 22%, transparent);
+  color: var(--panel-ink);
+}
+
+:is(.imageryRow__name, .imageryButton):focus-visible {
   outline: 2px solid var(--panel-accent);
-  outline-offset: -2px;
+  outline-offset: 1px;
 }
 </style>

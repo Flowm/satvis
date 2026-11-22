@@ -681,6 +681,7 @@ try {
   // against the default preset's defaults and the demo preset's, for the default
   // preset's featured bookmarks among others.
   const bookmarks = await runner.import("/src/modules/util/bookmarks.ts");
+  const { timeAgo } = await runner.import("/src/modules/util/formats.ts");
   const corePresets = parseYaml(fs.readFileSync(path.join(repoRoot, "worker/src/config/satvis.core.yaml"), "utf8")).presets;
   const featured = corePresets.find(({ name }) => name === "default").featured ?? [];
   const BOOKMARK_NOW = "2026-10-08T12:00:00Z";
@@ -717,7 +718,7 @@ try {
   const bookmarkNow = Date.parse(BOOKMARK_NOW);
   const ages = [0, 30_000, 59_999, 60_000, 5 * 60_000, 59 * 60_000, 3_600_000, 3 * 3_600_000, 23 * 3_600_000 + 59 * 60_000, 50 * 3_600_000, -60_000].map((ago) => ({
     ago,
-    text: bookmarks.timeAgo(bookmarkNow - ago, bookmarkNow),
+    text: timeAgo(bookmarkNow - ago, bookmarkNow),
   }));
 
   // Lower-detail copies (ADR 0007): the level a model is drawn at, from the size of the

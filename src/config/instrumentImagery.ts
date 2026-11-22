@@ -3,6 +3,7 @@
 // globe can draw. Nothing here is fetched. Cesium-free: node-env vitest and the parity
 // generator read it.
 
+import { formatDate } from "@/modules/util/formats";
 import { durationMs } from "@/modules/util/timeDomain";
 
 import type { OrbitClass } from "./orbitClass";
@@ -54,6 +55,8 @@ export interface InstrumentImageryProvider {
   link?: string;
   /** Appended for a layer that stopped, `{end}` its last frame's date, so the viewer opens on a day that has one. */
   ended?: string;
+  /** Who makes its composites, which a composite's picture line credits: "by EUMETSAT". */
+  maker?: string;
 }
 
 /**
@@ -61,12 +64,17 @@ export interface InstrumentImageryProvider {
  * web-tables.json. Each link was opened in a browser on 2026-11-11.
  */
 export const IMAGERY_PROVIDERS: Readonly<Record<string, InstrumentImageryProvider>> = {
-  gibs: { viewer: "NASA Worldview", link: "https://worldview.earthdata.nasa.gov/?l={layer}", ended: "&t={end}" },
-  eumetview: { viewer: "EUMETView", link: "https://view.eumetsat.int/productviewer?v={layer}" },
+  gibs: { viewer: "NASA Worldview", link: "https://worldview.earthdata.nasa.gov/?l={layer}", ended: "&t={end}", maker: "NASA" },
+  eumetview: { viewer: "EUMETView", link: "https://view.eumetsat.int/productviewer?v={layer}", maker: "EUMETSAT" },
   // The dataset opens behind the Browser's own consent dialog.
-  "copernicus-browser": { viewer: "Copernicus Browser", link: "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId={layer}" },
-  // The georing-mosaic project's bucket (ADR 0022).
-  georing: {},
+  "copernicus-browser": {
+    viewer: "Copernicus Browser",
+    link: "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId={layer}",
+    maker: "Copernicus",
+  },
+  // The georing-mosaic project's bucket (ADR 0022), which has no viewer: its source is the
+  // project, ours, every layer linking to its repository.
+  georing: { viewer: "satvis", link: "https://github.com/Flowm/georing-mosaic", maker: "satvis" },
   // A satellite's granules as NASA's CMR or EUMETSAT's Data Store lists them, with pictures cut from another layer's frames or outlines alone (ADR 0023).
   cmr: {},
 };
@@ -77,11 +85,8 @@ export function imageryLink(provider: { link: string; ended?: string }, layer: s
   return end !== undefined && provider.ended !== undefined ? link + provider.ended.replace("{end}", encodeURIComponent(end)) : link;
 }
 
-/**
- * "daily", "hourly", "every 3 h", "every 10 min": the periods the manifest has, or
- * `short`, for a Map panel row, "3-hourly" and "10 min". Undefined for any other.
- */
-function cadence(period: string, short = false): string | undefined {
+/** "daily", "hourly", "every 3 h", "every 10 min": the periods the manifest has. Undefined for any other. */
+function cadence(period: string): string | undefined {
   if (period === "P1D") {
     return "daily";
   }
@@ -94,9 +99,9 @@ function cadence(period: string, short = false): string | undefined {
   }
   const count = Number(step[1]);
   if (step[2] === "M") {
-    return short ? `${count} min` : `every ${count} min`;
+    return `every ${count} min`;
   }
-  return short ? `${count}-hourly` : `every ${count} h`;
+  return `every ${count} h`;
 }
 
 /**
@@ -397,6 +402,108 @@ export function granulePictureUrl(pictures: GranulePictures, start: number, boun
 }
 
 /**
+ * What a layer shows, named for what a user sees rather than how it is made (ADR 0024):
+ * - `passes`: a granule layer, each pass drawn behind the satellite as the clock runs,
+ *   hours to days behind live;
+ * - `daily`: a day's passes in one picture;
+ * - `orbits`: the last few orbits stacked in one picture (Metop's);
+ * - `live`: a geostationary imager's picture every few minutes;
+ * - `mosaic`: a composite the globe draws, several satellites' pictures in one;
+ * - `scenes`: a composite only its provider's viewer shows, scene by scene.
+ */
+export type ImageryType = "passes" | "daily" | "orbits" | "live" | "mosaic" | "scenes";
+
+/** A type's names, the title of its Imagery tab card and the short one of its Map panel button, and its Lucide icon. */
+export const IMAGERY_TYPES: Readonly<Record<ImageryType, { title: string; short: string; icon: string }>> = {
+  /** A route: the passes as they are drawn, one after another. */
+  passes: { title: "Passes", short: "Passes", icon: "lucide:route" },
+  /** A day's pictures, as the calendar's day. */
+  daily: { title: "Daily mosaic", short: "Daily", icon: "lucide:calendar-days" },
+  /** Orbits stacked as layers. */
+  orbits: { title: "Latest orbits", short: "Orbits", icon: "lucide:layers" },
+  /** The disc a geostationary imager sees. */
+  live: { title: "Live view", short: "Live", icon: "lucide:earth" },
+  /** The whole globe, as the composite covers it. */
+  mosaic: { title: "World mosaic", short: "World", icon: "lucide:globe" },
+  /** A stack of scenes, one picture each. */
+  scenes: { title: "Scene archive", short: "Scenes", icon: "lucide:images" },
+};
+
+/**
+ * An entry's type. Only Metop's stacked orbits say so in their label: the manifest gives
+ * them no period, as a frame holds several.
+ */
+export function imageryType(entry: { label: string; period?: string; merged: boolean; drawn?: DrawnImagery }): ImageryType {
+  if (entry.drawn?.granules !== undefined) return "passes";
+  if (entry.merged) return entry.drawn === undefined ? "scenes" : "mosaic";
+  if (/\borbits\b/i.test(entry.label)) return "orbits";
+  return entry.period === "P1D" ? "daily" : "live";
+}
+
+/** A layer in words, one question a slot, the same for every layer (ADR 0024). */
+export interface ImageryWords {
+  /** What the picture is: its colours, then the instrument. "True colour · MODIS". */
+  picture: string;
+  /** How often it has a new picture, or the day it ended. "Once a day", "Every 10 min". */
+  updates?: string;
+  /** It has ended: `updates` says when. */
+  ended: boolean;
+  /** How far back its frames go: "Back to 2002", "The last 90 days", "2017–2022". */
+  archive?: string;
+}
+
+/** What a type says of how often it updates, where its period does not. */
+const TYPE_UPDATES: Partial<Record<ImageryType, string>> = {
+  passes: "With each pass, hours behind live",
+  daily: "Once a day",
+  orbits: "With each orbit",
+  scenes: "As new scenes come in",
+};
+
+/**
+ * The words for an entry. The label's qualifier stays in the picture where it says something
+ * of it ("nadir camera", "Europe"), not where the type's title says it already: Metop's "six
+ * orbits stacked", a composite's "GeoRing", which the interface does not name.
+ */
+export function imageryWords(entry: {
+  type: ImageryType;
+  /** A key of IMAGERY_PROVIDERS, whose maker a composite credits. */
+  provider: string;
+  instrument: string;
+  label: string;
+  period?: string;
+  start?: string;
+  end?: string;
+  window?: string;
+  merged?: boolean;
+}): ImageryWords {
+  const { type, instrument, label, period, start, end, window } = entry;
+  const [first = label, ...rest] = label.split(",").map((part) => part.trim());
+  const colours = first.replace(/\s+and\s+/g, " + ");
+  const qualifier = type === "orbits" || type === "mosaic" || type === "scenes" ? "" : rest.join(", ");
+  const maker = IMAGERY_PROVIDERS[entry.provider]?.maker;
+  // A composite is no one instrument's: it says who joined the satellites' pictures.
+  const source = entry.merged !== true ? instrument : maker === undefined ? `${instrument} and others` : `by ${maker}`;
+  const picture = `${colours}${qualifier === "" ? "" : ` (${qualifier})`} · ${source}`;
+  const every = period === undefined ? undefined : cadence(period);
+  const updates = end !== undefined ? `Ended ${formatDate(end)}` : (TYPE_UPDATES[type] ?? (every === undefined ? undefined : every[0]!.toUpperCase() + every.slice(1)));
+  const days = window === undefined ? null : /^P(\d+)D$/.exec(window);
+  const archive =
+    start !== undefined && end !== undefined
+      ? start.slice(0, 4) === end.slice(0, 4)
+        ? end.slice(0, 4)
+        : `${start.slice(0, 4)}–${end.slice(0, 4)}`
+      : end !== undefined
+        ? undefined
+        : days !== null
+          ? `The last ${days[1]} days`
+          : start !== undefined
+            ? `Back to ${start.slice(0, 4)}`
+            : undefined;
+  return { picture, ...(updates !== undefined && { updates }), ended: end !== undefined, ...(archive !== undefined && { archive }) };
+}
+
+/**
  * A record's `imagery` entry, read as the native app's `SatelliteDetails.imagery` reads it:
  * what the catalog, the Map panel and the Imagery tab each take of it.
  */
@@ -419,6 +526,10 @@ export interface ImageryEntry {
   href?: string;
   /** What the globe needs to draw it, where it can. */
   drawn?: DrawnImagery;
+  /** What kind of layer it is, which every place names it by (imageryType). */
+  type: ImageryType;
+  /** What the Imagery tab and the Map panel say of it (imageryWords). */
+  words: ImageryWords;
 }
 
 /**
@@ -442,6 +553,7 @@ export function readImagery(entry: unknown): ImageryEntry | undefined {
   const dates = { period: text(rest.period), start: text(rest.start), end: text(rest.end), window: text(rest.window) };
   const merged = rest.merged === true;
   const detail = imageryDetail({ ...dates, ...(merged && { merged: true }) });
+  const type = imageryType({ label, period: dates.period, merged, drawn });
   return {
     instrument,
     provider,
@@ -452,6 +564,8 @@ export function readImagery(entry: unknown): ImageryEntry | undefined {
     ...(detail !== undefined && { detail }),
     ...(known.link !== undefined && { viewer: known.viewer, href: imageryLink({ link: known.link, ended: known.ended }, layer, dates.end) }),
     ...(drawn !== undefined && { drawn }),
+    type,
+    words: imageryWords({ type, provider, instrument, label, ...dates, merged }),
   };
 }
 
@@ -474,18 +588,6 @@ export function shortImageryLabel(label: string): string {
   return short === "" ? label : short;
 }
 
-/** What a granule layer is called where its label is not enough: the swath filling in behind the satellite (ADR 0023). */
-export const RECORDED_SWATH = "Recorded swath";
-
-/** A composite's Map panel row stands for no one satellite: it is named by its label's qualifier, "GeoRing", or this. */
-export const COMPOSITE = "Composite";
-
-/** "Natural colour, GeoRing" is "GeoRing". */
-function compositeName(label: string): string {
-  const qualifier = label.split(",").slice(1).join(",").trim();
-  return qualifier === "" ? COMPOSITE : qualifier[0]!.toUpperCase() + qualifier.slice(1);
-}
-
 /**
  * The Map panel's groups of imagery, in its order: by the satellite's orbit class, GEO, and
  * LEO for the rest, as no MEO or HEO satellite has a layer.
@@ -495,14 +597,12 @@ export const IMAGERY_GROUPS = ["geo", "leo"] as const;
 export type ImageryGroup = (typeof IMAGERY_GROUPS)[number];
 
 /** What every Map panel row has: one layer the globe can draw. */
-interface ImageryLayerRow extends Pick<ImageryEntry, "label" | "detail"> {
+interface ImageryLayerRow extends Pick<ImageryEntry, "label" | "type" | "words"> {
   /** Unique in the list: satnum, provider and layer, or a composite's provider and layer. */
   key: string;
   /** Its token on the globe. */
   token: string;
   group: ImageryGroup;
-  /** The label, short (shortImageryLabel). */
-  product: string;
 }
 
 /** One satellite's layer, as the Map panel lists it. */
@@ -514,12 +614,8 @@ export interface SatelliteImageryLayer extends ImageryLayerRow, Pick<ImageryEntr
 /** A composite, as the Map panel lists it: once, for all its satellites. */
 export interface CompositeImageryLayer extends ImageryLayerRow {
   kind: "composite";
-  /** Its label's qualifier, "GeoRing", or COMPOSITE. */
-  name: string;
   /** Its satellites by name, sorted. */
   satellites: string[];
-  /** Its cadence, short, which its row shows where another names the instrument. */
-  cadence: string | undefined;
 }
 
 /** One layer the globe can draw, as the Map panel lists it. */
@@ -528,14 +624,13 @@ export type ImageryLayer = SatelliteImageryLayer | CompositeImageryLayer;
 /**
  * Every layer the records carry that the globe can draw and that has not stopped, once per
  * satellite, provider and layer: the composites first, then by satellite name. A composite
- * is one layer, in its first satellite's group, which has frames from its earliest
- * satellite's start. A viewer link alone, or a layer that stopped, is the satellite's
- * Imagery tab's to offer. A granule layer is named for what it shows, RECORDED_SWATH.
+ * is one layer, in its first satellite's group. A viewer link alone, or a layer that stopped, is the satellite's
+ * Imagery tab's to offer.
  */
 export function imageryLayers(entries: readonly { name: string; satnum: string; orbitClass: OrbitClass; metadata: { imagery?: unknown } }[]): ImageryLayer[] {
   const layers = new Map<string, SatelliteImageryLayer>();
-  // A composite's first entry, its satellites by satnum, as a record may be in several groups, and its earliest start.
-  const composites = new Map<string, { entry: ImageryEntry; group: ImageryGroup; satellites: Map<string, string>; start?: string }>();
+  // A composite's first entry, and its satellites by satnum, as a record may be in several groups.
+  const composites = new Map<string, { entry: ImageryEntry; group: ImageryGroup; satellites: Map<string, string> }>();
   for (const { name, satnum, orbitClass, metadata } of entries) {
     const group = orbitClass === "GEO" ? "geo" : "leo";
     for (const entry of readImageryList(metadata.imagery)) {
@@ -544,37 +639,79 @@ export function imageryLayers(entries: readonly { name: string; satnum: string; 
       if (entry.merged) {
         const composite = composites.get(token) ?? { entry, group, satellites: new Map<string, string>() };
         composite.satellites.set(satnum, name);
-        if (entry.start !== undefined && (composite.start === undefined || entry.start < composite.start)) {
-          composite.start = entry.start;
-        }
         composites.set(token, composite);
         continue;
       }
       const key = `${satnum}:${token}`;
       if (layers.has(key)) continue;
-      const { instrument, label, detail } = entry;
-      const product = isGranuleLayer(entry.drawn) ? RECORDED_SWATH : shortImageryLabel(label);
-      layers.set(key, { kind: "satellite", key, token, group, satellite: name, instrument, label, product, detail });
+      const { instrument, label, type, words } = entry;
+      layers.set(key, { kind: "satellite", key, token, group, satellite: name, instrument, label, type, words });
     }
   }
   const byName = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
-  const compositeLayers = [...composites].map(([token, { entry, group, satellites, start }]): CompositeImageryLayer => {
-    const { label, period, window } = entry;
-    return {
-      kind: "composite",
-      key: token,
-      token,
-      group,
-      name: compositeName(label),
-      satellites: [...satellites.values()].toSorted(byName),
-      cadence: period === undefined ? undefined : cadence(period, true),
-      label,
-      product: shortImageryLabel(label),
-      detail: imageryDetail({ period, start, window }),
-    };
-  });
+  const compositeLayers = [...composites].map(([token, { entry, group, satellites }]): CompositeImageryLayer => ({
+    kind: "composite",
+    type: entry.type,
+    words: entry.words,
+    key: token,
+    token,
+    group,
+    satellites: [...satellites.values()].toSorted(byName),
+    label: entry.label,
+  }));
   return [
-    ...compositeLayers.toSorted((a, b) => byName(a.name, b.name) || a.label.localeCompare(b.label)),
+    ...compositeLayers.toSorted((a, b) => a.label.localeCompare(b.label)),
     ...[...layers.values()].toSorted((a, b) => byName(a.satellite, b.satellite) || a.label.localeCompare(b.label)),
   ];
+}
+
+/** The order of a row's buttons: what shows at once first, the passes, which may not, last. */
+const TYPE_ORDER: readonly ImageryType[] = ["daily", "orbits", "live", "mosaic", "scenes", "passes"];
+
+/** A Map panel row: a satellite, or a composite, and a button for each of its layers (ADR 0024). */
+export interface ImageryRow {
+  /** Unique in its group: the satellite's name, or `composite:` and the type. */
+  key: string;
+  /** The satellite's whole name, or a composite row's type ("World mosaic"). */
+  name: string;
+  /** A row of composites, whose cells are CompositeImageryLayer. */
+  composite?: true;
+  /**
+   * Each named by its type, or a composite's by its picture ("Day/Night", "Natural"). A satellite's second layer of a
+   * type is `extra`, named by its instrument or, where that is the same, its colours: the
+   * panel shows it only while it is on, and the satellite's Imagery tab always.
+   */
+  cells: { layer: ImageryLayer; name: string; extra: boolean }[];
+}
+
+/** A group's rows: its composites first, a row a type, then its satellites, in the order they come. */
+export function imageryRows(layers: readonly ImageryLayer[]): ImageryRow[] {
+  const rows = new Map<string, ImageryRow>();
+  for (const layer of layers) {
+    // A group's composites of a type are one row, named by the type: "World mosaic".
+    const key = layer.kind === "composite" ? `composite:${layer.type}` : layer.satellite;
+    const row = rows.get(key) ?? {
+      key,
+      name: layer.kind === "composite" ? IMAGERY_TYPES[layer.type].title : layer.satellite,
+      ...(layer.kind === "composite" && { composite: true as const }),
+      cells: [],
+    };
+    row.cells.push({ layer, name: "", extra: false });
+    rows.set(key, row);
+  }
+  for (const row of rows.values()) {
+    row.cells.sort((a, b) => TYPE_ORDER.indexOf(a.layer.type) - TYPE_ORDER.indexOf(b.layer.type));
+    row.cells.forEach((cell, index) => {
+      const { layer } = cell;
+      if (layer.kind === "composite") {
+        cell.name = shortImageryLabel(layer.label);
+        return;
+      }
+      const before = row.cells.slice(0, index).flatMap(({ layer: other }) => (other.kind === "satellite" && other.type === layer.type ? [other] : []));
+      cell.extra = before.length > 0;
+      cell.name = !cell.extra ? IMAGERY_TYPES[layer.type].short : before.some((other) => other.instrument === layer.instrument) ? shortImageryLabel(layer.label) : layer.instrument;
+    });
+  }
+  const all = [...rows.values()];
+  return [...all.filter((row) => row.composite !== undefined), ...all.filter((row) => row.composite === undefined)];
 }

@@ -18,8 +18,8 @@ export const closeMenuPanel = (page: Page, title: string) => page.getByRole("reg
 export const menuSwitch = (page: Page, label: string) =>
   page.locator("label.toolbarSwitch, label.segments__option", { hasText: new RegExp(`^\\s*${label.replace(/[()]/g, "\\$&")}\\s*$`) });
 
-/** A satellite imagery row of the Map panel, by its checkbox: the whole satellite name, the instrument and the picture. */
-export const imageryRow = (page: Page, name: string) => page.getByRole("region", { name: "Map" }).getByRole("checkbox", { name, exact: true });
+/** A layer's button in the Map panel's imagery rows: "Daily mosaic of NOAA 20 (JPSS-1)", "World mosaic, Day/Night". */
+export const imageryButton = (page: Page, name: string) => page.getByRole("region", { name: "Map" }).getByRole("button", { name, exact: true });
 
 /** A row of the Sky panel: My location, a station's name, or Back to the globe. */
 export const skyPlace = (page: Page, label: string) => page.getByRole("region", { name: "Sky" }).getByRole("button", { name: label, exact: true });
