@@ -1,45 +1,69 @@
 // A granule layer's overpasses and granules as CMR lists them (ADR 0023): a station's, which
 // its passes replay, the newest, which the Imagery tab card goes to, and a satellite's around
-// the clock, which the timeline shades. What they show comes from GIBS.
+// the clock, which the timeline shades. What they show comes from GIBS or EUMETView.
 
 import type { GranuleLayer } from "@/config/instrumentImagery";
 import { fetchGranules, type Granule, type GroundPoint, groupOverpasses, type Overpass } from "@/modules/util/cmrGranules";
 
+import { eumetViewHasGranule } from "./EumetViewImagery";
 import { gibsHasGranule } from "./GibsImagery";
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-/** How far back the newest granule is looked for: the near-real-time collection lists one about three hours after it is sensed. */
-const LATEST_WITHIN_MS = 12 * HOUR;
+/** How far back the newest granule is looked for: as long as GIBS keeps a granule layer's frames. */
+const LATEST_WITHIN_MS = 90 * DAY;
 
 /** How many of the newest day granules are asked for pixels before giving up: GIBS leaves out about two in five. */
 const LATEST_TRIES = 12;
 
+/** How many of the newest granules are listed to find LATEST_TRIES by day: about half are night ones. */
+const LATEST_LISTED = 3 * LATEST_TRIES;
+
+/**
+ * Degrees from the equator past which a granule is not the one a card pictures: its picture
+ * is held within 50° (previewBounds). Sentinel-3's passes end at 84° S in November.
+ */
+const LATEST_MAX_LATITUDE = 50;
+
 /** How far back a station's overpasses are listed. GIBS keeps 90 days; a month is what a list can show. */
 export const STATION_DAYS = 30;
 
-/** Whether GIBS has the granule's pixels; never for a `cmr` layer, of outlines alone. */
+/** Whether the layer's provider has the granule's pixels; never for a `cmr` layer, of outlines alone. */
 export function hasPixels(layer: GranuleLayer, granule: Granule): Promise<boolean> {
-  return layer.provider === "cmr" ? Promise.resolve(false) : gibsHasGranule({ layer: layer.layer, maximumLevel: layer.maxLevel, format: layer.format }, granule.start);
+  switch (layer.provider) {
+    case "gibs":
+      return gibsHasGranule({ layer: layer.layer, maximumLevel: layer.maxLevel, format: layer.format }, granule.start);
+    case "eumetview":
+      return eumetViewHasGranule(layer.layer, granule);
+    default:
+      return Promise.resolve(false);
+  }
+}
+
+/** A layer's newest day granule, and the newest away from the poles, which a card pictures. */
+export interface LatestGranules {
+  newest: Granule;
+  pictured: Granule;
 }
 
 /**
- * The newest day granule whose pixels GIBS has, or of a `cmr` layer the newest day
- * granule; undefined where none of the last few has them or CMR does not answer.
+ * A layer's newest day granules whose pixels its provider has, or of a `cmr` layer its newest
+ * day granules; undefined where none of the last few has them or CMR does not answer.
  */
-export async function latestGranule(layer: GranuleLayer, signal: AbortSignal, now = Date.now()): Promise<Granule | undefined> {
-  const granules = await fetchGranules({ collections: layer.granules, start: now - LATEST_WITHIN_MS, end: now }, signal);
+export async function latestGranule(layer: GranuleLayer, signal: AbortSignal, now = Date.now()): Promise<LatestGranules | undefined> {
+  const granules = await fetchGranules({ collections: layer.granules, start: now - LATEST_WITHIN_MS, end: now, newest: LATEST_LISTED }, signal);
   const newest = (granules ?? [])
     .filter((granule) => granule.day)
     .toReversed()
     .slice(0, LATEST_TRIES);
-  if (layer.provider === "cmr") {
-    return signal.aborted ? undefined : newest[0];
+  const answers = layer.provider === "cmr" ? newest.map(() => true) : await Promise.all(newest.map((granule) => hasPixels(layer, granule)));
+  const had = newest.filter((_, index) => answers[index]);
+  if (signal.aborted || had.length === 0) {
+    return undefined;
   }
-  const answers = await Promise.all(newest.map((granule) => hasPixels(layer, granule)));
-  return signal.aborted ? undefined : newest[answers.indexOf(true)];
+  return { newest: had[0]!, pictured: had.find((granule) => Math.abs(granuleCentre(granule).latitude) <= LATEST_MAX_LATITUDE) ?? had[0]! };
 }
 
 /**

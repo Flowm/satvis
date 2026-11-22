@@ -7,7 +7,7 @@ const trueColour = { provider: "gibs", layer: "TrueColor", label: "True colour",
 const satellite = (noradId: number, instruments: unknown) => ({ noradId, instruments });
 
 /** A satellite's granule outlines, where no provider has their pixels (ADR 0023). */
-const outlines = { provider: "cmr", layer: "VJ203MOD", label: "Granule outlines", kind: "outline", period: "PT6M", granules: ["VJ203MOD_NRT", "VJ203MOD"] };
+const outlines = { provider: "cmr", layer: "VJ203MOD", label: "Granule outlines", kind: "outline", period: "PT6M", granules: ["C3383721151-LANCEMODIS", "C3478458790-LAADS"] };
 
 describe("imageryBySatellite", () => {
   it("gives each satellite its instruments' entries in manifest order", () => {
@@ -19,7 +19,7 @@ describe("imageryBySatellite", () => {
       window: "P90D",
       maxLevel: 9,
       format: "png",
-      granules: ["VJ103MOD_NRT", "VJ103MOD"],
+      granules: ["C2208781576-LANCEMODIS", "C2105084593-LAADS"],
     };
     const imagery = imageryBySatellite(
       {
@@ -132,9 +132,10 @@ describe("imageryBySatellite", () => {
     [{ ...trueColour, maxLevel: 9, format: "gif" }, '"format" must be one of png, jpeg, webp'],
     [{ ...trueColour, period: "PT6M", maxLevel: 9, format: "png", granules: [] }, '"granules" must list the CMR collections'],
     [{ ...trueColour, period: "PT6M", maxLevel: 9, format: "png", granules: "VJ103MOD" }, '"granules" must list the CMR collections'],
-    [{ ...trueColour, period: "P1D", maxLevel: 9, format: "png", granules: ["VJ103MOD"] }, '"granules" is for a GIBS layer'],
-    [{ ...trueColour, provider: "eumetview", period: "PT6M", maxLevel: 9, format: "png", granules: ["VJ103MOD"] }, '"granules" is for a GIBS layer'],
-    [{ ...trueColour, period: "PT6M", granules: ["VJ103MOD"] }, '"granules" is for a GIBS layer'],
+    [{ ...trueColour, period: "PT6M", maxLevel: 9, format: "png", granules: ["VJ103MOD"] }, "by concept id"],
+    [{ ...trueColour, period: "P1D", maxLevel: 9, format: "png", granules: ["C2105084593-LAADS"] }, '"granules" is for a GIBS or EUMETView layer'],
+    [{ ...trueColour, provider: "georing", period: "PT6M", maxLevel: 9, format: "png", granules: ["C2105084593-LAADS"] }, '"granules" is for a GIBS or EUMETView layer'],
+    [{ ...trueColour, period: "PT6M", granules: ["C2105084593-LAADS"] }, '"granules" is for a GIBS or EUMETView layer'],
     [{ ...outlines, kind: "rgb" }, '"kind" outline and "provider" cmr go together'],
     [{ ...trueColour, kind: "outline" }, '"kind" outline and "provider" cmr go together'],
     [{ ...outlines, granules: undefined }, "a cmr layer is a satellite's granule outlines"],

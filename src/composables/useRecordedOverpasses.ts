@@ -7,7 +7,7 @@ import { hasPixels, isDayOverpass, stationOverpasses, stationReplay } from "@/mo
 import { type PassImagery, passImagery, type RecordedOverpass } from "@/modules/passImagery";
 
 /** How many satellite and station pairs are asked of CMR at once: a satellite's passes cover every station. */
-const MAX_PAIRS = 6;
+const MAX_PAIRS = 10;
 
 /**
  * The overpasses CMR lists of the passes in view (ADR 0023): for each satellite with a
@@ -15,7 +15,8 @@ const MAX_PAIRS = 6;
  * Passes table matches to its rows, with whether GIBS has their pixels and a replay of each.
  */
 export function useRecordedOverpasses(passes: Ref<readonly { name: string; groundStationName?: string }[]>) {
-  const { sats } = useController();
+  const cc = useController();
+  const { sats } = cc;
   const replay = useOverpassReplay();
 
   /** The pairs to ask about, as a key that changes only when they do. */
@@ -38,10 +39,15 @@ export function useRecordedOverpasses(passes: Ref<readonly { name: string; groun
   });
   const pairsKey = computed(() => [...pairs.value.keys()].toSorted().join("\n"));
 
-  const recorded = shallowRef<RecordedOverpass[]>([]);
+  /** By pair, as `pairs` keys them. */
+  const byPair = shallowRef(new Map<string, RecordedOverpass[]>());
+  const recorded = computed(() => [...byPair.value.values()].flat());
+  /** Every pair's overpasses once listed: the passes empty while they are computed, as after a replay's jump. */
+  const listed = new Map<string, RecordedOverpass[]>();
   /** GIBS's answer for each day granule of an overpass, by overpass. */
   const pixels = reactive(new Map<RecordedOverpass, boolean[]>());
-  let asked = new Set<RecordedOverpass>();
+  const asked = new Set<RecordedOverpass>();
+  const alive = new AbortController();
   let asking: AbortController | undefined;
 
   watch(
@@ -50,25 +56,28 @@ export function useRecordedOverpasses(passes: Ref<readonly { name: string; groun
       asking?.abort();
       const controller = new AbortController();
       asking = controller;
-      recorded.value = [];
-      pixels.clear();
-      asked = new Set();
-      for (const { satellite, station, layer, latitude, longitude } of pairs.value.values()) {
+      byPair.value = new Map([...pairs.value.keys()].flatMap((key) => (listed.has(key) ? [[key, listed.get(key)!]] : [])));
+      for (const [key, { satellite, station, layer, latitude, longitude }] of pairs.value) {
+        if (listed.has(key)) continue;
         void stationOverpasses(layer, { latitude, longitude }, controller.signal).then((overpasses) => {
           if (controller.signal.aborted || overpasses === undefined) return;
-          const entries = overpasses.map((overpass) => ({ satellite, station, layer, overpass, day: isDayOverpass(overpass) }));
-          recorded.value = [...recorded.value, ...entries];
+          const entries = overpasses.map((overpass) => ({ pair: key, satellite, station, layer, overpass, day: isDayOverpass(overpass) }));
+          listed.set(key, entries);
+          byPair.value = new Map(byPair.value).set(key, entries);
         });
       }
     },
     { immediate: true },
   );
-  onScopeDispose(() => asking?.abort());
+  onScopeDispose(() => {
+    asking?.abort();
+    alive.abort();
+  });
 
   /** What the overpass shows; asks GIBS the first time it is wanted. */
   function imageryOf(entry: RecordedOverpass): PassImagery {
-    const signal = asking?.signal;
-    if (entry.day && entry.layer.provider !== "cmr" && !asked.has(entry) && signal !== undefined) {
+    const { signal } = alive;
+    if (entry.day && entry.layer.provider !== "cmr" && !asked.has(entry)) {
       asked.add(entry);
       const granules = entry.overpass.granules.filter((granule) => granule.day);
       void Promise.all(granules.map((granule) => hasPixels(entry.layer, granule))).then((answers) => {
@@ -79,10 +88,9 @@ export function useRecordedOverpasses(passes: Ref<readonly { name: string; groun
   }
 
   /**
-   * Replays a pass over its station, as every pass is: the clock from five minutes before it
-   * at 30×, the camera above the station. One CMR recorded by day has its granules on too,
-   * and the replay bar steps through the satellite's others there; any other takes a
-   * replay's granules off, as they are of another pass.
+   * Replays a pass over its station (stationReplay). A pass CMR recorded by day also shows its
+   * granules, and the replay bar steps through the satellite's others there; any other pass
+   * stops the replay, whose granules are of another pass.
    */
   function replayPass(pass: { start: number; groundStationName?: string }, entry: RecordedOverpass | undefined): void {
     const station = sats.groundStations.find((gs) => gs.name === (entry?.station ?? pass.groundStationName));
@@ -90,14 +98,11 @@ export function useRecordedOverpasses(passes: Ref<readonly { name: string; groun
     const point = { latitude: station.position.latitude, longitude: station.position.longitude };
     if (entry === undefined || !entry.day) {
       replay.stop();
-      replay.jump(stationReplay(pass, point), false);
+      cc.replay(stationReplay(pass, point));
       return;
     }
-    const overpasses = recorded.value
-      .filter((other) => other.day && other.satellite === entry.satellite && other.station === entry.station && other.layer.token === entry.layer.token)
-      .map((other) => other.overpass)
-      .toSorted((a, b) => a.start - b.start);
-    replay.start(entry.layer, entry.satellite, stationReplay(entry.overpass, point), { name: entry.station, point, overpasses });
+    const overpasses = (byPair.value.get(entry.pair) ?? []).filter((other) => other.day).map((other) => other.overpass);
+    replay.start(entry.layer, entry.satellite, stationReplay(entry.overpass, point), entry.station, overpasses);
   }
 
   return { recorded, imageryOf, replayPass };

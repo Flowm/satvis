@@ -45,7 +45,7 @@ export interface ImageryInfo {
   token?: string;
   /** What a picture of it needs; with `token`, as the provider draws any layer the globe can. */
   preview?: ImageryPreview;
-  /** The layer itself, where it is one of granules a frame: the swath as sensed (ADR 0023). */
+  /** The layer itself, where it is one of granules a frame: the recorded swath (ADR 0023). */
   granuleLayer?: DrawnImagery;
 }
 

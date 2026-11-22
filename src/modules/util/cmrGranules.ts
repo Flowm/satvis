@@ -12,6 +12,9 @@ const CLIENT_ID = "satvis";
 /** CMR's largest page. A 6-minute collection has 240 granules a day. */
 const PAGE_SIZE = 2000;
 
+/** The longest gap between granules of one overpass: PACE's OCI and Sentinel-3's OLCI leave 1 s (measured 2026-11-21). */
+const JOIN_GAP_MS = 60 * 1000;
+
 /** A point on the ground, in degrees. */
 export interface GroundPoint {
   latitude: number;
@@ -40,12 +43,14 @@ export function granuleExtent(granule: Granule): { west: number; south: number; 
   return { west: Math.min(...longitudes), south: Math.min(...latitudes), east: Math.max(...longitudes), north: Math.max(...latitudes) };
 }
 
-/** The granules from `start` to `end` (epoch ms), or only those covering `point`. */
+/** The granules from `start` to `end` (epoch ms), or only those covering `point`, or only the `newest` few. */
 export interface GranuleQuery {
+  /** CMR concept ids, the preferred collection first. */
   collections: readonly string[];
   start: number;
   end: number;
   point?: GroundPoint;
+  newest?: number;
 }
 
 /** `"lat lon lat lon …"`, CMR's ring, to points; undefined for one that does not read. */
@@ -79,18 +84,18 @@ export function parseGranule(entry: unknown): Granule | undefined {
   return { start, end, day: day_night_flag !== "NIGHT", outline };
 }
 
-/** CMR's address for `query`, sorted by start. */
+/** CMR's address for `query`, sorted by start, or newest first for `newest`. */
 export function granuleSearchUrl(query: GranuleQuery): string {
   const params = new URLSearchParams();
   for (const collection of query.collections) {
-    params.append("short_name", collection);
+    params.append("collection_concept_id", collection);
   }
   params.set("temporal", `${new Date(query.start).toISOString()},${new Date(query.end).toISOString()}`);
   if (query.point) {
     params.set("point", `${query.point.longitude},${query.point.latitude}`);
   }
-  params.set("page_size", String(PAGE_SIZE));
-  params.set("sort_key", "start_date");
+  params.set("page_size", String(query.newest ?? PAGE_SIZE));
+  params.set("sort_key", query.newest === undefined ? "start_date" : "-start_date");
   return `${CMR}?${params}`;
 }
 
@@ -98,7 +103,7 @@ export function granuleSearchUrl(query: GranuleQuery): string {
  * Sorted by start, one per start: a granule the near-real-time and the standard
  * collections both list is one, the first collection's.
  */
-export function uniqueGranules(granules: readonly Granule[]): Granule[] {
+function uniqueGranules(granules: readonly Granule[]): Granule[] {
   const byStart = new Map<number, Granule>();
   for (const granule of granules) {
     if (!byStart.has(granule.start)) {
@@ -110,8 +115,7 @@ export function uniqueGranules(granules: readonly Granule[]): Granule[] {
 
 /**
  * The granules `query` asks for, or undefined when CMR cannot be reached or answers
- * with an error. The collections are asked in order, so a near-real-time collection listed
- * first wins where both have a granule.
+ * with an error. Where two collections list a granule, the one listed first in `query` wins.
  */
 export async function fetchGranules(query: GranuleQuery, signal: AbortSignal): Promise<Granule[] | undefined> {
   try {
@@ -125,9 +129,8 @@ export async function fetchGranules(query: GranuleQuery, signal: AbortSignal): P
     // CMR sorts by start alone, so where both collections have a granule either may come first.
     const ranked = entries.flatMap((entry) => {
       const granule = parseGranule(entry);
-      const collection = (entry as { producer_granule_id?: unknown }).producer_granule_id;
-      const name = typeof collection === "string" ? collection.split(".")[0]! : "";
-      return granule ? [{ granule, rank: rank.get(name) ?? query.collections.length }] : [];
+      const collection = (entry as { collection_concept_id?: unknown }).collection_concept_id;
+      return granule ? [{ granule, rank: rank.get(collection as string) ?? query.collections.length }] : [];
     });
     return uniqueGranules(ranked.toSorted((a, b) => a.rank - b.rank).map(({ granule }) => granule));
   } catch {
@@ -142,12 +145,12 @@ export interface Overpass {
   granules: Granule[];
 }
 
-/** Granules that follow one another without a gap, as one overpass each. `granules` sorted by start. */
+/** Granules that follow one another, as one overpass each. `granules` sorted by start. */
 export function groupOverpasses(granules: readonly Granule[]): Overpass[] {
   const overpasses: Overpass[] = [];
   for (const granule of granules) {
     const last = overpasses.at(-1);
-    if (last !== undefined && granule.start <= last.end) {
+    if (last !== undefined && granule.start <= last.end + JOIN_GAP_MS) {
       last.end = Math.max(last.end, granule.end);
       last.granules.push(granule);
     } else {

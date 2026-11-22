@@ -4,10 +4,12 @@
 import { Rectangle } from "@cesium/core";
 import { WebMapServiceImageryProvider } from "@cesium/engine";
 
-import type { TileFormat } from "@/config/instrumentImagery";
+import { granuleFrame, type TileFormat } from "@/config/instrumentImagery";
+import { type Granule, granuleExtent } from "@/modules/util/cmrGranules";
 import { formatFrame, parseDomain, type TimeRange } from "@/modules/util/timeDomain";
 
 import type { FrameSource } from "./FramedImagery";
+import { opaquePixels } from "./GibsImagery";
 
 const EUMETVIEW = "https://view.eumetsat.int/geoserver";
 
@@ -82,4 +84,58 @@ export function eumetViewFrames(options: EumetViewOptions): FrameSource<WebMapSe
         credit: "EUMETSAT",
       }),
   };
+}
+
+/** Whether EUMETView has a granule's pixels, by layer and start: a granule's answer does not change. */
+const granulePixels = new Map<string, Promise<boolean>>();
+
+/** Degrees either side of a granule's centre that are asked for: well inside a 3-minute OLCI granule, about 11° across. */
+const PROBE_HALF_WIDTH = 1;
+
+/** Pixels across the probe; half of them opaque is a granule there. */
+const PROBE_SIZE = 16;
+
+/**
+ * Whether EUMETView has the pixels of a granule of `layer`, a swath an orbit: a small
+ * picture around the granule's centre, clear where the swath lacks the granule, as
+ * Sentinel-3A's lacked most of 2 of 10 on 2026-11-20. A box over the whole granule would
+ * also catch its neighbours. False, and asked again later, where EUMETView cannot be reached.
+ */
+export function eumetViewHasGranule(layer: string, granule: Granule): Promise<boolean> {
+  const key = `${layer}/${granule.start}`;
+  let answer = granulePixels.get(key);
+  if (answer === undefined) {
+    const { west, south, east, north } = granuleExtent(granule);
+    const longitude = (((((west + east) / 2 + 180) % 360) + 360) % 360) - 180;
+    const latitude = (south + north) / 2;
+    const bounds = { west: longitude - PROBE_HALF_WIDTH, south: latitude - PROBE_HALF_WIDTH, east: longitude + PROBE_HALF_WIDTH, north: latitude + PROBE_HALF_WIDTH };
+    const query = new URLSearchParams({
+      service: "WMS",
+      request: "GetMap",
+      version: "1.1.1",
+      srs: "EPSG:4326",
+      styles: "",
+      layers: layer,
+      width: String(PROBE_SIZE),
+      height: String(PROBE_SIZE),
+      bbox: [bounds.west, bounds.south, bounds.east, bounds.north].map((value) => value.toFixed(3)).join(","),
+      format: "image/png",
+      transparent: "true",
+      time: granuleFrame("eumetview", granule.start),
+    });
+    answer = fetch(`${EUMETVIEW}/ows?${query}`)
+      .then(async (response) => {
+        if (!response.ok || !response.headers.get("content-type")?.startsWith("image/")) {
+          return false;
+        }
+        const opaque = await opaquePixels(await response.blob()).catch(() => undefined);
+        return opaque === undefined || opaque >= (PROBE_SIZE * PROBE_SIZE) / 2;
+      })
+      .catch(() => {
+        granulePixels.delete(key);
+        return false;
+      });
+    granulePixels.set(key, answer);
+  }
+  return answer;
 }

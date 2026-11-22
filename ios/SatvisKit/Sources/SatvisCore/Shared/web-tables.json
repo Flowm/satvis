@@ -191,6 +191,7 @@
       "overpass",
       "layers",
       "imagery",
+      "replay",
       "terrain",
       "surface",
       "stars",

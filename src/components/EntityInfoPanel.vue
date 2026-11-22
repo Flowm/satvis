@@ -100,7 +100,6 @@
             <div class="passes__bar">
               <segmented-control v-model="overpassMode" class="passes__modes" label="Overpass calculation" :options="OVERPASS_MODES" />
               <USwitch v-model="showPastPasses" label="Past" size="xs" />
-              <!-- Where a pass in view has a granule layer: the past passes it recorded the station in (ADR 0023). -->
               <USwitch v-if="recorded.length > 0" v-model="onlyImaged" label="Imaged" size="xs" />
             </div>
 
@@ -131,9 +130,7 @@
                   <td v-if="subjectCount > 1">{{ row.name }}</td>
                   <td class="mono">{{ row.countdown }}</td>
                   <td>
-                    <a class="link" :title="`Replay this pass${row.recorded?.day ? ', with its granules' : ''}`" @click="replayPass(passOf(row), row.recorded)">{{
-                      row.startLabel
-                    }}</a>
+                    <a class="link" :title="`Replay this pass${row.recorded?.day ? ', with its granules' : ''}`" @click="replayRow(row)">{{ row.startLabel }}</a>
                   </td>
                   <td>{{ row.endLabel }}</td>
                   <td class="num">{{ row.primary }}</td>
@@ -436,6 +433,31 @@ function showImagery(instrument: string): void {
 }
 
 const tableEl = useTemplateRef<HTMLTableElement>("tableEl");
+
+/** Brings the pass the clock is at to the middle: with Past, a month of passes lies above it. */
+function scrollToNow(): void {
+  void nextTick(() => {
+    const rows = [...(tableEl.value?.tBodies[0]?.rows ?? [])];
+    const at = nextPass.value?.start ?? nowMs.value;
+    (rows.find((row) => Number(row.dataset.startMs) >= at) ?? rows.at(-1))?.scrollIntoView({ block: "center" });
+  });
+}
+watch([showPastPasses, onlyImaged], scrollToNow);
+
+/** Set by a replay until the table has the passes around its time: the table unmounts while they are computed. */
+let scrollOnPasses = false;
+watch([tableEl, () => nextPass.value?.start], () => {
+  if (scrollOnPasses && tableEl.value && !passesPending.value) {
+    scrollOnPasses = false;
+    scrollToNow();
+  }
+});
+
+/** Replays the row's pass, and keeps it in view once the table has moved to its time. */
+function replayRow(row: PassTableRow): void {
+  scrollOnPasses = true;
+  replayPass(passOf(row), row.recorded);
+}
 watch(pickedPassMs, (startMs) => {
   if (startMs === null) {
     return;

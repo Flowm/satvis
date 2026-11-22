@@ -5,9 +5,13 @@ import type { ImageryEntry, SatelliteImagery, TileFormat } from "./types.ts";
 type Raw = Record<string, unknown>;
 
 const IMAGERY_KINDS: readonly string[] = ["rgb", "outline"];
+/** The providers whose pictures an app can cut granule by granule: GIBS's a granule a frame, EUMETView's a swath an orbit. */
+const GRANULE_PROVIDERS = new Set(["gibs", "eumetview"]);
 
 /** A provider's name is a key of each app's provider table. */
 const PROVIDER_RE = /^[a-z][a-z0-9-]*$/;
+/** A CMR collection's concept id: "C2208781576-LANCEMODIS". */
+const CMR_COLLECTION_RE = /^C\d+-[A-Z0-9_]+$/;
 /** ISO 8601, without weeks: "P1D", "PT10M", "P90D". */
 const DURATION_RE = /^P(?=\d|T\d)(\d+Y)?(\d+M)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+S)?)?$/;
 
@@ -98,8 +102,8 @@ function imageryEntry(entry: unknown, where: string): ImageryEntry {
     throw new Error(`${where}: "format" must be one of ${TILE_FORMATS.join(", ")} (got ${JSON.stringify(format)})`);
   }
   const tiles = maxLevel === undefined ? undefined : { maxLevel: maxLevel as number, format: format as ImageryEntry["format"] & string };
-  if (granules !== undefined && (!Array.isArray(granules) || granules.length === 0 || !granules.every(isText))) {
-    throw new Error(`${where}: "granules" must list the CMR collections of the layer's granules (got ${JSON.stringify(granules)})`);
+  if (granules !== undefined && (!Array.isArray(granules) || granules.length === 0 || !granules.every((id) => typeof id === "string" && CMR_COLLECTION_RE.test(id)))) {
+    throw new Error(`${where}: "granules" must list the CMR collections of the layer's granules, by concept id (got ${JSON.stringify(granules)})`);
   }
   if ((provider === "cmr") !== (kind === "outline")) {
     throw new Error(`${where}: "kind" outline and "provider" cmr go together: CMR has the granules' outlines and no pixels`);
@@ -107,8 +111,8 @@ function imageryEntry(entry: unknown, where: string): ImageryEntry {
   if (provider === "cmr" && (granules === undefined || tiles !== undefined || !fields.period?.startsWith("PT"))) {
     throw new Error(`${where}: a cmr layer is a satellite's granule outlines: "granules", a "period" of minutes, and no "maxLevel" or "format"`);
   }
-  if (granules !== undefined && provider !== "cmr" && (provider !== "gibs" || tiles === undefined || !fields.period?.startsWith("PT"))) {
-    throw new Error(`${where}: "granules" is for a GIBS layer the globe draws, with a frame a granule: a "period" of minutes, "maxLevel" and "format"`);
+  if (granules !== undefined && provider !== "cmr" && (!GRANULE_PROVIDERS.has(provider) || tiles === undefined || !fields.period?.startsWith("PT"))) {
+    throw new Error(`${where}: "granules" is for a GIBS or EUMETView layer the globe draws granule by granule: the granules' "period" of minutes, "maxLevel" and "format"`);
   }
   return { provider, layer, label, kind, ...fields, ...tiles, ...(granules !== undefined && { granules: granules as string[] }) };
 }

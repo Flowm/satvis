@@ -134,12 +134,10 @@ const scratchZ = new Cartesian3();
 const scratchMatrix = new Matrix3();
 
 /**
- * The fan's frame in Earth-fixed axes: its sensor looks along z, from the satellite to its
- * ground point tilted `rollRad` toward starboard, and spreads along y, across the track as
- * the ribbon's starboard is: cesium-sensor-volumes spreads a rectangular sensor's
- * `xHalfAngle` along its y axis. x is then ahead along the track. `next` is the satellite a
- * moment later, for the ground track's direction. Undefined where either position is, or
- * where the two share a ground point.
+ * The fan's frame in Earth-fixed axes: z looks from the satellite to its ground point tilted
+ * `rollRad` toward starboard, y lies across the track, as cesium-sensor-volumes spreads a
+ * rectangular sensor's `xHalfAngle` along y, and x points ahead. `next` is the satellite a
+ * moment later. Undefined where either position is, or where the two share a ground point.
  */
 export function fanOrientation(position: Cartesian3 | undefined, next: Cartesian3 | undefined, rollRad: number, result = new Quaternion()): Quaternion | undefined {
   const frame = fanFrame(position, next, rollRad);

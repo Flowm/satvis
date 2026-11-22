@@ -1,6 +1,17 @@
 import { describe, expect, test } from "vitest";
 
-import { COMPOSITE, drawnImagery, imageryDetail, imageryLayers, imageryPreviewUrl, previewBounds, readImagery, SENSED_SWATH, shortImageryLabel } from "./instrumentImagery";
+import {
+  COMPOSITE,
+  drawnImagery,
+  granulePictureUrl,
+  imageryDetail,
+  imageryLayers,
+  imageryPreviewUrl,
+  previewBounds,
+  readImagery,
+  RECORDED_SWATH,
+  shortImageryLabel,
+} from "./instrumentImagery";
 
 describe("imageryDetail", () => {
   test.each([
@@ -48,13 +59,20 @@ describe("drawnImagery", () => {
     expect(drawnImagery({ ...trueColour, period: "PT10M", format: "png" })).toMatchObject({ format: "png", daily: false });
   });
 
-  test("reads the CMR collections of a GIBS layer of one granule a frame, and of no other", () => {
-    const granule = { ...trueColour, layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule", period: "PT6M", format: "png", granules: ["VJ103MOD_NRT", "VJ103MOD"] };
-    expect(drawnImagery(granule)).toMatchObject({ daily: false, granules: ["VJ103MOD_NRT", "VJ103MOD"] });
+  test("reads the CMR collections of a GIBS or EUMETView layer replayed granule by granule, and of no other", () => {
+    const granule = {
+      ...trueColour,
+      layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+      period: "PT6M",
+      format: "png",
+      granules: ["C2208781576-LANCEMODIS", "C2105084593-LAADS"],
+    };
+    expect(drawnImagery(granule)).toMatchObject({ daily: false, granules: ["C2208781576-LANCEMODIS", "C2105084593-LAADS"] });
     expect(drawnImagery({ ...granule, period: "P1D" })).not.toHaveProperty("granules");
     expect(drawnImagery({ ...granule, granules: [] })).not.toHaveProperty("granules");
     expect(drawnImagery({ ...granule, granules: "VJ103MOD" })).not.toHaveProperty("granules");
-    expect(drawnImagery({ ...geoColour, granules: ["VJ103MOD"] })).not.toHaveProperty("granules");
+    expect(drawnImagery({ ...geoColour, granules: ["C2105084593-LAADS"] })).not.toHaveProperty("granules");
+    expect(drawnImagery({ ...geoColour, period: "PT3M", granules: ["C1577017384-OB_DAAC"] })).toMatchObject({ provider: "eumetview", granules: ["C1577017384-OB_DAAC"] });
   });
 
   test("reads a cmr layer as its granule outlines, without tiles", () => {
@@ -65,9 +83,9 @@ describe("drawnImagery", () => {
       label: "Granule outlines",
       kind: "outline",
       period: "PT6M",
-      granules: ["VJ203MOD_NRT", "VJ203MOD"],
+      granules: ["C3383721151-LANCEMODIS", "C3478458790-LAADS"],
     };
-    expect(drawnImagery(outlines)).toEqual({ token: "cmr:VJ203MOD", provider: "cmr", layer: "VJ203MOD", granules: ["VJ203MOD_NRT", "VJ203MOD"] });
+    expect(drawnImagery(outlines)).toEqual({ token: "cmr:VJ203MOD", provider: "cmr", layer: "VJ203MOD", granules: ["C3383721151-LANCEMODIS", "C3478458790-LAADS"] });
     expect(drawnImagery({ ...outlines, granules: [] })).toBeUndefined();
     expect(readImagery(outlines)).toMatchObject({ detail: "every 6 min", drawn: { token: "cmr:VJ203MOD" } });
     expect(readImagery(outlines)).not.toHaveProperty("href");
@@ -121,6 +139,31 @@ describe("imageryPreviewUrl", () => {
     expect(url.startsWith("https://view.eumetsat.int/geoserver/ows?")).toBe(true);
     expect(params(url)).toMatchObject({ LAYERS: "mtg_fd:rgb_geocolour", FORMAT: "image/png", TRANSPARENT: "TRUE" });
   });
+
+  test("names a granule's frame: GIBS by its start, EUMETView by when its pass ended, which its swath is stamped nearest", () => {
+    const start = Date.parse("2026-11-20T23:55:00Z");
+    const bounds = previewBounds({ latitude: -30, longitude: 145 }, 20);
+    expect(params(imageryPreviewUrl({ provider: "gibs", layer: "a", format: "png", daily: false, granule: start }, bounds, now)).TIME).toBe("2026-11-20T23:55:00Z");
+    expect(params(imageryPreviewUrl({ provider: "eumetview", layer: "b", format: "png", daily: false, granule: start }, bounds, now)).TIME).toBe("2026-11-21T00:20:00Z");
+  });
+});
+
+describe("granulePictureUrl", () => {
+  const bounds = { west: 138, south: -35, east: 156, north: -21 };
+  const params = (url: string) => Object.fromEntries(new URL(url).searchParams);
+
+  test("asks GIBS for the granule's own frame", () => {
+    const url = granulePictureUrl({ provider: "gibs", layer: "a" }, Date.parse("2026-11-21T10:06:00Z"), bounds, 2048, 1593);
+    expect(url.startsWith("https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?")).toBe(true);
+    expect(params(url)).toMatchObject({ LAYERS: "a", TIME: "2026-11-21T10:06:00Z", FORMAT: "image/jpeg", BBOX: "138.000,-35.000,156.000,-21.000" });
+    expect(params(url)).not.toHaveProperty("BGCOLOR");
+  });
+
+  test("asks EUMETView for its pass's swath, black where it has none", () => {
+    const url = granulePictureUrl({ provider: "eumetview", layer: "b" }, Date.parse("2026-11-20T23:55:00Z"), bounds, 2048, 1593);
+    expect(url.startsWith("https://view.eumetsat.int/geoserver/ows?")).toBe(true);
+    expect(params(url)).toMatchObject({ LAYERS: "b", TIME: "2026-11-21T00:20:00Z", FORMAT: "image/jpeg", BGCOLOR: "0x000000" });
+  });
 });
 
 describe("imageryLayers", () => {
@@ -170,12 +213,12 @@ describe("imageryLayers", () => {
       ...daily,
       instrument: "VIIRS",
       layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
-      label: "True colour granules",
+      label: "True colour",
       period: "PT6M",
-      granules: ["VJ103MOD_NRT"],
+      granules: ["C2208781576-LANCEMODIS"],
     };
     const [layer] = imageryLayers([{ name: "NOAA 20", satnum: "43013", orbitClass: "LEO", metadata: { imagery: [granules] } }]);
-    expect(layer).toMatchObject({ group: "leo", product: SENSED_SWATH, label: "True colour granules" });
+    expect(layer).toMatchObject({ group: "leo", product: RECORDED_SWATH, label: "True colour" });
   });
 });
 

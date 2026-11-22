@@ -1,6 +1,6 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { replayPlace, stationReplay } from "./overpassReplay";
+import { latestGranule, replayPlace, stationReplay } from "./overpassReplay";
 import type { Granule, Overpass } from "./util/cmrGranules";
 
 const MINUTE = 60 * 1000;
@@ -32,5 +32,36 @@ describe("replayPlace", () => {
   test("before the first and after the last", () => {
     expect(at(10)).toEqual({ current: undefined, previous: undefined, next: overpasses[0] });
     expect(at(400)).toEqual({ current: undefined, previous: overpasses[2], next: undefined });
+  });
+});
+
+describe("latestGranule", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** Sentinel-3A's last granules of a pass on 2026-11-21, as CMR answered: the newest near the pole. */
+  const feed = {
+    feed: {
+      entry: [
+        ["2026-11-21T01:53:59Z", "-72.49 39.93 -71.41 9.66 -81.35 -19.25 -83.91 55.64 -72.49 39.93"],
+        ["2026-11-21T01:41:59Z", "-41.51 104.84 -51.32 98.14 -55.51 116.69 -45.05 120.31 -41.51 104.84"],
+        ["2026-11-21T01:38:59Z", "-31.37 109.61 -41.50 104.84 -45.04 120.31 -34.52 123.16 -31.37 109.61"],
+      ].map(([start, ring]) => ({
+        collection_concept_id: "C1577017384-OB_DAAC",
+        time_start: start,
+        time_end: new Date(Date.parse(start!) + 3 * MINUTE).toISOString(),
+        day_night_flag: "DAY",
+        polygons: [[ring]],
+      })),
+    },
+  };
+
+  test("pictures the newest granule away from the poles", async () => {
+    vi.stubGlobal("fetch", async () => new Response(JSON.stringify(feed)));
+    const layer = { token: "cmr:OLCIS3A_L1_EFR", provider: "cmr" as const, layer: "OLCIS3A_L1_EFR", granules: ["C1577017384-OB_DAAC"] };
+    const granules = await latestGranule(layer, new AbortController().signal, Date.parse("2026-11-22T00:00:00Z"));
+    expect(granules?.newest.start).toBe(Date.parse("2026-11-21T01:53:59Z"));
+    expect(granules?.pictured.start).toBe(Date.parse("2026-11-21T01:41:59Z"));
   });
 });

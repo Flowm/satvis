@@ -37,14 +37,39 @@ Measured on 2026-11-20 and 21, from this app's origin:
 ## Decision
 
 **A granule layer is an entry of the imagery manifest (ADR 0019) that names its CMR
-collections**: `granules: [VJ103MOD_NRT, VJ103MOD]`, the near-real-time one first,
-beside NOAA-20's daily VIIRS layer. Only a GIBS layer the globe draws with a period of
-minutes may have it. The record carries the collections' names, not a query, as it
-carries a layer's id and not a url.
+collections by concept id**: `granules: [C2208781576-LANCEMODIS, C2105084593-LAADS]`
+(`VJ103MOD_NRT` and `VJ103MOD`), the near-real-time one first, beside NOAA-20's daily
+VIIRS layer. Only a GIBS or EUMETView layer the globe draws may have it, its `period`
+then the granules'.
+The record carries the collections' ids, not a query, as it carries a layer's id and
+not a url. A short name is not enough: MODIS's near-real-time and standard collections
+are both `MOD03`, told apart by version alone, and their granule ids start alike. With
+the concept id, CMR says which collection each granule is of, so the code knows nothing
+of any instrument: a satellite is added in the manifest alone.
+
+**A EUMETView layer of a swath an orbit is cut to its granules**: Sentinel-3A's and 3B's
+OLCI, with the granules of OB.DAAC's `OLCIS3A_L1_EFR` and `OLCIS3B_L1_EFR`. A frame is a
+whole day pass, so a tile layer of it would show the pass ahead of the satellite; each
+granule is instead its fill (below), the frame's WMS picture cut to its outline, kept once
+passed. EUMETView stamps a pass about when it ended, from 9 minutes after the equator in
+June to 22 in November as the pass reaches further south, and answers a time with the pass
+stamped nearest it: a granule's picture asks for its start plus 25 minutes, within 50 of
+its pass's stamp, as a day pass lasts up to an hour and the passes come 101 minutes apart.
+The times its capabilities list are no guide: 101 minutes apart from February 2020, they
+drift from the passes by 33 minutes a year (measured 2021 to 2026-11-22, both satellites),
+and the frame stamped nearest the clock, as a frame layer shows, is often the orbit before.
+Before its picture is asked for, a 16-pixel picture of 2° around the granule's centre
+says whether the pass has it: Sentinel-3A's lacked most of 2 of 10 passes on 2026-11-20;
+a granule it lacks turns grey, outline and fill, as a GIBS one does. As JPEG on black, the
+picture is 1,024 pixels across, as it is kept for the granule's 50 minutes: a trail of 17
+is 56 MB of textures, 220 MB at GIBS's 2,048. EUMETView's JPEG is white where it has no
+pixels. EUMETView draws a box across the antimeridian, given as running past 180° east,
+so a Sentinel-3 granule there has its picture, which a GIBS one does not.
 
 **A satellite whose granules no provider pictures has its outlines alone**: a `cmr`
 entry of kind `outline`, its `layer` the standard collection, its `granules` as above,
-and no tiles: NOAA-21's, beside its daily VIIRS layer. It is a granule layer whose
+and no tiles: NOAA-21's beside its daily VIIRS layer, and Terra's and Aqua's MODIS and
+PACE's OCI. It is a granule layer whose
 granules all keep their outline in the replay's colour, as nothing is missing from it;
 its card says "Outlines only" where a picture would be, and a station's rows say "Outline
 only". When GIBS has NOAA-21 granules, the entry becomes a GIBS one like NOAA-20's.
@@ -73,14 +98,18 @@ the track to its swath extents, the ground track ribbon's at the satellite. Whil
 satellite drawn is over a granule, the granule is a ground primitive in its outline whose
 shader discards what lies ahead of that plane and shows, behind it, GIBS's WMS picture of
 the granule (2,048 pixels across as JPEG, 577 KB for one over Europe; PNG was 5 MB), or
-for a `cmr` layer a faint fill, which it keeps. Once the satellite has passed every corner,
-the granule gets its outline and tile layer, and the picture's fill goes when the layer's
-tiles have come. The fill, the fan and the ribbon so meet at the satellite drawn, wherever
+for a `cmr` layer a faint fill. Once the satellite has passed every corner, the granule
+gets its outline and, for GIBS, its tile layer, and the picture's fill goes when the
+layer's tiles have come; a `cmr` or EUMETView granule keeps its fill. A fill is a ground
+primitive, drawn over every imagery layer, where a GIBS granule's tile layer takes its
+place among them: another instrument's layer turned on later lies over GIBS's granules,
+and under EUMETView's. The fill, the fan and the ribbon so meet at the satellite drawn, wherever
 an old element set puts it: an old NOAA-20 granule fills up to 17 s early or late, not
 with its edge apart from the fan. A granule more than two minutes past its end counts as
 passed, as the plane, through the Earth, turns back toward it half an orbit later; one
-across the antimeridian or near a pole fills without a picture, and one GIBS has no
-pixels of fills grey, as its outline will be.
+more than 90° of longitude across, near a pole, fills without a picture, as does a GIBS
+one across the antimeridian; one its provider has no pixels of fills grey, as its outline
+will be.
 
 **The fill is shaded as the globe shades its tiles.** A ground primitive gets none of the
 globe's shading, so unshaded a granule filling in over Siberia at noon in November read
@@ -92,19 +121,20 @@ to be checked against it when Cesium is upgraded.
 
 **A replay is the layer, the clock and the camera, and nothing else**: the satellite on,
 its granule layer on, the clock set back and playing, and the camera looking straight
-down from 5,000 km, untracked (`CesiumController.replay`). The url already holds the
-first three (`sats`, `imagery`, `time`), so a replay is a link and needs no parameter.
+down from 5,000 km, untracked (`CesiumController.replay`). The url holds the first three
+(`sats`, `imagery`, `time`) and `replay` the station, which nothing else says, so a
+replay is a link that opens with its bar.
 While its layer is on, the satellite has its ground track fan, whether or not the
 component is.
 
 **Two ways to watch the granules**, as there are two questions: what a station saw, and
 what a satellite records as it flies.
 
-- **The swath as sensed is a layer, not a mode.** The satellite's Imagery tab card ("Swath
-  as sensed") and the Map panel's LEO group show it like any layer: it follows the clock,
+- **The recorded swath is a layer, not a mode.** The satellite's Imagery tab card ("Recorded
+  swath", for the data a satellite recorded, which comes hours to a day behind live) and the Map panel's LEO group show it like any layer: it follows the clock,
   wherever the clock is. The card can track the satellite, as the info panel's camera
-  button does. CMR lists a granule about three hours after it is sensed, so nearer live
-  it has nothing: the timeline shades where the layer has granules by day, a day either
+  button does. CMR lists a granule hours after it is sensed (about 3 for VIIRS and MODIS,
+  a day for OLCI), so nearer live it has nothing: the timeline shades where the layer has granules by day, a day either
   side of the clock (`useSensedSpans.ts`), and where the clock is past the newest, the card
   says how far behind live that is and goes to it, keeping the speed and the tracking.
 - **A station's overpass is a replay** (`useOverpassReplay.ts`), started from a pass in the
@@ -125,10 +155,19 @@ what a satellite records as it flies.
 
 ## Consequences
 
-- **NOAA-20 alone has a granule layer with pixels**, NOAA-21 one of outlines. GIBS has
-  the same layer of Suomi NPP, which stopped in November 2026, and of no other
-  satellite. The rest of the proposal's table needs another picture source: MODIS has
-  none per granule, Sentinel-2's are per tile.
+- **NOAA-20 and Suomi NPP have granule layers from GIBS, Sentinel-3A and 3B from
+  EUMETView**, the only ones GIBS has (read 2026-11-21). Suomi NPP's stopped on
+  2026-11-02, and GIBS keeps its granules 90 days. NOAA-21, Terra, Aqua and PACE have
+  outlines: MODIS and OCI have no picture per granule at GIBS, and Sentinel-2's are per tile.
+- **A card pictures the newest granule within 50° of the equator**, as its picture is held
+  there, and "Go to latest" goes to it; Sentinel-3's passes end at 84° S in November. Its
+  hint that nothing is sensed yet still counts from the newest granule.
+- **A Sentinel-3 granule has a picture of fixed detail**, 1.2 km a pixel, where a GIBS
+  granule's tile layer sharpens to 300 m as the camera comes closer.
+- **Sentinel-3's fan is SLSTR's swath, not OLCI's**: the swath is one a satellite, in the
+  core config, and Sentinel-3's is SLSTR's. OLCI's granules are its own.
+- **A granule may end a second before the next starts** (PACE, OLCI), so granules up to a
+  minute apart are one overpass.
 - **Two in five daytime overpasses are outlines only**, as GIBS left those granules out.
   Which it leaves out is not published.
 - **The browser's console shows a 404 for each granule GIBS lacks**: the level-0 probe.
@@ -159,8 +198,9 @@ what a satellite records as it flies.
   that jumps ahead, with the swath before it gone.
 - **Clipping each granule to its outline.** GIBS's granule tiles are transparent outside
   it already; Cesium clips the whole globe, not one layer.
-- **A `replay` url parameter** for the overpass. The clock, the layer and the satellite
-  say it; a second name for it could disagree with them.
+- **A `replay` url parameter naming the overpass.** The clock, the layer and the satellite
+  say it; a second name for it could disagree with them. The parameter names the station
+  alone.
 - **Filling a granule by its own times**, from its start edge to its end edge. True to
   CMR, but on an old NOAA-20 overpass the fill's edge ran up to 125 km from the fan.
 - **The sensor cone as the fan.** It stays round, as other satellites' instruments are;

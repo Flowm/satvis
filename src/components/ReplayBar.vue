@@ -1,4 +1,4 @@
-<!-- A station overpass replay's controls, over the clock while one is on (ADR 0023): what is replayed, a step to the station's overpass before or after, and the way back to live. -->
+<!-- A station overpass replay's controls, over the clock while one is on (ADR 0023). -->
 <template>
   <div v-if="active" class="replay" role="group" aria-label="Overpass replay">
     <UIcon name="lucide:history" class="replay__icon" />
@@ -32,7 +32,7 @@ import type { Overpass } from "@/modules/util/cmrGranules";
 
 dayjs.extend(utc);
 
-/** A replay started from a station's pass; a granule layer shown from its card or the Map panel has none. */
+/** A replay over a station; a granule layer shown from its card or the Map panel has none. */
 const { replay: active, jump, stop } = useOverpassReplay();
 const { now, goLive } = useViewerClock();
 

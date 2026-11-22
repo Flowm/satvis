@@ -130,11 +130,7 @@ export interface TiledImagery {
   format: TileFormat;
   /** A GIBS layer with a frame a day, which GIBS names by its date; any other's it names to the second. */
   daily: boolean;
-  /**
-   * The CMR collections that list a GIBS layer's granules, where it has one frame a
-   * granule: the globe then shows the granules behind the clock, each in its outline,
-   * rather than one frame (ADR 0023).
-   */
+  /** The CMR collections that list the layer's granules, where the globe draws it granule by granule (ADR 0023). */
   granules?: string[];
 }
 
@@ -148,7 +144,10 @@ export interface OutlineImagery {
   granules: string[];
 }
 
-/** A layer the globe draws granule by granule: a GIBS layer of one granule a frame, or a `cmr` one of their outlines. */
+/**
+ * A layer the globe draws granule by granule: a GIBS layer of one granule a frame, a
+ * EUMETView one of a swath an orbit, each granule cut from it, or a `cmr` one of outlines.
+ */
 export type GranuleLayer = DrawnImagery & { granules: string[] };
 
 /** Whether the layer is one of granules, a frame each, which follows the clock (ADR 0023). */
@@ -216,7 +215,7 @@ export function drawnImagery(entry: unknown): DrawnImagery | undefined {
   if (drawing === "gibs" && !daily && !(typeof period === "string" && period.startsWith("PT"))) {
     return undefined;
   }
-  const listed = drawing === "gibs" && !daily ? collections(granules) : [];
+  const listed = drawing !== "georing" && typeof period === "string" && period.startsWith("PT") ? collections(granules) : [];
   return {
     token: imageryToken(drawing, layer),
     provider: drawing,
@@ -232,8 +231,8 @@ export function drawnImagery(entry: unknown): DrawnImagery | undefined {
 export interface ImageryPreview extends Pick<TiledImagery, "provider" | "layer" | "format" | "daily"> {
   /** The last frame's date, of a layer that stopped. */
   end?: string;
-  /** The frame to picture where it is not the latest, as GIBS names it: a granule's start. */
-  at?: string;
+  /** The start (epoch ms) of the granule to picture, where the latest frame is not wanted. */
+  granule?: number;
 }
 
 /** The point a preview is centred on, in degrees. */
@@ -290,10 +289,16 @@ export function imageryPreviewUrl(preview: ImageryPreview, bounds: PreviewBounds
     // Transparent, or the night side of a true colour disc comes back white.
     query.set("FORMAT", "image/png");
     query.set("TRANSPARENT", "TRUE");
+    if (preview.granule !== undefined) {
+      query.set("TIME", granuleFrame("eumetview", preview.granule));
+    }
     return `${EUMETVIEW_WMS}?${query}`;
   }
   query.set("FORMAT", `image/${preview.format}`);
-  const time = preview.at ?? preview.end ?? (preview.daily ? new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10) : undefined);
+  const time =
+    (preview.granule !== undefined ? granuleFrame("gibs", preview.granule) : undefined) ??
+    preview.end ??
+    (preview.daily ? new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10) : undefined);
   if (time !== undefined) {
     query.set("TIME", time);
   }
@@ -301,25 +306,45 @@ export function imageryPreviewUrl(preview: ImageryPreview, bounds: PreviewBounds
 }
 
 /**
- * A GIBS layer's frame `at` (as GIBS names it) over `bounds`, as one WMS picture `width`
- * pixels across, stretched to the bounds' shape in plate carrée. JPEG: a tenth of PNG's
- * size for a granule, black where it has no pixels.
+ * EUMETView stamps the swath of one orbit, a layer's frame, about when its day pass ended,
+ * and answers a time with the frame stamped nearest it. A day pass lasts up to an hour and
+ * the frames come 101 minutes apart, so a granule's start plus this is within 50 minutes of
+ * its own frame. Not the capabilities' frames: they drift from the orbits by 33 minutes a
+ * year (Sentinel-3A and 3B, measured from 2021 to 2026-11-22).
  */
-export function gibsPictureUrl(layer: string, at: string, bounds: PreviewBounds, width: number, height: number): string {
+const EUMETVIEW_PASS_AFTER_MS = 25 * 60 * 1000;
+
+/** The time that names the frame holding the granule that starts at `start` (epoch ms). */
+export function granuleFrame(provider: "gibs" | "eumetview", start: number): string {
+  const at = new Date(provider === "eumetview" ? start + EUMETVIEW_PASS_AFTER_MS : start).toISOString();
+  return `${at.slice(0, 19)}Z`;
+}
+
+/**
+ * The frame of the granule that starts at `start` (epoch ms) over `bounds`, as one WMS
+ * picture `width` pixels across, stretched to the bounds' shape in plate carrée. JPEG: a
+ * tenth of PNG's size for a granule, black where it has no pixels.
+ */
+export function granulePictureUrl(drawn: Pick<TiledImagery, "provider" | "layer">, start: number, bounds: PreviewBounds, width: number, height: number): string {
+  const eumetview = drawn.provider === "eumetview";
   const query = new URLSearchParams({
     SERVICE: "WMS",
     REQUEST: "GetMap",
     VERSION: "1.1.1",
     SRS: "EPSG:4326",
     STYLES: "",
-    LAYERS: layer,
+    LAYERS: drawn.layer,
     WIDTH: String(width),
     HEIGHT: String(height),
     BBOX: [bounds.west, bounds.south, bounds.east, bounds.north].map((value) => value.toFixed(3)).join(","),
     FORMAT: "image/jpeg",
-    TIME: at,
+    TIME: granuleFrame(eumetview ? "eumetview" : "gibs", start),
   });
-  return `${GIBS_WMS}?${query}`;
+  // EUMETView's JPEG is white where it has no pixels.
+  if (eumetview) {
+    query.set("BGCOLOR", "0x000000");
+  }
+  return `${eumetview ? EUMETVIEW_WMS : GIBS_WMS}?${query}`;
 }
 
 /**
@@ -400,11 +425,8 @@ export function shortImageryLabel(label: string): string {
   return short === "" ? label : short;
 }
 
-/**
- * What a granule layer is called where its label is not enough: the swath filling in behind
- * the satellite as the clock runs (ADR 0023), the picture's or the outlines'.
- */
-export const SENSED_SWATH = "Swath as sensed";
+/** What a granule layer is called where its label is not enough: the swath filling in behind the satellite (ADR 0023). */
+export const RECORDED_SWATH = "Recorded swath";
 
 /** A composite's Map panel row stands for no one satellite: it is named by its label's qualifier, "GeoRing", or this. */
 export const COMPOSITE = "Composite";
@@ -459,7 +481,7 @@ export type ImageryLayer = SatelliteImageryLayer | CompositeImageryLayer;
  * satellite, provider and layer: the composites first, then by satellite name. A composite
  * is one layer, in its first satellite's group, which has frames from its earliest
  * satellite's start. A viewer link alone, or a layer that stopped, is the satellite's
- * Imagery tab's to offer. A granule layer is named for what it shows, SENSED_SWATH.
+ * Imagery tab's to offer. A granule layer is named for what it shows, RECORDED_SWATH.
  */
 export function imageryLayers(entries: readonly { name: string; satnum: string; orbitClass: OrbitClass; metadata: { imagery?: unknown } }[]): ImageryLayer[] {
   const layers = new Map<string, SatelliteImageryLayer>();
@@ -482,7 +504,7 @@ export function imageryLayers(entries: readonly { name: string; satnum: string; 
       const key = `${satnum}:${token}`;
       if (layers.has(key)) continue;
       const { instrument, label, detail } = entry;
-      const product = isGranuleLayer(entry.drawn) ? SENSED_SWATH : shortImageryLabel(label);
+      const product = isGranuleLayer(entry.drawn) ? RECORDED_SWATH : shortImageryLabel(label);
       layers.set(key, { kind: "satellite", key, token, group, satellite: name, instrument, label, product, detail });
     }
   }

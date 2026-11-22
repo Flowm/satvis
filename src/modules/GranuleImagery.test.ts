@@ -37,6 +37,8 @@ function shown(
   answerAfterMs: (minutes: number) => number = () => 0,
   /** Whether the satellite followed has passed a granule at a time, both in minutes after START; no satellite where absent. */
   passedAt?: (granule: number, time: number) => boolean | undefined,
+  /** Whether the provider has a layer a granule, as GIBS does, or its fills keep its pixels, as EUMETView's. */
+  layerEach = true,
 ) {
   const fills = new Set<Sensing>();
   let tilesLoaded = true;
@@ -65,7 +67,7 @@ function shown(
     ...(missing !== "outlines only" && {
       pixels: {
         has: ({ start }) => new Promise((resolve) => setTimeout(() => resolve(!missing.includes((start - START) / MINUTE)), answerAfterMs((start - START) / MINUTE))),
-        layer: ({ start }) => ({ layer: { start }, loaded: () => tilesLoaded }),
+        ...(layerEach && { layer: ({ start }: Granule) => ({ layer: { start }, loaded: () => tilesLoaded }) }),
         markMissing: (outline) => {
           outline.missing = true;
         },
@@ -195,6 +197,15 @@ describe("showGranuleImagery", () => {
       await vi.advanceTimersByTimeAsync(0);
       expect(missing.fills()).toEqual([]);
       expect(missing.outlines()).toEqual(["0?"]);
+    });
+
+    test("keeps the fills of a provider without a layer a granule, and marks the outline of one it lacks", async () => {
+      const { layers, outlines, fills, setClock } = shown([granule(0), granule(6)], [6], undefined, behind, false);
+      setClock(12);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(layers()).toEqual([]);
+      expect(fills()).toEqual(["0!", "6!"]);
+      expect(outlines()).toEqual(["0", "6?"]);
     });
 
     test("fills a granule again when the clock goes back over it", async () => {

@@ -359,10 +359,7 @@ export class CesiumController {
     this.viewer.scene.requestRender();
   }
 
-  /**
-   * Each is a layer a frame (FramedImagery.ts), or a layer of one granule a frame, a layer a
-   * granule behind the clock (GranuleImagery.ts), so its layers come and go as the clock moves.
-   */
+  /** Each is a layer a frame (FramedImagery.ts) or a layer a granule (GranuleImagery.ts), so its layers come and go as the clock moves. */
   #showInstrument(drawn: DrawnImagery): Instrument {
     const lifetime = new AbortController();
     // Its place among the others by the time it has a layer: they come and go meanwhile.
@@ -418,10 +415,9 @@ export class CesiumController {
   }
 
   /**
-   * The scan plane of the satellite whose own layer `token` is, while it is drawn, which its
-   * granules fill in behind (ADR 0023). A composite's follows none. Until `signal` aborts,
-   * that satellite has its ground track fan, the scan line's source, whether or not the
-   * component is on.
+   * The scan plane of the satellite whose own layer `token` is, while it is drawn (ADR 0023);
+   * a composite's follows none. Until `signal` aborts, that satellite shows its ground track
+   * fan whether or not the component is on.
    */
   #scanOf(token: string, signal: AbortSignal): (time: JulianDate) => ScanPlane | undefined {
     let sat: SatelliteComponentCollection | undefined;

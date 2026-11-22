@@ -9,7 +9,7 @@ const MINUTE = 60 * 1000;
 const layer = { token: "gibs:L", provider: "gibs", layer: "L", granules: ["C"] } as unknown as GranuleLayer;
 
 function recorded(start: number, end: number, { satellite = "NOAA 20", station = "Munich", day = true } = {}): RecordedOverpass {
-  return { satellite, station, layer, day, overpass: { start: start * MINUTE, end: end * MINUTE, granules: [] } };
+  return { pair: `${satellite}|${station}`, satellite, station, layer, day, overpass: { start: start * MINUTE, end: end * MINUTE, granules: [] } };
 }
 
 function pass(start: number, end: number, name = "NOAA 20", groundStationName = "Munich") {
@@ -37,11 +37,11 @@ describe("recordedFor", () => {
 describe("passTable", () => {
   const options = { nowMs: 1000 * MINUTE, showPast: true, subject: "satellite" as const };
 
-  test("gives a past pass its recorded overpass, and none to a pass to come", () => {
-    const passes = [pass(100, 110), pass(2000, 2010)];
-    const overpasses = [recorded(101, 109), recorded(2001, 2009)];
+  test("gives each pass its recorded overpass, after the clock too, as in a replay", () => {
+    const passes = [pass(100, 110), pass(1003, 1010), pass(2000, 2010)];
+    const overpasses = [recorded(101, 109), recorded(1004, 1009)];
     const table = passTable(passes.map(row), passes, overpasses, options);
-    expect(table.map((entry) => entry.recorded)).toEqual([overpasses[0], undefined]);
+    expect(table.map((entry) => entry.recorded)).toEqual([overpasses[0], overpasses[1], undefined]);
     expect(table[0]).toMatchObject({ primary: "1°" });
   });
 
@@ -50,7 +50,7 @@ describe("passTable", () => {
     const old = recorded(100, 110);
     const table = passTable(passes.map(row), passes, [old, recorded(200, 210, { day: false }), recorded(1500, 1510)], options);
     expect(table.map((entry) => entry.startMs)).toEqual([100 * MINUTE, 500 * MINUTE]);
-    expect(table[0]).toMatchObject({ name: "NOAA 20", countdown: "ended", primary: "", recorded: old });
+    expect(table[0]).toMatchObject({ name: "NOAA 20", countdown: "ended", primary: "–", recorded: old });
     expect(passTable(passes.map(row), passes, [old], { ...options, showPast: false })).toHaveLength(1);
   });
 

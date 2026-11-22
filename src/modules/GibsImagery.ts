@@ -116,7 +116,7 @@ const granulePixels = new Map<string, Promise<boolean>>();
 const MIN_OPAQUE_PIXELS = 50;
 
 /** The opaque pixels of a tile, or undefined where it cannot be decoded here. */
-async function opaquePixels(tile: Blob): Promise<number | undefined> {
+export async function opaquePixels(tile: Blob): Promise<number | undefined> {
   if (typeof createImageBitmap !== "function" || typeof OffscreenCanvas !== "function") {
     return undefined;
   }

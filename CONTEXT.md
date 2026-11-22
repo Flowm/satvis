@@ -86,21 +86,21 @@ discussion; sharpen them here when they drift.
 - **Granule**: a few minutes of one instrument's swath as its provider files it: six
   minutes for VIIRS, with its start, whether it was sensed by day, and the ground it
   covers, as NASA's CMR lists it (`Granule` in `src/modules/util/cmrGranules.ts`).
-- **Granule layer**: instrument imagery of one granule a frame, whose entry names the CMR
-  collections that list its granules (`granules`). The globe shows it as the granules
+- **Granule layer**: instrument imagery shown granule by granule, whose entry names the CMR
+  collections that list its granules (`granules`): a GIBS layer of one granule a frame, or a
+  EUMETView one of a swath an orbit, cut to each granule. The globe shows it as the granules
   behind the clock, not one frame: each appears, outline and pixels, once the clock passes
   its start, and goes 50 minutes later (`GranuleImagery.ts`, ADR 0023). Where the
   satellite is drawn, the granule under it fills in behind the ground track fan instead, and
   gets its outline and layer once the satellite has passed it. A `cmr` entry,
   of kind `outline`, is one with the outlines alone, for a satellite whose granules no
-  provider pictures. Called the "swath as sensed" where its label is not enough
-  (`SENSED_SWATH`); the timeline shades where it has granules.
+  provider pictures. Called the "recorded swath" where its label is not enough
+  (`RECORDED_SWATH`); the timeline shades where it has granules.
 - **Overpass replay**: the clock set back to a pass over a station and playing, with the
   camera above the station and, where CMR recorded the pass by day, its granule layer on,
   so the swath builds up behind the satellite. Started from a pass in the Passes table; the
   replay bar over the clock steps to the station's overpass before or after and exits.
-  Nothing of it but the station is its own state: a replay is a link with `imagery` and
-  `time`. Not the swath as sensed, a layer that follows the clock wherever it is.
+  A replay is a link: `imagery`, `time` and `replay`, the station. Not the recorded swath, a layer that follows the clock wherever it is.
 - **Data availability**: what satvis has for a satellite: instrument imagery (as a map
   layer the globe draws, or as a viewer link only), CEOS instruments, a 3D model. A
   catalog facet whose picks are all-of (`docs/adr/0021-finding-imagery.md`).

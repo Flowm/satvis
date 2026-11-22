@@ -14,6 +14,8 @@ dayjs.extend(utc);
 
 /** An overpass CMR lists of one satellite's granule layer over one station. */
 export interface RecordedOverpass {
+  /** Its satellite, station and layer as one key. */
+  pair: string;
   satellite: string;
   station: string;
   layer: GranuleLayer;
@@ -71,7 +73,8 @@ export function passTable(
   const used = new Set<RecordedOverpass>();
   const table: PassTableRow[] = rows.map((row, index) => {
     const pass = passes[index]!;
-    const match = pass.start <= nowMs ? recordedFor(pass, recorded) : undefined;
+    // Not only passes before the clock: a replay sets the clock back before the pass it replays.
+    const match = recordedFor(pass, recorded);
     if (match === undefined) return row;
     used.add(match);
     return { ...row, recorded: match };
@@ -88,8 +91,9 @@ export function passTable(
       countdown: end < nowMs ? "ended" : "ongoing",
       startLabel: dayjs.utc(start).format("MM-DD HH:mm:ss"),
       endLabel: dayjs.utc(end).format("HH:mm:ss"),
-      primary: "",
-      secondary: "",
+      // The predictor looks back a day: older passes have no elevation or azimuth.
+      primary: "–",
+      secondary: "–",
       startMs: start,
       recorded: entry,
     });

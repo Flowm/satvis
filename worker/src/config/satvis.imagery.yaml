@@ -17,11 +17,14 @@
 # under the satellite, measured from a tile on 2026-11-12. An entry without them is a
 # link only.
 #
-# `granules` names the NASA CMR collections that list a GIBS layer's granules, the
-# near-real-time one first: a layer of one granule a frame, which the web app replays
-# behind the clock, each granule in its outline (ADR 0023). A `cmr` entry, `kind: outline`,
-# names a satellite's collections where no provider has its granules' pixels: the outlines
-# alone, with no tiles.
+# `granules` lists the NASA CMR collections that list a layer's granules, by concept id,
+# the near-real-time one first: CMR's id pins a collection and its version, where short
+# names repeat (MODIS's near-real-time and standard collections are both MOD03). An entry
+# with `granules` is one the web app replays behind the clock, each granule in its outline
+# (ADR 0023), and its `period` is the granules': a GIBS layer of one granule a frame, or a
+# EUMETView one of a swath an orbit, cut to each granule. A `cmr` entry, `kind: outline`,
+# is a satellite's granule outlines where no provider has their pixels, with no tiles.
+# Every collection here was read from CMR on 2026-11-21; the comment beside its ids names them.
 #
 # Layer ids, periods, first frames and tile sets were read from each provider's
 # capabilities on 2026-11-11. Re-check an entry there before copying it: a layer that stops keeps its
@@ -40,6 +43,14 @@ satellites:
           format: jpeg
           period: P1D
           start: 2000-02-24
+        # MOD03 6.1NRT, MOD03 6.1: the geolocation, which every MODIS product shares.
+        - provider: cmr
+          layer: MOD03
+          label: Outlines only
+          kind: outline
+          period: PT5M
+          start: 2000-02-24
+          granules: [C1426422512-LANCEMODIS, C1379767668-LAADS]
       MISR:
         # Ended. The nadir camera's, one of nine.
         - provider: gibs
@@ -64,6 +75,14 @@ satellites:
           format: jpeg
           period: P1D
           start: 2002-07-03
+        # MYD03 6.1NRT, MYD03 6.1.
+        - provider: cmr
+          layer: MYD03
+          label: Outlines only
+          kind: outline
+          period: PT5M
+          start: 2002-07-04
+          granules: [C1426640814-LANCEMODIS, C1379841358-LAADS]
 
   - noradId: 37849
     name: SUOMI NPP
@@ -80,6 +99,18 @@ satellites:
           period: P1D
           start: 2015-11-24
           end: 2026-11-02
+        # VNP03MOD 2. Its near-real-time collection, VNP03MOD_NRT, has none left; GIBS keeps
+        # the granules 90 days, to the end of January 2027.
+        - provider: gibs
+          layer: VIIRS_SNPP_CorrectedReflectance_TrueColor_Granule
+          label: True colour
+          kind: rgb
+          maxLevel: 9
+          format: png
+          period: PT6M
+          end: 2026-11-02
+          window: P90D
+          granules: [C2105092427-LAADS]
 
   - noradId: 43013
     name: NOAA 20 (JPSS-1)
@@ -97,13 +128,13 @@ satellites:
         # leaves out about two in five of the daytime ones, which keep their outline.
         - provider: gibs
           layer: VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule
-          label: True colour granules
+          label: True colour
           kind: rgb
           maxLevel: 9
           format: png
           period: PT6M
           window: P90D
-          granules: [VJ103MOD_NRT, VJ103MOD]
+          granules: [C2208781576-LANCEMODIS, C2105084593-LAADS] # VJ103MOD_NRT 2.1, VJ103MOD 2.1
 
   - noradId: 54234
     name: NOAA 21 (JPSS-2)
@@ -121,11 +152,11 @@ satellites:
         # until it has one.
         - provider: cmr
           layer: VJ203MOD
-          label: Granule outlines
+          label: Outlines only
           kind: outline
           period: PT6M
           start: 2023-02-10
-          granules: [VJ203MOD_NRT, VJ203MOD]
+          granules: [C3383721151-LANCEMODIS, C3478458790-LAADS] # VJ203MOD_NRT 2.1, VJ203MOD 2.1
 
   - noradId: 58928
     name: PACE
@@ -139,6 +170,14 @@ satellites:
           format: jpeg
           period: P1D
           start: 2024-02-25
+        # PACE_OCI_L1B_SCI 3: by day only, as OCI senses.
+        - provider: cmr
+          layer: PACE_OCI_L1B_SCI
+          label: Outlines only
+          kind: outline
+          period: PT5M
+          start: 2024-03-05
+          granules: [C3392966952-OB_CLOUD]
       SPEXone:
         - provider: gibs
           layer: SPEXONE_PACE_True_Color
@@ -189,26 +228,32 @@ satellites:
     name: SENTINEL-3A
     instruments:
       OLCI:
-        # One swath an orbit, so no period.
+        # A swath an orbit, cut to the granules of OLCIS3A_L1_EFR 1, by day only. CMR lists
+        # a granule about a day after it is sensed.
         - provider: eumetview
           layer: copernicus:sentinel3a_olci_l1_rgb_fullres
-          label: True colour, one swath per orbit
+          label: True colour
           kind: rgb
           maxLevel: 8
           format: png
+          period: PT3M
           start: 2020-02-17
+          granules: [C1577017384-OB_DAAC]
 
   - noradId: 43437
     name: SENTINEL-3B
     instruments:
       OLCI:
+        # OLCIS3B_L1_EFR 1, as Sentinel-3A's.
         - provider: eumetview
           layer: copernicus:sentinel3b_olci_l1_rgb_fullres
-          label: True colour, one swath per orbit
+          label: True colour
           kind: rgb
           maxLevel: 8
           format: png
+          period: PT3M
           start: 2020-02-17
+          granules: [C1615893450-OB_DAAC]
 
   # The layers below are named for a service, not a satellite: GOES-East, Meteosat's
   # full disc. Each is listed under the satellite that provides the service now, and

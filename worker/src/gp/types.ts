@@ -271,10 +271,11 @@ export interface SatelliteImagery {
   /** The type of its tiles. */
   format?: TileFormat;
   /**
-   * The NASA CMR collections that list the layer's granules and their outlines, by short
-   * name, the near-real-time one first: a GIBS layer of one granule a frame, which an app
-   * replays granule by granule along the satellite's track, or a `cmr` layer, which has
-   * the outlines alone (ADR 0023).
+   * The NASA CMR collections that list the layer's granules and their outlines, by concept
+   * id ("C2208781576-LANCEMODIS"), the near-real-time one first. An app replays the layer
+   * granule by granule along the satellite's track (ADR 0023): a GIBS layer of one granule
+   * a frame, a EUMETView one of a swath an orbit, cut to each granule, or a `cmr` layer,
+   * which has the outlines alone. Its `period` is then the granules'.
    */
   granules?: string[];
 }

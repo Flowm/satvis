@@ -5,10 +5,10 @@ import { fetchGranules, granuleExtent, granuleSearchUrl, groupOverpasses, parseG
 const MINUTE = 60 * 1000;
 
 /** An entry of CMR's JSON feed, as it answered on 2026-11-20. */
-function entry(start: string, collection = "VJ103MOD_NRT", dayNight = "DAY") {
+function entry(start: string, collection = "C2208781576-LANCEMODIS", dayNight = "DAY") {
   const startMs = Date.parse(start);
   return {
-    producer_granule_id: `${collection}.A2026324.0954.021.2026324113215.nc`,
+    collection_concept_id: collection,
     time_start: new Date(startMs).toISOString(),
     time_end: new Date(startMs + 6 * MINUTE).toISOString(),
     day_night_flag: dayNight,
@@ -27,8 +27,8 @@ describe("parseGranule", () => {
   });
 
   test("counts a granule CMR calls BOTH as day, and NIGHT not", () => {
-    expect(parseGranule(entry("2026-11-20T09:54:00Z", "VJ103MOD", "BOTH"))?.day).toBe(true);
-    expect(parseGranule(entry("2026-11-20T09:54:00Z", "VJ103MOD", "NIGHT"))?.day).toBe(false);
+    expect(parseGranule(entry("2026-11-20T09:54:00Z", "C2105084593-LAADS", "BOTH"))?.day).toBe(true);
+    expect(parseGranule(entry("2026-11-20T09:54:00Z", "C2105084593-LAADS", "NIGHT"))?.day).toBe(false);
   });
 
   test.each([
@@ -57,16 +57,22 @@ describe("granuleSearchUrl", () => {
   test("asks for each collection, the times, a point as longitude and latitude, by start", () => {
     const url = new URL(
       granuleSearchUrl({
-        collections: ["VJ103MOD_NRT", "VJ103MOD"],
+        collections: ["C2208781576-LANCEMODIS", "C2105084593-LAADS"],
         start: Date.parse("2026-11-20T00:00:00Z"),
         end: Date.parse("2026-11-21T00:00:00Z"),
         point: { latitude: 48.1, longitude: 11.5 },
       }),
     );
-    expect(url.searchParams.getAll("short_name")).toEqual(["VJ103MOD_NRT", "VJ103MOD"]);
+    expect(url.searchParams.getAll("collection_concept_id")).toEqual(["C2208781576-LANCEMODIS", "C2105084593-LAADS"]);
     expect(url.searchParams.get("temporal")).toBe("2026-11-20T00:00:00.000Z,2026-11-21T00:00:00.000Z");
     expect(url.searchParams.get("point")).toBe("11.5,48.1");
     expect(url.searchParams.get("sort_key")).toBe("start_date");
+  });
+
+  test("asks for the newest few, newest first", () => {
+    const url = new URL(granuleSearchUrl({ collections: ["C1-P"], start: 0, end: 1, newest: 36 }));
+    expect(url.searchParams.get("page_size")).toBe("36");
+    expect(url.searchParams.get("sort_key")).toBe("-start_date");
   });
 });
 
@@ -75,12 +81,18 @@ describe("fetchGranules", () => {
     vi.unstubAllGlobals();
   });
 
-  const query = { collections: ["VJ103MOD_NRT", "VJ103MOD"], start: 0, end: 1 };
+  const query = { collections: ["C2208781576-LANCEMODIS", "C2105084593-LAADS"], start: 0, end: 1 };
 
   test("keeps one granule a start, the first collection's, sorted by start, and names the client", async () => {
     const fetch = vi.fn(async () =>
       Response.json({
-        feed: { entry: [entry("2026-11-20T10:00:00Z", "VJ103MOD"), entry("2026-11-20T09:54:00Z", "VJ103MOD"), entry("2026-11-20T09:54:00Z", "VJ103MOD_NRT", "BOTH")] },
+        feed: {
+          entry: [
+            entry("2026-11-20T10:00:00Z", "C2105084593-LAADS"),
+            entry("2026-11-20T09:54:00Z", "C2105084593-LAADS"),
+            entry("2026-11-20T09:54:00Z", "C2208781576-LANCEMODIS", "BOTH"),
+          ],
+        },
       }),
     );
     vi.stubGlobal("fetch", fetch);
@@ -106,10 +118,10 @@ describe("fetchGranules", () => {
 });
 
 describe("groupOverpasses", () => {
-  test("joins granules that follow one another, and parts those with a gap", () => {
-    const granules = ["09:54", "10:00", "10:06", "11:36"].map((time) => parseGranule(entry(`2026-11-20T${time}:00Z`))!);
+  test("joins granules that follow one another, within a second or so, and parts those with a gap", () => {
+    const granules = ["09:54:00", "10:00:01", "10:06:01", "11:36:00"].map((time) => parseGranule(entry(`2026-11-20T${time}Z`))!);
     const overpasses = groupOverpasses(granules);
     expect(overpasses.map(({ granules: members }) => members.length)).toEqual([3, 1]);
-    expect(overpasses[0]!.end - overpasses[0]!.start).toBe(18 * MINUTE);
+    expect(overpasses[0]!.end - overpasses[0]!.start).toBe(18 * MINUTE + 1000);
   });
 });

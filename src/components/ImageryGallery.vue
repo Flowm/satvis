@@ -24,9 +24,8 @@
         <span class="card__badge">{{ instrument }}</span>
         <span v-if="imagery.preview?.end" class="card__badge card__badge--ended">Ended {{ imagery.preview.end }}</span>
       </div>
-      <!-- A granule layer follows the clock: the swath fills in behind the satellite as it flies, hours behind live. -->
       <div v-if="imagery.granuleLayer" class="card__body">
-        <div class="card__title">{{ SENSED_SWATH }}</div>
+        <div class="card__title">{{ RECORDED_SWATH }}</div>
         <div class="card__detail">{{ imagery.label }}, as the clock runs</div>
         <div class="card__actions">
           <USwitch
@@ -44,7 +43,8 @@
         <!-- NASA lists a granule about 3 hours after it is sensed: nearer live there is nothing to show. -->
         <div v-if="isShown(imagery) && aheadOfData(imagery)" class="card__hint" @click.stop>
           <UIcon name="lucide:clock-alert" class="card__hint-icon" />
-          <span>Nothing sensed yet at this time. The latest is {{ behindLive(latest.get(imagery.key)!) }} behind live.</span>
+          <span v-if="imagery.preview?.end">Nothing sensed at this time. The layer ended on {{ imagery.preview.end }}.</span>
+          <span v-else>Nothing sensed yet at this time. The latest is {{ behindLive(latest.get(imagery.key)!.newest) }} behind live.</span>
           <button type="button" class="card__hint-action" @click="goToLatest(imagery)">Go to latest</button>
         </div>
         <a v-if="imagery.href" class="card__open card__open--below" :href="imagery.href" :title="`Open in ${imagery.viewer}`" target="_blank" rel="noopener" @click.stop>
@@ -82,12 +82,11 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, useTemplateRef, w
 import { useController } from "@/composables/useController";
 import { useSelectedEntity } from "@/composables/useSelectedEntity";
 import { useViewerClock } from "@/composables/useViewerClock";
-import { imageryPreviewUrl, isGranuleLayer, SENSED_SWATH, PREVIEW_HEIGHT, PREVIEW_WIDTH, type PreviewCentre, previewBounds } from "@/config/instrumentImagery";
+import { imageryPreviewUrl, isGranuleLayer, RECORDED_SWATH, PREVIEW_HEIGHT, PREVIEW_WIDTH, type PreviewCentre, previewBounds } from "@/config/instrumentImagery";
 import { geoMosaicPreview } from "@/modules/GeoMosaicImagery";
-import { AFTER_OVERPASS_MS, granuleCentre, latestGranule, REPLAY_LEAD_MS } from "@/modules/overpassReplay";
+import { AFTER_OVERPASS_MS, granuleCentre, latestGranule, type LatestGranules, REPLAY_LEAD_MS } from "@/modules/overpassReplay";
 import type { Granule } from "@/modules/util/cmrGranules";
 import type { ImageryInfo } from "@/modules/util/entityInfo";
-import { formatFrame } from "@/modules/util/timeDomain";
 import { useCesiumStore } from "@/stores/cesium";
 
 /**
@@ -153,7 +152,7 @@ onUnmounted(forgetPreviews);
  * A granule layer's newest day granule with pixels, by card, which it pictures and goes to:
  * its latest frame is a granule that may be by night, or one GIBS left out.
  */
-const latest = reactive(new Map<string, Granule>());
+const latest = reactive(new Map<string, LatestGranules>());
 /** How often the newest granule is asked again while the tab is open: CMR lists one every 6 minutes. */
 const LATEST_REFRESH_MS = 10 * 60 * 1000;
 watch(
@@ -165,8 +164,8 @@ watch(
       for (const { imagery } of layers) {
         const layer = imagery.granuleLayer;
         if (!isGranuleLayer(layer)) continue;
-        void latestGranule(layer, reading.signal).then((granule) => {
-          if (granule !== undefined && !reading.signal.aborted) latest.set(imagery.key, granule);
+        void latestGranule(layer, reading.signal).then((granules) => {
+          if (granules !== undefined && !reading.signal.aborted) latest.set(imagery.key, granules);
         });
       }
     };
@@ -189,19 +188,21 @@ const { now } = useViewerClock();
 
 /** The clock is past the newest granule the layer has, so it shows nothing new. */
 function aheadOfData(imagery: ImageryInfo): boolean {
-  const granule = latest.get(imagery.key);
+  const granule = latest.get(imagery.key)?.newest;
   return granule !== undefined && now.value.getTime() > granule.end + AFTER_OVERPASS_MS;
 }
 
-/** "3 h 12 m". */
+/** "42 min", "3 h 12 min", "1 d 2 h". */
 function behindLive(granule: Granule): string {
   const minutes = Math.max(0, Math.round((Date.now() - granule.start) / 60_000));
-  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours >= 24) return `${Math.floor(hours / 24)} d ${hours % 24} h`;
+  return hours === 0 ? `${minutes} min` : `${hours} h ${minutes % 60} min`;
 }
 
-/** The clock to a few minutes before the newest granule, so the satellite flies onto it; pinned in the url. */
+/** The clock to a few minutes before the newest granule the card pictures, so the satellite flies onto it; pinned in the url. */
 function goToLatest(imagery: ImageryInfo): void {
-  const granule = latest.get(imagery.key);
+  const granule = latest.get(imagery.key)?.pictured;
   if (granule === undefined) return;
   const time = granule.start - REPLAY_LEAD_MS;
   controller.setTime(time);
@@ -211,19 +212,18 @@ function goToLatest(imagery: ImageryInfo): void {
 /** Each card's picture by card: a provider's WMS answer, or one made here. */
 const previews = computed(() => {
   const where = bounds.value;
-  const now = new Date();
+  const asked = new Date();
   return new Map(
     props.layers.flatMap(({ imagery }) => {
-      const granule = latest.get(imagery.key);
+      const granule = latest.get(imagery.key)?.pictured;
       if (imagery.preview && granule !== undefined) {
-        const at = formatFrame(granule.start, false);
         // Held off the antimeridian, where GIBS's WMS draws nothing for a box that crosses it.
         const { latitude, longitude } = granuleCentre(granule);
         const centre = { latitude, longitude: Math.max(-180 + GRANULE_HALF_WIDTH, Math.min(180 - GRANULE_HALF_WIDTH, longitude)) };
-        return [[imagery.key, imageryPreviewUrl({ ...imagery.preview, at }, previewBounds(centre, GRANULE_HALF_WIDTH), now)] as const];
+        return [[imagery.key, imageryPreviewUrl({ ...imagery.preview, granule: granule.start }, previewBounds(centre, GRANULE_HALF_WIDTH), asked)] as const];
       }
       if (!imagery.preview || where === undefined || imagery.granuleLayer) return [];
-      const url = isGeoring(imagery) ? madePreviews.get(imagery.key) : imageryPreviewUrl(imagery.preview, where, now);
+      const url = isGeoring(imagery) ? madePreviews.get(imagery.key) : imageryPreviewUrl(imagery.preview, where, asked);
       return url === undefined ? [] : [[imagery.key, url] as const];
     }),
   );
