@@ -60,3 +60,10 @@ test("a running clock with a ground track is paced at the default view", async (
   await waitForOpenedLinkThumbnail(page);
   await expect.poll(() => page.evaluate(() => window.cc!.viewer.scene.maximumRenderTimeChange), { message: "paced, not the 1/30 s floor" }).toBeGreaterThan(0.1);
 });
+
+// The fan runs from the satellite to its swath's edges on the ground, so it is paced as the ribbon is.
+test("a running clock with a ground track fan is paced at the default view", async ({ page }) => {
+  await openApp(page, "elements=Point,Label,Ground+track+fan");
+  await waitForOpenedLinkThumbnail(page);
+  await expect.poll(() => page.evaluate(() => window.cc!.viewer.scene.maximumRenderTimeChange), { message: "paced, not the 1/30 s floor" }).toBeGreaterThan(0.1);
+});

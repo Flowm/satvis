@@ -14,9 +14,11 @@ import {
   ColorGeometryInstanceAttribute,
   Ellipsoid,
   GeometryInstance,
+  Math as CesiumMath,
   JulianDate,
   PolygonGeometry,
   PolygonHierarchy,
+  Rectangle,
 } from "@cesium/core";
 import {
   Credit,
@@ -106,6 +108,18 @@ const PICTURE_MAX_SPAN = 90;
 
 /** Degrees padded around a granule's picture, so its edge is never sampled at the outline. */
 const PICTURE_MARGIN = 0.5;
+
+/** Degrees padded around a granule's tile layer, for a scan line that is not quite a great circle. */
+const LAYER_MARGIN = 1;
+
+/** Degrees of latitude past which a granule's tile layer covers the globe: its box might miss a pole it covers. */
+const LAYER_MAX_LATITUDE = 80;
+
+/**
+ * Points taken along each edge of a granule for its tile layer's box. Between two corners at 70°,
+ * a 2,800 km edge, a VIIRS scan line's, bows 4.3° toward the pole, past their box.
+ */
+const EDGE_STEPS = 16;
 
 /** WGS84's 1 - e², from geocentric to geodetic latitude on the surface. */
 const POLAR_RATIO_SQUARED = (Ellipsoid.WGS84.radii.z / Ellipsoid.WGS84.radii.x) ** 2;
@@ -252,9 +266,31 @@ function providerPixels(drawn: GranuleLayer, primitives: PrimitiveCollection): G
       provider.errorEvent.addEventListener((error: TileProviderError) => {
         error.retry = error.timesRetried < TILE_RETRIES;
       });
-      return { layer: new ImageryLayer(provider), loaded: trackRequests(provider) };
+      return { layer: new ImageryLayer(provider, { rectangle: layerRectangle(granule) }), loaded: trackRequests(provider) };
     },
   };
+}
+
+/**
+ * Where a granule's tile layer asks for tiles and is drawn: its box. Without one, each granule of
+ * a trail asked for a tile wherever the globe had one, nearly all transparent, and every globe tile
+ * sampled each. Undefined, the whole globe, for one across the antimeridian or near a pole.
+ */
+export function layerRectangle(granule: Granule): Rectangle | undefined {
+  const corners = granule.outline.map(({ latitude, longitude }) => Cartesian3.fromDegrees(longitude, latitude, 0, Ellipsoid.UNIT_SPHERE));
+  const along = new Cartesian3();
+  const edges = corners.flatMap((corner, index) => {
+    const next = corners[(index + 1) % corners.length]!;
+    return Array.from({ length: EDGE_STEPS }, (_, step) => {
+      Cartesian3.normalize(Cartesian3.lerp(corner, next, step / EDGE_STEPS, along), along);
+      return { latitude: CesiumMath.toDegrees(Math.asin(along.z)), longitude: CesiumMath.toDegrees(Math.atan2(along.y, along.x)) };
+    });
+  });
+  const { west, south, east, north } = granuleExtent({ outline: edges });
+  if (west - LAYER_MARGIN < -180 || east + LAYER_MARGIN > 180 || north > LAYER_MAX_LATITUDE || south < -LAYER_MAX_LATITUDE) {
+    return undefined;
+  }
+  return Rectangle.fromDegrees(west - LAYER_MARGIN, south - LAYER_MARGIN, east + LAYER_MARGIN, north + LAYER_MARGIN);
 }
 
 /** Where the satellite a granule layer belongs to scans at a time, while it is drawn. */
@@ -268,14 +304,18 @@ interface GranuleFollow {
   signal: AbortSignal;
 }
 
-/** The granule's picture in its fill, where the provider has its pixels and it is not near a pole; grey where it has none. */
-async function loadPicture(drawn: GranuleLayer, pictures: GranulePictures, granule: Granule, fill: GranuleFill): Promise<void> {
+/**
+ * The granule's picture in its fill, where the provider has its pixels and it is not near a
+ * pole; grey where it has none. Each asks `scene` for its frames, which a paused clock draws none of.
+ */
+async function loadPicture(drawn: GranuleLayer, pictures: GranulePictures, granule: Granule, fill: GranuleFill, scene: Pick<Scene, "requestRender" | "postRender">): Promise<void> {
   const has = await hasPixels(drawn, granule);
   if (fill.gone) {
     return;
   }
   if (!has) {
     fill.material.uniforms.tint = MISSING_FILL_TINT;
+    scene.requestRender();
     return;
   }
   const extent = granuleExtent(granule);
@@ -306,7 +346,16 @@ async function loadPicture(drawn: GranuleLayer, pictures: GranulePictures, granu
   const radians = (degrees: number) => (degrees * Math.PI) / 180;
   fill.material.uniforms.bounds = new Cartesian4(radians(bounds.west), radians(bounds.south), radians(bounds.east), radians(bounds.north));
   fill.material.uniforms.image = image;
-  fill.material.uniforms.picture = 1;
+  // Cesium makes an image's texture in the frame after the one that takes it, and samples its
+  // white default until then: drawn at once, the fill flashed white for a paced frame.
+  const removeListener = scene.postRender.addEventListener(() => {
+    removeListener();
+    if (!fill.gone) {
+      fill.material.uniforms.picture = 1;
+      scene.requestRender();
+    }
+  });
+  scene.requestRender();
 }
 
 /** The picture at `url`, asked for again where the service answers with an error; undefined where each try failed. */
@@ -446,7 +495,7 @@ function sensing(drawn: GranuleLayer, primitives: PrimitiveCollection, follow: G
       primitives.add(primitive);
       fills.add(fill);
       if (drawn.pictures !== undefined) {
-        void loadPicture(drawn, drawn.pictures, granule, fill);
+        void loadPicture(drawn, drawn.pictures, granule, fill, follow.scene);
       }
       return fill;
     },

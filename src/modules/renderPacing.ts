@@ -59,7 +59,13 @@ const CAMERA_RECOMPUTE_MS = 50;
  * The components the bound covers. Any other keeps the floor: links are drawn across the view.
  * Of the sessions in October 2026, about 97% drew only these.
  */
-const PACED_COMPONENTS = new Set(["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model"]);
+const PACED_COMPONENTS = new Set(["Point", "Label", "Orbit", "Orbit track", "Ground track", "Ground track fan", "Sensor cone", "3D model"]);
+
+/**
+ * Drawn by a satellite whose granule layer follows it though the component is off, and with
+ * it the fill behind its scan line (ADR 0023): only `components` of the satellite say so.
+ */
+const FAN = "Ground track fan";
 
 /**
  * Metres either side of a shell: of its samples' radii, or of the mean elements' perigee and
@@ -88,7 +94,7 @@ const MAP_STRETCH_LATITUDE = (85 * Math.PI) / 180;
 const WGS84_ECCENTRICITY_SQUARED = 1 - (Ellipsoid.WGS84.radii.z / Ellipsoid.WGS84.radii.x) ** 2;
 
 /** The components that reach away from their satellite, which 2D takes at the widest stretch. */
-export const REACHING_COMPONENTS: readonly string[] = ["Orbit", "Orbit track", "Sensor cone", "Ground track"];
+export const REACHING_COMPONENTS: readonly string[] = ["Orbit", "Orbit track", "Sensor cone", "Ground track", FAN];
 
 /** The Earth's gravitational parameter, m³/s². */
 const MU_M3_S2 = MU_KM3_S2 * 1e9;
@@ -388,7 +394,8 @@ export class RenderPacer {
       // 7,090 to 46,015 km) is measured to the line.
       angularRate(distanceToShell(cameraRadius, bound.inner - bound.chord / 2 - LINE_DRIFT_METRES, bound.outer + LINE_DRIFT_METRES), bound.speed, horizon);
     // The ribbon lies on the ground under the orbit, its clipped ends following the subpoint, slower
-    // than the satellite.
+    // than the satellite. So does the fan's line on the ground, and the fan between it and the
+    // satellite, each of its points between two that move no faster than the satellite.
     const groundTrackRate = (bound: OrbitBound) => angularRate(distanceToShell(cameraRadius, GROUND_RADIUS_METRES, bound.outer), bound.speed, horizon);
     // Carried with the satellite and turned with its nadir, all within CONE_RADIUS_METERS of it.
     const coneRate = (distance: number, bound: OrbitBound) => angularRate(distance - CONE_RADIUS_METERS, bound.speed + bound.turnRate * CONE_RADIUS_METERS, horizon);
@@ -411,9 +418,10 @@ export class RenderPacer {
       const bound = this.#satelliteBound(satellite.props.orbit, range);
       const shell = distanceToShell(cameraRadius, bound.inner, bound.outer);
       bounds[index] = bound;
+      const ground = groundTracks || satellite.components[FAN] !== undefined;
       // Without samples to hold it to a shell, where it is decides.
       shellRates[index] = range
-        ? Math.max(angularRate(shell, bound.speed, horizon), lines ? lineShell(bound) : 0, groundTracks ? groundTrackRate(bound) : 0, cone ? coneRate(shell, bound) : 0)
+        ? Math.max(angularRate(shell, bound.speed, horizon), lines ? lineShell(bound) : 0, ground ? groundTrackRate(bound) : 0, cone ? coneRate(shell, bound) : 0)
         : Infinity;
     }
 
@@ -444,7 +452,7 @@ export class RenderPacer {
           }
         }
       }
-      if (groundTracks && satellite.components["Ground track"] !== undefined) {
+      if ((groundTracks && satellite.components["Ground track"] !== undefined) || satellite.components[FAN] !== undefined) {
         rate = Math.max(rate, groundTrackRate(bound));
       }
       if (cone) {
@@ -500,7 +508,7 @@ export class RenderPacer {
       }
       const bound = this.#satelliteBound(satellite.props.orbit, satellite.props.trajectory.radiusRange);
       let latitude = MAP_STRETCH_LATITUDE;
-      if (!reaching) {
+      if (!reaching && satellite.components[FAN] === undefined) {
         const position = satellite.props.trajectory.entityPosition?.getValue(time, this.#position);
         if (!position) {
           continue;
