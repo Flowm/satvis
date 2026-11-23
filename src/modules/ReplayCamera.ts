@@ -29,9 +29,20 @@ function swathScaleM(swathKm: number): number {
 /** The chase's angle below the horizontal, onto the ground under the satellite. */
 const CHASE_PITCH = CesiumMath.toRadians(50);
 
-/** The chase's distance from the ground under the satellite, metres. */
-function chaseRangeM(swathKm: number): number {
-  return 0.8 * swathScaleM(swathKm) + 700_000;
+/**
+ * The most the satellite may sit above the chase's aim, radians: NOAA-20's 12°, inside the
+ * 14° half of the field of view a 21:9 screen has up. Closer in, as the narrow swaths' range
+ * once was, Landsat's sat 35° up, off the screen.
+ */
+const CHASE_MAX_TILT = CesiumMath.toRadians(12);
+
+/**
+ * The chase's distance from the ground under the satellite, metres: the swath's, or further
+ * where the satellite would sit more than CHASE_MAX_TILT above the ground under it.
+ */
+function chaseRangeM(swathKm: number, altitudeM: number): number {
+  const keepsSatelliteInView = altitudeM / (Math.sin(CHASE_PITCH) - Math.cos(CHASE_PITCH) * Math.tan(CHASE_PITCH - CHASE_MAX_TILT));
+  return Math.max(0.8 * swathScaleM(swathKm) + 700_000, keepsSatelliteInView);
 }
 
 /**
@@ -39,7 +50,7 @@ function chaseRangeM(swathKm: number): number {
  * the orbit's normal and up. Behind it and above, looking at the ground under it from CHASE_PITCH.
  */
 export function chaseOffset(swathKm: number, altitudeM: number, result = new Cartesian3()): Cartesian3 {
-  const range = chaseRangeM(swathKm);
+  const range = chaseRangeM(swathKm, altitudeM);
   return Cartesian3.fromElements(-range * Math.cos(CHASE_PITCH), 0, range * Math.sin(CHASE_PITCH) - altitudeM, result);
 }
 
@@ -49,7 +60,7 @@ export function chaseOffset(swathKm: number, altitudeM: number, result = new Car
  * the satellite sits up the screen and the swath fills the rest.
  */
 export function chaseTilt(swathKm: number, altitudeM: number): number {
-  const range = chaseRangeM(swathKm);
+  const range = chaseRangeM(swathKm, altitudeM);
   return CHASE_PITCH - Math.atan2(range * Math.sin(CHASE_PITCH) - altitudeM, range * Math.cos(CHASE_PITCH));
 }
 
