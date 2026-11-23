@@ -137,8 +137,13 @@ and under EUMETView's. The fill, the fan and the ribbon so meet at the satellite
 an old element set puts it: an old NOAA-20 granule fills up to 17 s early or late, not
 with its edge apart from the fan. A granule more than two minutes past its end counts as
 passed, as the plane, through the Earth, turns back toward it half an orbit later; one
-more than 90° of longitude across, near a pole, fills without a picture; one its provider has no pixels of fills grey, as its outline
-will be.
+more than 90° of longitude across, near a pole, is pictured in polar stereographic where
+EUMETView draws it (EPSG:3995 and 3976) and fills without a picture otherwise, as plate
+carrée would be mostly stretch; one its provider has no pixels of fills grey, as its outline
+will be. CMR splits a granule across the antimeridian in two, joined again as the Data
+Store's are, and closes one over a pole with a cut up the antimeridian and round the pole,
+left out: read as given, Metop-B's 2026-11-19T19:00Z granule was the sliver east of 180°
+and the next one drew the cut as a line across Antarctica.
 
 **The fill is shaded as the globe shades its tiles.** A ground primitive gets none of the
 globe's shading, so unshaded a granule filling in over Siberia at noon in November read

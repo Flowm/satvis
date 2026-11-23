@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { fetchGranules, granuleExtent, granuleKey, granuleSearchUrl, groupOverpasses, parseGranule } from "./cmrGranules";
+import { fetchGranules, granuleExtent, granuleKey, granuleSearchUrl, groupOverpasses, parseGranule, withoutPoleCut } from "./cmrGranules";
 
 const MINUTE = 60 * 1000;
 
@@ -34,6 +34,22 @@ describe("parseGranule", () => {
     expect(parseGranule(entry("2026-11-20T21:54:00Z", "C2205121394-POCLOUD", "UNSPECIFIED"))?.day).toBe(false);
   });
 
+  test("joins the parts CMR splits a granule into at the antimeridian", () => {
+    // Metop-B's AVHRR, 2026-11-19T19:00Z: its first part alone was a sliver east of 180°.
+    const granule = parseGranule({
+      ...entry("2026-11-19T19:00:00Z", "C2205121394-POCLOUD", "UNSPECIFIED"),
+      polygons: [
+        ["-52.09473 170.92676 -55.43262 180 -42.13379 180 -52.09473 170.92676"],
+        [
+          "-19.97949 -169.02441 -32.27832 -174.1543 -42.13379 -180 -55.43262 -180 -59.09082 -162.30371 -59.95508 -142.99414 -45.34473 -143.42871 -25.74902 -141.63477 -23.50293 -155.42871 -19.97949 -169.02441",
+        ],
+      ],
+    })!;
+    expect(granule.outline).toHaveLength(11);
+    expect(granule.outline.at(-1)).toEqual(granule.outline[0]);
+    expect(granuleExtent(granule)).toEqual({ west: 170.92676, south: -59.95508, east: 218.36523, north: -19.97949 });
+  });
+
   test.each([
     [{ ...entry("2026-11-20T09:54:00Z"), polygons: undefined }],
     [{ ...entry("2026-11-20T09:54:00Z"), polygons: [["1 2 3"]] }],
@@ -41,6 +57,21 @@ describe("parseGranule", () => {
     [null],
   ])("leaves out an entry without times or a polygon: %#", (raw) => {
     expect(parseGranule(raw)).toBeUndefined();
+  });
+});
+
+describe("withoutPoleCut", () => {
+  const points = (...pairs: [number, number][]) => pairs.map(([latitude, longitude]) => ({ latitude, longitude }));
+
+  test("leaves out the pole and the antimeridian that leads to it", () => {
+    // Metop-B's AVHRR, 2026-11-19T19:10Z, cut short.
+    const ring = points([-90, -180], [-90, 0], [-90, 180], [-55.4, 180], [-67.6, 101.4], [-85.4, 4.7], [-69.5, -140.4], [-55.4, -180], [-90, -180]);
+    expect(withoutPoleCut(ring)).toEqual(points([-55.4, 180], [-67.6, 101.4], [-85.4, 4.7], [-69.5, -140.4], [-55.4, 180]));
+  });
+
+  test("keeps a ring that does not reach a pole", () => {
+    const ring = points([10, 10], [10, 20], [20, 20], [10, 10]);
+    expect(withoutPoleCut(ring)).toBe(ring);
   });
 });
 

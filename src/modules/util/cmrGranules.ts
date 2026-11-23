@@ -5,7 +5,7 @@
 //
 // Cesium-free, so node-env vitest reads it.
 
-import { DATA_STORE_COLLECTION_RE, fetchDataStoreGranules } from "./eumetsatGranules";
+import { DATA_STORE_COLLECTION_RE, fetchDataStoreGranules, joinAtAntimeridian } from "./eumetsatGranules";
 import { sunlit } from "./granuleDay";
 
 const CMR = "https://cmr.earthdata.nasa.gov/search/granules.json";
@@ -32,7 +32,7 @@ export interface Granule {
   end: number;
   /** Sensed at least partly by day; a true colour picture has nothing of a night granule. */
   day: boolean;
-  /** The ground it covers, a closed ring: CMR's outer polygon, its last point the first. */
+  /** The ground it covers, a closed ring, its last point the first: CMR's outer polygon, a ring across the antimeridian unwrapped past it. */
   outline: GroundPoint[];
 }
 
@@ -75,6 +75,42 @@ function parseRing(ring: unknown): GroundPoint[] | undefined {
   return points;
 }
 
+/**
+ * A ring round a pole without the cut CMR closes it with, up the antimeridian to the pole,
+ * along it and back: drawn, the cut was a line across the cap. The ring alone still encloses
+ * the pole. Any other ring as it is.
+ */
+export function withoutPoleCut(ring: GroundPoint[]): GroundPoint[] {
+  const open = ring.slice(0, -1).filter(({ latitude }) => Math.abs(latitude) < 90);
+  if (open.length === ring.length - 1) {
+    return ring;
+  }
+  // The cut's two ends, at 180° and -180°, are one point.
+  const same = (a: GroundPoint, b: GroundPoint) => a.latitude === b.latitude && (a.longitude - b.longitude) % 360 === 0;
+  const kept = open.filter((point, i) => !same(point, open[(i + 1) % open.length]!));
+  return kept.length < 3 ? ring : [...kept, kept[0]!];
+}
+
+/**
+ * An entry's outline: its outer ring, or the parts CMR splits a granule into at the
+ * antimeridian joined. Where they do not join, the largest part.
+ */
+function parseOutline(polygons: unknown): GroundPoint[] | undefined {
+  if (!Array.isArray(polygons)) {
+    return undefined;
+  }
+  const parts = polygons.map((polygon) => (Array.isArray(polygon) ? parseRing(polygon[0]) : undefined));
+  if (parts.length === 0 || parts.includes(undefined)) {
+    return undefined;
+  }
+  const rings = parts as GroundPoint[][];
+  if (rings.length === 1) {
+    return rings[0];
+  }
+  const joined = joinAtAntimeridian(rings.map((ring) => ring.map(({ latitude, longitude }): [number, number] => [longitude, latitude])));
+  return joined?.map(([longitude, latitude]) => ({ latitude, longitude })) ?? rings.toSorted((a, b) => b.length - a.length)[0];
+}
+
 /** One entry of CMR's JSON feed, or undefined for one without times or a polygon. */
 export function parseGranule(entry: unknown): Granule | undefined {
   if (typeof entry !== "object" || entry === null) {
@@ -83,13 +119,13 @@ export function parseGranule(entry: unknown): Granule | undefined {
   const { time_start, time_end, day_night_flag, polygons } = entry as Record<string, unknown>;
   const start = typeof time_start === "string" ? Date.parse(time_start) : Number.NaN;
   const end = typeof time_end === "string" ? Date.parse(time_end) : Number.NaN;
-  const outline = Array.isArray(polygons) && Array.isArray(polygons[0]) ? parseRing(polygons[0][0]) : undefined;
-  if (!Number.isFinite(start) || !Number.isFinite(end) || outline === undefined) {
+  const ring = parseOutline(polygons);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || ring === undefined) {
     return undefined;
   }
   // NOAA's Metop granules say neither: the sun does.
-  const day = day_night_flag === "DAY" || day_night_flag === "BOTH" ? true : day_night_flag === "NIGHT" ? false : sunlit(outline, start, end);
-  return { start, end, day, outline };
+  const day = day_night_flag === "DAY" || day_night_flag === "BOTH" ? true : day_night_flag === "NIGHT" ? false : sunlit(ring, start, end);
+  return { start, end, day, outline: withoutPoleCut(ring) };
 }
 
 /** CMR's address for `query`, sorted by start, or newest first for `newest`. */

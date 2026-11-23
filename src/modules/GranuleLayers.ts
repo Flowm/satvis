@@ -38,7 +38,8 @@ import {
 
 import { type GranuleLayer, type GranulePictures, granulePictureUrl, type PreviewBounds } from "@/config/instrumentImagery";
 import { catalogueQuery, granuleCentre, hasPixels } from "@/modules/overpassReplay";
-import { fetchGranules, type Granule, granuleExtent } from "@/modules/util/cmrGranules";
+import { fetchGranules, type Granule, granuleExtent, type GroundPoint } from "@/modules/util/cmrGranules";
+import { ANTARCTIC, ARCTIC, radiusScale, toPolar, WGS84_E } from "@/modules/util/polarStereographic";
 
 import { eumetViewCredit } from "./EumetViewImagery";
 import { trackRequests } from "./FramedImagery";
@@ -103,8 +104,18 @@ const KEPT_PICTURE_MIN_WIDTH = 256;
  */
 const DAILY_MAX_LATITUDE = 60;
 
-/** Degrees of longitude past which a granule, near a pole, gets no picture while it fills: a plate carrée one would be mostly stretch. */
+/**
+ * Degrees of longitude past which a granule, near a pole, is pictured in polar stereographic
+ * where its provider draws that (EUMETView), and gets no picture otherwise: a plate carrée one
+ * would be mostly stretch.
+ */
 const PICTURE_MAX_SPAN = 90;
+
+/** Metres padded around a granule's polar picture, as PICTURE_MARGIN. */
+const POLAR_PICTURE_MARGIN = 50_000;
+
+/** Metres a pixel of a kept polar picture, at least: KEPT_PIXELS_PER_DEGREE's 430 m. */
+const KEPT_POLAR_PIXEL = 430;
 
 /** Degrees padded around a granule's picture, so its edge is never sampled at the outline. */
 const PICTURE_MARGIN = 0.5;
@@ -126,8 +137,8 @@ const POLAR_RATIO_SQUARED = (Ellipsoid.WGS84.radii.z / Ellipsoid.WGS84.radii.x) 
 
 /**
  * Discards what lies ahead of the scan line until the granule is passed. Behind it, the
- * tint until the picture has come, then the picture, sampled by latitude and longitude and
- * shaded as the globe shades its tiles, so the fill looks as the granule will once passed:
+ * tint until the picture has come, then the picture, sampled by latitude and longitude, or
+ * by its polar stereographic projection, and shaded as the globe shades its tiles, so the fill looks as the granule will once passed:
  * unshaded, a granule over Siberia at noon in November read 30% brighter than its tiles.
  */
 const FILL_SHADER = `
@@ -186,11 +197,18 @@ czm_material czm_getMaterial(czm_materialInput materialInput) {
   // Outside 3D the depth gives projected coordinates, not the Earth-fixed ones the picture is sampled by.
   if (picture > 0.5 && czm_sceneMode == czm_sceneMode3D) {
     float longitude = atan(world.y, world.x);
-    if (longitude < bounds.x) {
-      longitude += czm_twoPi;
-    }
     float latitude = atan(world.z, ${POLAR_RATIO_SQUARED.toFixed(9)} * length(world.xy));
-    vec4 texel = texture(image, (vec2(longitude, latitude) - bounds.xy) / (bounds.zw - bounds.xy));
+    vec2 at = vec2(longitude, latitude);
+    if (pole != 0.0) {
+      // polarStereographic.ts's toPolar.
+      float poleward = pole * latitude;
+      float sine = ${WGS84_E.toFixed(9)} * sin(poleward);
+      float radius = polarScale * tan(czm_piOverFour - poleward / 2.0) / pow((1.0 - sine) / (1.0 + sine), ${(WGS84_E / 2).toFixed(9)});
+      at = vec2(radius * sin(longitude), -pole * radius * cos(longitude));
+    } else if (longitude < bounds.x) {
+      at.x += czm_twoPi;
+    }
+    vec4 texel = texture(image, (at - bounds.xy) / (bounds.zw - bounds.xy));
     // The JPEG's black is where the granule has no pixels: clear, as its tile layer leaves it.
     if (max(texel.r, max(texel.g, texel.b)) <= 0.02) {
       discard;
@@ -277,20 +295,24 @@ function providerPixels(drawn: GranuleLayer, primitives: PrimitiveCollection): G
  * sampled each. Undefined, the whole globe, for one across the antimeridian or near a pole.
  */
 export function layerRectangle(granule: Granule): Rectangle | undefined {
+  const { west, south, east, north } = granuleExtent({ outline: edgePoints(granule) });
+  if (west - LAYER_MARGIN < -180 || east + LAYER_MARGIN > 180 || north > LAYER_MAX_LATITUDE || south < -LAYER_MAX_LATITUDE) {
+    return undefined;
+  }
+  return Rectangle.fromDegrees(west - LAYER_MARGIN, south - LAYER_MARGIN, east + LAYER_MARGIN, north + LAYER_MARGIN);
+}
+
+/** Points along a granule's edges, EDGE_STEPS an edge, which bow toward the pole between its corners. */
+function edgePoints(granule: Granule): GroundPoint[] {
   const corners = granule.outline.map(({ latitude, longitude }) => Cartesian3.fromDegrees(longitude, latitude, 0, Ellipsoid.UNIT_SPHERE));
   const along = new Cartesian3();
-  const edges = corners.flatMap((corner, index) => {
+  return corners.flatMap((corner, index) => {
     const next = corners[(index + 1) % corners.length]!;
     return Array.from({ length: EDGE_STEPS }, (_, step) => {
       Cartesian3.normalize(Cartesian3.lerp(corner, next, step / EDGE_STEPS, along), along);
       return { latitude: CesiumMath.toDegrees(Math.asin(along.z)), longitude: CesiumMath.toDegrees(Math.atan2(along.y, along.x)) };
     });
   });
-  const { west, south, east, north } = granuleExtent({ outline: edges });
-  if (west - LAYER_MARGIN < -180 || east + LAYER_MARGIN > 180 || north > LAYER_MAX_LATITUDE || south < -LAYER_MAX_LATITUDE) {
-    return undefined;
-  }
-  return Rectangle.fromDegrees(west - LAYER_MARGIN, south - LAYER_MARGIN, east + LAYER_MARGIN, north + LAYER_MARGIN);
 }
 
 /** Where the satellite a granule layer belongs to scans at a time, while it is drawn. */
@@ -319,32 +341,25 @@ async function loadPicture(drawn: GranuleLayer, pictures: GranulePictures, granu
     return;
   }
   const extent = granuleExtent(granule);
-  const span = extent.east - extent.west;
-  const polar = pictures.frame === "day" && Math.abs(granuleCentre(granule).latitude) > DAILY_MAX_LATITUDE;
-  if (span > PICTURE_MAX_SPAN || polar) {
+  const stereographic = extent.east - extent.west > PICTURE_MAX_SPAN;
+  const daily = pictures.frame === "day" && Math.abs(granuleCentre(granule).latitude) > DAILY_MAX_LATITUDE;
+  if (daily || (stereographic && pictures.provider !== "eumetview")) {
     return;
   }
-  // A box across the antimeridian runs past 180° east, which the shader samples by adding a
-  // turn to the longitudes west of it.
-  const west = extent.west < -180 ? extent.west + 360 : extent.west;
-  const bounds = {
-    west: Math.max(-180, west - PICTURE_MARGIN),
-    south: Math.max(-90, extent.south - PICTURE_MARGIN),
-    east: Math.min(360, west + span + PICTURE_MARGIN),
-    north: Math.min(90, extent.north + PICTURE_MARGIN),
-  };
-  const kept = pictures.frame !== "granule";
-  const width = kept ? Math.min(KEPT_PICTURE_WIDTH, Math.max(KEPT_PICTURE_MIN_WIDTH, Math.round((bounds.east - bounds.west) * KEPT_PIXELS_PER_DEGREE))) : PICTURE_WIDTH;
-  const height = Math.min(width, Math.max(1, Math.round((width * (bounds.north - bounds.south)) / (bounds.east - bounds.west))));
+  const cut = stereographic ? polarCut(granule) : plateCarreeCut(extent, pictures.frame !== "granule");
+  const { bounds, width, height } = cut;
   const image =
-    bounds.east > 180 && pictures.provider === "gibs"
+    cut.pole === 0 && bounds.east > 180 && pictures.provider === "gibs"
       ? await joinedPicture(pictures, granule.start, bounds, width, height)
-      : await decodePicture(granulePictureUrl(pictures, granule.start, bounds, width, height));
+      : await decodePicture(granulePictureUrl(pictures, granule.start, bounds, width, height, cut.srs));
   if (image === undefined || fill.gone) {
     return;
   }
-  const radians = (degrees: number) => (degrees * Math.PI) / 180;
-  fill.material.uniforms.bounds = new Cartesian4(radians(bounds.west), radians(bounds.south), radians(bounds.east), radians(bounds.north));
+  // The shader samples a plate carrée picture by radians.
+  const unit = cut.pole === 0 ? Math.PI / 180 : 1;
+  fill.material.uniforms.bounds = new Cartesian4(bounds.west * unit, bounds.south * unit, bounds.east * unit, bounds.north * unit);
+  fill.material.uniforms.pole = cut.pole;
+  fill.material.uniforms.polarScale = cut.polarScale;
   fill.material.uniforms.image = image;
   // Cesium makes an image's texture in the frame after the one that takes it, and samples its
   // white default until then: drawn at once, the fill flashed white for a paced frame.
@@ -356,6 +371,60 @@ async function loadPicture(drawn: GranuleLayer, pictures: GranulePictures, granu
     }
   });
   scene.requestRender();
+}
+
+/** Where a granule's picture is cut from its frame, in what projection, and its pixels. */
+interface PictureCut {
+  /** Degrees, or for a polar picture metres from the pole. */
+  bounds: PreviewBounds;
+  width: number;
+  height: number;
+  srs?: string;
+  /** 0 for plate carrée, else polarStereographic.ts's `pole`. */
+  pole: number;
+  /** polarStereographic.ts's radiusScale, for a polar picture. */
+  polarScale: number;
+}
+
+/** A granule's plate carrée picture: its extent, and a kept one's pixels by its size. */
+function plateCarreeCut(extent: PreviewBounds, kept: boolean): PictureCut {
+  // A box across the antimeridian runs past 180° east, which the shader samples by adding a
+  // turn to the longitudes west of it.
+  const west = extent.west < -180 ? extent.west + 360 : extent.west;
+  const bounds = {
+    west: Math.max(-180, west - PICTURE_MARGIN),
+    south: Math.max(-90, extent.south - PICTURE_MARGIN),
+    east: Math.min(360, west + extent.east - extent.west + PICTURE_MARGIN),
+    north: Math.min(90, extent.north + PICTURE_MARGIN),
+  };
+  const width = kept ? Math.min(KEPT_PICTURE_WIDTH, Math.max(KEPT_PICTURE_MIN_WIDTH, Math.round((bounds.east - bounds.west) * KEPT_PIXELS_PER_DEGREE))) : PICTURE_WIDTH;
+  const height = Math.min(width, Math.max(1, Math.round((width * (bounds.north - bounds.south)) / (bounds.east - bounds.west))));
+  return { bounds, width, height, pole: 0, polarScale: 0 };
+}
+
+/** A granule's polar stereographic picture, about its nearer pole: its box there, and a kept picture's pixels. */
+export function polarCut(granule: Granule): PictureCut {
+  const projection = granuleCentre(granule).latitude < 0 ? ANTARCTIC : ARCTIC;
+  const points = edgePoints(granule).map((point) => toPolar(projection, point));
+  const xs = points.map(({ x }) => x);
+  const ys = points.map(({ y }) => y);
+  const bounds = {
+    west: Math.min(...xs) - POLAR_PICTURE_MARGIN,
+    south: Math.min(...ys) - POLAR_PICTURE_MARGIN,
+    east: Math.max(...xs) + POLAR_PICTURE_MARGIN,
+    north: Math.max(...ys) + POLAR_PICTURE_MARGIN,
+  };
+  const across = Math.max(bounds.east - bounds.west, bounds.north - bounds.south);
+  const longer = Math.min(KEPT_PICTURE_WIDTH, Math.max(KEPT_PICTURE_MIN_WIDTH, Math.round(across / KEPT_POLAR_PIXEL)));
+  const pixels = (metres: number) => Math.max(1, Math.round((longer * metres) / across));
+  return {
+    bounds,
+    width: pixels(bounds.east - bounds.west),
+    height: pixels(bounds.north - bounds.south),
+    srs: projection.srs,
+    pole: projection.pole,
+    polarScale: radiusScale(projection),
+  };
 }
 
 /** The picture at `url`, asked for again where the service answers with an error; undefined where each try failed. */
@@ -465,6 +534,8 @@ function sensing(drawn: GranuleLayer, primitives: PrimitiveCollection, follow: G
           uniforms: {
             image: Material.DefaultImageId,
             bounds: new Cartesian4(),
+            pole: 0,
+            polarScale: 0,
             scanPoint: new Cartesian3(),
             scanAhead: new Cartesian3(),
             tint: FILL_TINT,

@@ -379,16 +379,17 @@ function granuleFrame(pictures: GranulePictures, start: number): string {
 
 /**
  * The frame of the granule that starts at `start` (epoch ms) over `bounds`, as one WMS
- * picture `width` pixels across, stretched to the bounds' shape in plate carrée. JPEG: a
- * tenth of PNG's size for a granule, on black where it has no pixels, as EUMETView's and
- * GIBS's PNG layers would otherwise answer white.
+ * picture `width` pixels across, stretched to the bounds' shape in plate carrée, or with
+ * `srs` in that projection, the bounds in its metres. JPEG: a tenth of PNG's size for a
+ * granule, on black where it has no pixels, as EUMETView's and GIBS's PNG layers would
+ * otherwise answer white.
  */
-export function granulePictureUrl(pictures: GranulePictures, start: number, bounds: PreviewBounds, width: number, height: number): string {
+export function granulePictureUrl(pictures: GranulePictures, start: number, bounds: PreviewBounds, width: number, height: number, srs = "EPSG:4326"): string {
   const query = new URLSearchParams({
     SERVICE: "WMS",
     REQUEST: "GetMap",
     VERSION: "1.1.1",
-    SRS: "EPSG:4326",
+    SRS: srs,
     STYLES: "",
     LAYERS: pictures.layer,
     WIDTH: String(width),
