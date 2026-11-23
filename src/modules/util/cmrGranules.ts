@@ -5,7 +5,7 @@
 //
 // Cesium-free, so node-env vitest reads it.
 
-import { DATA_STORE_COLLECTION_RE, fetchDataStoreGranules, joinAtAntimeridian } from "./eumetsatGranules";
+import { DATA_STORE_COLLECTION_RE, fetchDataStoreGranules, outerRing } from "./eumetsatGranules";
 import { sunlit } from "./granuleDay";
 
 const CMR = "https://cmr.earthdata.nasa.gov/search/granules.json";
@@ -107,8 +107,7 @@ function parseOutline(polygons: unknown): GroundPoint[] | undefined {
   if (rings.length === 1) {
     return rings[0];
   }
-  const joined = joinAtAntimeridian(rings.map((ring) => ring.map(({ latitude, longitude }): [number, number] => [longitude, latitude])));
-  return joined?.map(([longitude, latitude]) => ({ latitude, longitude })) ?? rings.toSorted((a, b) => b.length - a.length)[0];
+  return outerRing(rings.map((ring) => ring.map(({ latitude, longitude }): [number, number] => [longitude, latitude])))?.map(([longitude, latitude]) => ({ latitude, longitude }));
 }
 
 /** One entry of CMR's JSON feed, or undefined for one without times or a polygon. */

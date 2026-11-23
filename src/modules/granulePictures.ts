@@ -2,7 +2,7 @@
 // EUMETView's swaths and orbits, and GIBS's daily layers.
 
 import { type GranulePictures, granulePictureUrl } from "@/config/instrumentImagery";
-import { type Granule, granuleExtent } from "@/modules/util/cmrGranules";
+import { type Granule, granuleExtent, granuleKey } from "@/modules/util/cmrGranules";
 
 import { fetchCapabilities } from "./EumetViewImagery";
 import { gibsDays, RECHECK_MS } from "./GibsImagery";
@@ -17,7 +17,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 const EUMETVIEW_GRID_SLACK_MS = 60 * 60 * 1000;
 
-/** By layer and start: a granule's pixels, once there, stay; a "no" is forgotten after RECHECK_MS. */
+/** By layer and granule: a granule's pixels, once there, stay; a "no" is forgotten after RECHECK_MS. */
 const answers = new Map<string, Promise<boolean>>();
 
 /** Degrees either side of a granule's centre asked for at most: well inside a 3-minute OLCI granule, 11° across. */
@@ -76,7 +76,7 @@ export function probeBounds(granule: Granule): { west: number; south: number; ea
  * neighbours. False, and asked again later, where the provider cannot be reached.
  */
 export function cutHasGranule(pictures: GranulePictures, granule: Granule): Promise<boolean> {
-  const key = `${pictures.provider}:${pictures.layer}/${granule.start}`;
+  const key = `${pictures.provider}:${pictures.layer}/${granuleKey(granule)}`;
   let answer = answers.get(key);
   if (answer === undefined) {
     const url = granulePictureUrl(pictures, granule.start, probeBounds(granule), PROBE_SIZE, PROBE_SIZE);

@@ -132,8 +132,10 @@ satellites:
           format: jpeg
           period: P1D
           start: 2018-01-05
-        # One frame a 6-minute granule, transparent outside it; read 2026-11-21. GIBS
-        # leaves out about two in five of the daytime ones, which keep their outline.
+        # One frame a 6-minute granule, transparent outside it; read 2026-11-21. GIBS has no
+        # frame of a daytime granule centred past about 50° N or 54° S, 43 to 46 of a day's
+        # 115, Europe north of the Alps among them (2026-09-20, 11-10 and 11-22): those keep
+        # their outline.
         - provider: gibs
           layer: VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule
           label: True colour

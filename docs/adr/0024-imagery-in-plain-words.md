@@ -51,8 +51,8 @@ info button.** A card is its picture, captioned with how fresh it is ("Yesterday
 pass, 3 h ago", in amber "Last day, Jun 19, 2026"), the type with its icon, and the picture
 line, which also name the card for a screen reader. The info button opens updates, archive
 and the viewer link. The fifth slot is on the card, under the picture line, as it says what
-the picture on the card and the globe is. A layer the globe cannot draw shows its viewer link beside the button,
-as that is its only action. Cards of layers that ended come last. The instrument badge over the picture is gone: the picture line names
+the picture on the card and the globe is. A layer the globe cannot draw shows its viewer
+link beside the button, as that is its only action. Cards of layers that ended come last. The instrument badge over the picture is gone: the picture line names
 the instrument.
 
 **Both of the Map panel's groups have a row per satellite, without the instrument**

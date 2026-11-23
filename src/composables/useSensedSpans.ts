@@ -6,6 +6,9 @@ import { orbitOverpasses } from "@/modules/overpassReplay";
 /** How often the spans are listed afresh as the clock moves: a quarter of the day, inside the day either side they cover. */
 const BUCKET_MS = 6 * 60 * 60 * 1000;
 
+/** How soon spans CMR did not answer for are asked again; the ones shown stay meanwhile. */
+const RETRY_MS = 60 * 1000;
+
 /**
  * When the granule layer on has granules by day, a day either side of the clock, which the
  * timeline shades (ADR 0023): the clock outside them shows nothing new.
@@ -22,10 +25,21 @@ export function useSensedSpans(time: () => number): Ref<readonly { start: number
       const layer = layerOn.value?.layer;
       if (token === undefined || layer === undefined) return;
       const asking = new AbortController();
-      onCleanup(() => asking.abort());
-      void orbitOverpasses(layer, (at + 0.5) * BUCKET_MS, asking.signal).then((overpasses) => {
-        if (!asking.signal.aborted) spans.value = overpasses ?? [];
+      let retry: ReturnType<typeof setTimeout> | undefined;
+      onCleanup(() => {
+        asking.abort();
+        clearTimeout(retry);
       });
+      const ask = () =>
+        void orbitOverpasses(layer, (at + 0.5) * BUCKET_MS, asking.signal).then((overpasses) => {
+          if (asking.signal.aborted) return;
+          if (overpasses === undefined) {
+            retry = setTimeout(ask, RETRY_MS);
+          } else {
+            spans.value = overpasses;
+          }
+        });
+      ask();
     },
     { immediate: true },
   );

@@ -115,3 +115,47 @@ describe("orbitOverpasses", () => {
     expect(asked).toHaveLength(4);
   });
 });
+
+describe("orbitOverpasses' requests", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  test("ends a day's request once every caller has aborted", async () => {
+    const aborted: string[] = [];
+    vi.stubGlobal("fetch", (url: string, { signal }: { signal: AbortSignal }) => {
+      const temporal = new URL(url).searchParams.get("temporal")!;
+      return new Promise((_, reject) => signal.addEventListener("abort", () => (aborted.push(temporal), reject(new Error("aborted")))));
+    });
+    const layer = { token: "cmr:ABORT", provider: "cmr" as const, layer: "ABORT", granules: ["C1-P"] };
+    const now = Date.parse("2026-11-23T00:00:00Z");
+    const around = Date.parse("2026-10-10T12:00:00Z");
+    const first = new AbortController();
+    const second = new AbortController();
+    const asked = [orbitOverpasses(layer, around, first.signal, now), orbitOverpasses(layer, around, second.signal, now)];
+    first.abort();
+    await Promise.resolve();
+    expect(aborted).toEqual([]);
+    second.abort();
+    expect(await Promise.all(asked)).toEqual([undefined, undefined]);
+    expect(aborted).toHaveLength(3);
+  });
+
+  test("asks afresh for a day whose request the caller before aborted", async () => {
+    let asked = 0;
+    vi.stubGlobal("fetch", (_url: string, { signal }: { signal: AbortSignal }) => {
+      asked += 1;
+      return new Promise((resolve, reject) => {
+        signal.addEventListener("abort", () => reject(new Error("aborted")));
+        setTimeout(() => resolve(new Response(JSON.stringify({ feed: { entry: [] } }))), 0);
+      });
+    });
+    const layer = { token: "cmr:AFRESH", provider: "cmr" as const, layer: "AFRESH", granules: ["C1-P"] };
+    const now = Date.parse("2026-11-23T00:00:00Z");
+    const around = Date.parse("2026-10-10T12:00:00Z");
+    const before = new AbortController();
+    const old = orbitOverpasses(layer, around, before.signal, now);
+    before.abort();
+    expect(await orbitOverpasses(layer, around, new AbortController().signal, now)).toEqual([]);
+    expect(await old).toBeUndefined();
+    expect(asked).toBe(6);
+  });
+});

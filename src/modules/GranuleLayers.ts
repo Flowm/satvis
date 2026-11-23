@@ -39,7 +39,7 @@ import {
 import { type GranuleLayer, type GranulePictures, granulePictureUrl, type PreviewBounds } from "@/config/instrumentImagery";
 import { catalogueQuery, granuleCentre, hasPixels } from "@/modules/overpassReplay";
 import { fetchGranules, type Granule, granuleExtent, type GroundPoint } from "@/modules/util/cmrGranules";
-import { ANTARCTIC, ARCTIC, radiusScale, toPolar, WGS84_E } from "@/modules/util/polarStereographic";
+import { ANTARCTIC, ARCTIC, type PolarProjection, radiusScale, toPolar, WGS84_E } from "@/modules/util/polarStereographic";
 
 import { eumetViewCredit } from "./EumetViewImagery";
 import { trackRequests } from "./FramedImagery";
@@ -377,13 +377,20 @@ async function loadPicture(drawn: GranuleLayer, pictures: GranulePictures, granu
 interface PictureCut {
   /** Degrees, or for a polar picture metres from the pole. */
   bounds: PreviewBounds;
+  /** Pixels. */
   width: number;
   height: number;
-  srs?: string;
+  /** Its projection, for a polar picture; plate carrée, EPSG:4326, without. */
+  srs?: PolarProjection["srs"];
   /** 0 for plate carrée, else polarStereographic.ts's `pole`. */
   pole: number;
   /** polarStereographic.ts's radiusScale, for a polar picture. */
   polarScale: number;
+}
+
+/** Pixels across a kept picture of `wanted` pixels at its resolution, within KEPT_PICTURE_MIN_WIDTH and KEPT_PICTURE_WIDTH. */
+function keptWidth(wanted: number): number {
+  return Math.min(KEPT_PICTURE_WIDTH, Math.max(KEPT_PICTURE_MIN_WIDTH, Math.round(wanted)));
 }
 
 /** A granule's plate carrée picture: its extent, and a kept one's pixels by its size. */
@@ -397,13 +404,13 @@ function plateCarreeCut(extent: PreviewBounds, kept: boolean): PictureCut {
     east: Math.min(360, west + extent.east - extent.west + PICTURE_MARGIN),
     north: Math.min(90, extent.north + PICTURE_MARGIN),
   };
-  const width = kept ? Math.min(KEPT_PICTURE_WIDTH, Math.max(KEPT_PICTURE_MIN_WIDTH, Math.round((bounds.east - bounds.west) * KEPT_PIXELS_PER_DEGREE))) : PICTURE_WIDTH;
+  const width = kept ? keptWidth((bounds.east - bounds.west) * KEPT_PIXELS_PER_DEGREE) : PICTURE_WIDTH;
   const height = Math.min(width, Math.max(1, Math.round((width * (bounds.north - bounds.south)) / (bounds.east - bounds.west))));
   return { bounds, width, height, pole: 0, polarScale: 0 };
 }
 
 /** A granule's polar stereographic picture, about its nearer pole: its box there, and a kept picture's pixels. */
-export function polarCut(granule: Granule): PictureCut {
+function polarCut(granule: Granule): PictureCut {
   const projection = granuleCentre(granule).latitude < 0 ? ANTARCTIC : ARCTIC;
   const points = edgePoints(granule).map((point) => toPolar(projection, point));
   const xs = points.map(({ x }) => x);
@@ -415,7 +422,7 @@ export function polarCut(granule: Granule): PictureCut {
     north: Math.max(...ys) + POLAR_PICTURE_MARGIN,
   };
   const across = Math.max(bounds.east - bounds.west, bounds.north - bounds.south);
-  const longer = Math.min(KEPT_PICTURE_WIDTH, Math.max(KEPT_PICTURE_MIN_WIDTH, Math.round(across / KEPT_POLAR_PIXEL)));
+  const longer = keptWidth(across / KEPT_POLAR_PIXEL);
   const pixels = (metres: number) => Math.max(1, Math.round((longer * metres) / across));
   return {
     bounds,

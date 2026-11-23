@@ -17,7 +17,7 @@ const DAY = 24 * HOUR;
 /** How far back the newest granule is looked for: as long as GIBS keeps a granule layer's frames. */
 const LATEST_WITHIN_MS = 90 * DAY;
 
-/** How many of the newest day granules are asked for pixels before giving up: GIBS leaves out about two in five. */
+/** How many of the newest day granules are asked for pixels before giving up: GIBS leaves out about two in five, those far from the equator. */
 const LATEST_TRIES = 12;
 
 /** How many of the newest granules are listed to find LATEST_TRIES by day: about half are night ones. */
@@ -133,32 +133,59 @@ const GROWING_DAY_TTL_MS = 10 * MINUTE;
 /** Days kept at most, a fortnight's scrubbing either way: Sentinel-2A's day of HLS tiles is 1,250 granules. */
 const MAX_DAYS = 32;
 
-/** By layer and UTC day: its day granules, and when they were asked for. */
-const dayGranules = new Map<string, { granules: Promise<Granule[] | undefined>; asked: number }>();
+/** A UTC day's listing of a layer's day granules. */
+interface DayListing {
+  granules: Promise<Granule[] | undefined>;
+  /** When it was asked for. */
+  asked: number;
+  /** Ends the request, once no one waits for it. */
+  request: AbortController;
+  /** Callers still waiting for it, while it has not come. */
+  waiting: number;
+  settled: boolean;
+}
+
+/** By layer and UTC day. */
+const dayGranules = new Map<string, DayListing>();
 
 /**
  * A layer's day granules of the UTC day starting at `day`, asked for once and kept. Asked a
  * day at a time, as two days of Sentinel-2A's HLS tiles are past CMR's page of 2,000, and the
- * clock moving on asks for one new day, where two days at once were 30 MB each time.
+ * clock moving on asks for one new day, where two days at once were 30 MB each time. Callers
+ * share a request, which ends once every one of them has aborted: scrubbing past a month
+ * otherwise downloaded each of its days.
  */
-function granulesOfDay(layer: GranuleLayer, day: number, now: number): Promise<Granule[] | undefined> {
+function granulesOfDay(layer: GranuleLayer, day: number, now: number, signal: AbortSignal): Promise<Granule[] | undefined> {
   const key = `${layer.token} ${day}`;
-  const kept = dayGranules.get(key);
-  if (kept !== undefined && (day + DAY < now - GROWING_DAY_MS || now - kept.asked < GROWING_DAY_TTL_MS)) {
-    return kept.granules;
+  let listing = dayGranules.get(key);
+  // An aborted request is not shared: the clock moving on aborts the old caller's just before the new one asks.
+  if (listing === undefined || listing.request.signal.aborted || (day + DAY >= now - GROWING_DAY_MS && now - listing.asked >= GROWING_DAY_TTL_MS)) {
+    const request = new AbortController();
+    const granules = fetchGranules({ ...catalogueQuery(layer), start: day, end: day + DAY }, request.signal).then((listed) => listed?.filter((granule) => granule.day));
+    const fresh: DayListing = { granules, asked: now, request, waiting: 0, settled: false };
+    void granules.then((listed) => {
+      fresh.settled = true;
+      if (listed === undefined && dayGranules.get(key) === fresh) dayGranules.delete(key);
+    });
+    dayGranules.delete(key);
+    dayGranules.set(key, fresh);
+    for (const old of dayGranules.keys()) {
+      if (dayGranules.size <= MAX_DAYS) break;
+      dayGranules.delete(old);
+    }
+    listing = fresh;
   }
-  // Not the caller's signal: another may want the day too.
-  const granules = fetchGranules({ ...catalogueQuery(layer), start: day, end: day + DAY }, new AbortController().signal).then((listed) => listed?.filter((granule) => granule.day));
-  dayGranules.delete(key);
-  dayGranules.set(key, { granules, asked: now });
-  void granules.then((listed) => {
-    if (listed === undefined && dayGranules.get(key)?.granules === granules) dayGranules.delete(key);
-  });
-  for (const old of dayGranules.keys()) {
-    if (dayGranules.size <= MAX_DAYS) break;
-    dayGranules.delete(old);
-  }
-  return granules;
+  const waited = listing;
+  waited.waiting += 1;
+  signal.addEventListener(
+    "abort",
+    () => {
+      waited.waiting -= 1;
+      if (waited.waiting === 0 && !waited.settled) waited.request.abort();
+    },
+    { once: true },
+  );
+  return waited.granules;
 }
 
 /**
@@ -171,7 +198,7 @@ export async function orbitOverpasses(layer: GranuleLayer, around: number, signa
   const end = Math.min(now, around + ORBITS_AROUND_MS);
   const days: number[] = [];
   for (let day = Math.floor(start / DAY) * DAY; day < end; day += DAY) days.push(day);
-  const listed = await Promise.all(days.map((day) => granulesOfDay(layer, day, now)));
+  const listed = await Promise.all(days.map((day) => granulesOfDay(layer, day, now, signal)));
   if (signal.aborted || listed.includes(undefined)) {
     return undefined;
   }

@@ -58,6 +58,16 @@ describe("cutHasGranule", () => {
     vi.stubGlobal("fetch", async () => answers.shift());
     expect(await cutHasGranule(pictures, granule("2026-11-20T22:00:00Z"))).toBe(true);
   });
+
+  test("asks for each of the tiles that share a start, as HLS's of one scene do", async () => {
+    const fetchMock = vi.fn(async () => new Response(new Uint8Array([0xff]), { headers: { "content-type": "image/jpeg" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const tile = granule("2026-11-20T10:00:00Z", 1.2, 1);
+    const beside = { ...tile, outline: tile.outline.map(({ latitude, longitude }) => ({ latitude, longitude: longitude + 1 })) };
+    await cutHasGranule(pictures, tile);
+    await cutHasGranule(pictures, beside);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("picturesEnd", () => {
