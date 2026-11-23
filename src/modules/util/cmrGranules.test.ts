@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { fetchGranules, granuleExtent, granuleSearchUrl, groupOverpasses, parseGranule } from "./cmrGranules";
+import { fetchGranules, granuleExtent, granuleKey, granuleSearchUrl, groupOverpasses, parseGranule } from "./cmrGranules";
 
 const MINUTE = 60 * 1000;
 
@@ -109,6 +109,27 @@ describe("fetchGranules", () => {
     // The near-real-time copy, which is the one CMR calls BOTH here.
     expect(granules?.[0]?.day).toBe(true);
     expect(fetch.mock.calls[0]).toMatchObject([expect.any(String), { headers: { "Client-Id": "satvis" } }]);
+  });
+
+  test("keeps every tile of one collection that share a start, as HLS's of one scene", async () => {
+    const tile = (ring: string) => ({ ...entry("2026-11-19T09:56:30Z", "C2021957657-LPCLOUD"), polygons: [[ring]] });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          feed: {
+            entry: [
+              tile("53.2 13.3 53.2 14.9 54.1 14.9 54.1 13.3 53.2 13.3"),
+              tile("52.3 13.3 52.3 14.9 53.3 14.9 53.3 13.3 52.3 13.3"),
+              entry("2026-11-19T09:56:54Z", "C2021957657-LPCLOUD"),
+            ],
+          },
+        }),
+      ),
+    );
+    const granules = await fetchGranules({ collections: ["C2021957657-LPCLOUD"], platform: "LANDSAT-9", start: 0, end: 1 }, new AbortController().signal);
+    expect(granules?.map((granule) => granule.outline[0]?.latitude)).toEqual([53.2, 52.3, 14.218523]);
+    expect(new Set(granules?.map(granuleKey)).size).toBe(3);
   });
 
   test("is undefined where CMR answers with an error or not at all", async () => {

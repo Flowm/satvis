@@ -111,17 +111,28 @@ export function granuleSearchUrl(query: GranuleQuery): string {
 }
 
 /**
- * Sorted by start, one per start: a granule the near-real-time and the standard
- * collections both list is one, the first collection's.
+ * Tells granules apart: when and where. HLS's tiles of one Landsat or Sentinel-2 scene
+ * share their start, as many as 11 (2026-11-19).
  */
-function uniqueGranules(granules: readonly Granule[]): Granule[] {
-  const byStart = new Map<number, Granule>();
-  for (const granule of granules) {
-    if (!byStart.has(granule.start)) {
-      byStart.set(granule.start, granule);
-    }
+export function granuleKey(granule: Pick<Granule, "start" | "outline">): string {
+  const corner = granule.outline[0];
+  return `${granule.start} ${corner?.latitude} ${corner?.longitude}`;
+}
+
+/**
+ * Sorted by start, and of a start several collections list, the first collection's
+ * granules alone: the near-real-time and standard copies of a granule start together,
+ * their corners apart. One collection lists each granule once.
+ */
+function uniqueGranules(ranked: readonly { granule: Granule; rank: number }[]): Granule[] {
+  const bestRank = new Map<number, number>();
+  for (const { granule, rank } of ranked) {
+    bestRank.set(granule.start, Math.min(rank, bestRank.get(granule.start) ?? rank));
   }
-  return [...byStart.values()].toSorted((a, b) => a.start - b.start);
+  return ranked
+    .filter(({ granule, rank }) => rank === bestRank.get(granule.start))
+    .map(({ granule }) => granule)
+    .toSorted((a, b) => a.start - b.start);
 }
 
 /**
@@ -140,13 +151,12 @@ export async function fetchGranules(query: GranuleQuery, signal: AbortSignal): P
     const body = (await response.json()) as { feed?: { entry?: unknown[] } };
     const entries = body.feed?.entry ?? [];
     const rank = new Map(query.collections.map((name, index) => [name, index]));
-    // CMR sorts by start alone, so where both collections have a granule either may come first.
     const ranked = entries.flatMap((entry) => {
       const granule = parseGranule(entry);
       const collection = (entry as { collection_concept_id?: unknown }).collection_concept_id;
       return granule ? [{ granule, rank: rank.get(collection as string) ?? query.collections.length }] : [];
     });
-    return uniqueGranules(ranked.toSorted((a, b) => a.rank - b.rank).map(({ granule }) => granule));
+    return uniqueGranules(ranked);
   } catch {
     return undefined;
   }

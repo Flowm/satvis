@@ -8,7 +8,7 @@
 import type { Clock } from "@cesium/core";
 import { JulianDate } from "@cesium/core";
 
-import type { Granule } from "@/modules/util/cmrGranules";
+import { type Granule, granuleKey } from "@/modules/util/cmrGranules";
 
 import type { Frame, FrameLayers, ImageryContext } from "./FramedImagery";
 
@@ -120,8 +120,8 @@ export function showGranuleImagery<Layer, Outline, Sensing = never>(
     pixels?: boolean;
     sensing?: Sensing;
   }
-  // By start.
-  const shown = new Map<number, Shown>();
+  // By granuleKey.
+  const shown = new Map<string, Shown>();
   let listing: { granules: Granule[]; start: number; end: number } | undefined;
   let asking = false;
   let lastAsk = Number.NEGATIVE_INFINITY;
@@ -235,10 +235,10 @@ export function showGranuleImagery<Layer, Outline, Sensing = never>(
 
   const add = (granule: Granule, time: number) => {
     const entry: Shown = { granule };
-    shown.set(granule.start, entry);
+    shown.set(granuleKey(granule), entry);
     settle(entry, time);
     void source.pixels?.has(granule).then((has) => {
-      if (signal.aborted || shown.get(granule.start) !== entry) {
+      if (signal.aborted || shown.get(granuleKey(granule)) !== entry) {
         return;
       }
       entry.pixels = has;
@@ -260,7 +260,7 @@ export function showGranuleImagery<Layer, Outline, Sensing = never>(
     if (entry.sensing !== undefined) {
       source.sensing?.hide(entry.sensing);
     }
-    shown.delete(entry.granule.start);
+    shown.delete(granuleKey(entry.granule));
   };
 
   function onTick(): void {
@@ -276,10 +276,10 @@ export function showGranuleImagery<Layer, Outline, Sensing = never>(
       return;
     }
     const trail = trailAt(listing.granules, time, source.sensing === undefined ? 0 : SENSING_SLACK_MS);
-    const wanted = new Set(trail.map((granule) => granule.start));
+    const wanted = new Set(trail.map(granuleKey));
     let changed = false;
     for (const entry of shown.values()) {
-      if (!wanted.has(entry.granule.start)) {
+      if (!wanted.has(granuleKey(entry.granule))) {
         drop(entry);
         changed = true;
       } else {
@@ -287,7 +287,7 @@ export function showGranuleImagery<Layer, Outline, Sensing = never>(
       }
     }
     for (const granule of trail) {
-      if (!shown.has(granule.start)) {
+      if (!shown.has(granuleKey(granule))) {
         add(granule, time);
         changed = true;
       }

@@ -107,7 +107,10 @@ and is not drawn.
 
 - The granules come from CMR, four hours around the clock's hour, again when the clock
   leaves them, and every 10 minutes while they reach the last four hours, as CMR lists a
-  granule hours after it is sensed. A granule both collections list is drawn once.
+  granule hours after it is sensed. A granule both collections list is drawn once, told
+  by its start, as the two copies' corners differ; one collection's granules are told by
+  start and corner, as HLS's tiles of one scene share a start (11 of one Landsat 9 scene
+  on 2026-11-19, of which a start alone kept 1).
 - Before its layer is made a granule's level-0 tile is fetched. A 404, or a tile with
   fewer than 50 opaque pixels, means GIBS has no picture of it: its outline turns grey
   and no layer asks for tiles that cannot come. A day granule covered 294 to 770 of
