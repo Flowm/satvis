@@ -5,7 +5,7 @@
 //
 // Cesium-free, so node-env vitest reads it.
 
-import { DATA_STORE_COLLECTION_RE, fetchDataStoreGranules } from "./eumetsatGranules";
+import { DATA_STORE_COLLECTION_RE, fetchDataStoreGranules, outerRing } from "./eumetsatGranules";
 import { sunlit } from "./granuleDay";
 
 const CMR = "https://cmr.earthdata.nasa.gov/search/granules.json";
@@ -32,7 +32,7 @@ export interface Granule {
   end: number;
   /** Sensed at least partly by day; a true colour picture has nothing of a night granule. */
   day: boolean;
-  /** The ground it covers, a closed ring: CMR's outer polygon, its last point the first. */
+  /** The ground it covers, a closed ring, its last point the first: CMR's outer polygon, a ring across the antimeridian unwrapped past it. */
   outline: GroundPoint[];
 }
 
@@ -75,6 +75,41 @@ function parseRing(ring: unknown): GroundPoint[] | undefined {
   return points;
 }
 
+/**
+ * A ring round a pole without the cut CMR closes it with, up the antimeridian to the pole,
+ * along it and back: drawn, the cut was a line across the cap. The ring alone still encloses
+ * the pole. Any other ring as it is.
+ */
+export function withoutPoleCut(ring: GroundPoint[]): GroundPoint[] {
+  const open = ring.slice(0, -1).filter(({ latitude }) => Math.abs(latitude) < 90);
+  if (open.length === ring.length - 1) {
+    return ring;
+  }
+  // The cut's two ends, at 180° and -180°, are one point.
+  const same = (a: GroundPoint, b: GroundPoint) => a.latitude === b.latitude && (a.longitude - b.longitude) % 360 === 0;
+  const kept = open.filter((point, i) => !same(point, open[(i + 1) % open.length]!));
+  return kept.length < 3 ? ring : [...kept, kept[0]!];
+}
+
+/**
+ * An entry's outline: its outer ring, or the parts CMR splits a granule into at the
+ * antimeridian joined. Where they do not join, the largest part.
+ */
+function parseOutline(polygons: unknown): GroundPoint[] | undefined {
+  if (!Array.isArray(polygons)) {
+    return undefined;
+  }
+  const parts = polygons.map((polygon) => (Array.isArray(polygon) ? parseRing(polygon[0]) : undefined));
+  if (parts.length === 0 || parts.includes(undefined)) {
+    return undefined;
+  }
+  const rings = parts as GroundPoint[][];
+  if (rings.length === 1) {
+    return rings[0];
+  }
+  return outerRing(rings.map((ring) => ring.map(({ latitude, longitude }): [number, number] => [longitude, latitude])))?.map(([longitude, latitude]) => ({ latitude, longitude }));
+}
+
 /** One entry of CMR's JSON feed, or undefined for one without times or a polygon. */
 export function parseGranule(entry: unknown): Granule | undefined {
   if (typeof entry !== "object" || entry === null) {
@@ -83,13 +118,13 @@ export function parseGranule(entry: unknown): Granule | undefined {
   const { time_start, time_end, day_night_flag, polygons } = entry as Record<string, unknown>;
   const start = typeof time_start === "string" ? Date.parse(time_start) : Number.NaN;
   const end = typeof time_end === "string" ? Date.parse(time_end) : Number.NaN;
-  const outline = Array.isArray(polygons) && Array.isArray(polygons[0]) ? parseRing(polygons[0][0]) : undefined;
-  if (!Number.isFinite(start) || !Number.isFinite(end) || outline === undefined) {
+  const ring = parseOutline(polygons);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || ring === undefined) {
     return undefined;
   }
   // NOAA's Metop granules say neither: the sun does.
-  const day = day_night_flag === "DAY" || day_night_flag === "BOTH" ? true : day_night_flag === "NIGHT" ? false : sunlit(outline, start, end);
-  return { start, end, day, outline };
+  const day = day_night_flag === "DAY" || day_night_flag === "BOTH" ? true : day_night_flag === "NIGHT" ? false : sunlit(ring, start, end);
+  return { start, end, day, outline: withoutPoleCut(ring) };
 }
 
 /** CMR's address for `query`, sorted by start, or newest first for `newest`. */
@@ -111,17 +146,28 @@ export function granuleSearchUrl(query: GranuleQuery): string {
 }
 
 /**
- * Sorted by start, one per start: a granule the near-real-time and the standard
- * collections both list is one, the first collection's.
+ * Tells granules apart: when and where. HLS's tiles of one Landsat or Sentinel-2 scene
+ * share their start, as many as 11 (2026-11-19).
  */
-function uniqueGranules(granules: readonly Granule[]): Granule[] {
-  const byStart = new Map<number, Granule>();
-  for (const granule of granules) {
-    if (!byStart.has(granule.start)) {
-      byStart.set(granule.start, granule);
-    }
+export function granuleKey(granule: Pick<Granule, "start" | "outline">): string {
+  const corner = granule.outline[0];
+  return `${granule.start} ${corner?.latitude} ${corner?.longitude}`;
+}
+
+/**
+ * Sorted by start, and of a start several collections list, the first collection's
+ * granules alone: the near-real-time and standard copies of a granule start together,
+ * their corners apart. One collection lists each granule once.
+ */
+function uniqueGranules(ranked: readonly { granule: Granule; rank: number }[]): Granule[] {
+  const bestRank = new Map<number, number>();
+  for (const { granule, rank } of ranked) {
+    bestRank.set(granule.start, Math.min(rank, bestRank.get(granule.start) ?? rank));
   }
-  return [...byStart.values()].toSorted((a, b) => a.start - b.start);
+  return ranked
+    .filter(({ granule, rank }) => rank === bestRank.get(granule.start))
+    .map(({ granule }) => granule)
+    .toSorted((a, b) => a.start - b.start);
 }
 
 /**
@@ -140,13 +186,12 @@ export async function fetchGranules(query: GranuleQuery, signal: AbortSignal): P
     const body = (await response.json()) as { feed?: { entry?: unknown[] } };
     const entries = body.feed?.entry ?? [];
     const rank = new Map(query.collections.map((name, index) => [name, index]));
-    // CMR sorts by start alone, so where both collections have a granule either may come first.
     const ranked = entries.flatMap((entry) => {
       const granule = parseGranule(entry);
       const collection = (entry as { collection_concept_id?: unknown }).collection_concept_id;
       return granule ? [{ granule, rank: rank.get(collection as string) ?? query.collections.length }] : [];
     });
-    return uniqueGranules(ranked.toSorted((a, b) => a.rank - b.rank).map(({ granule }) => granule));
+    return uniqueGranules(ranked);
   } catch {
     return undefined;
   }

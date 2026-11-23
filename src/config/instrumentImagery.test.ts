@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   drawnImagery,
+  type GranulePictures,
   granulePictureUrl,
   imageryDetail,
   imageryLayers,
@@ -385,6 +386,17 @@ describe("imageryWords", () => {
     expect(words({ start: "2017-09-01", end: "2022-10-12" })).toBe("2017–2022");
     expect(words({ start: "2025-08-21", end: "2025-12-01" })).toBe("2025");
     expect(words({})).toBeUndefined();
+  });
+
+  test("says a passes layer is cropped from frames that hold other passes, and no other", () => {
+    const words = (provider: string, frame: GranulePictures["frame"]) =>
+      imageryWords({ provider, type: "passes", instrument: "X", label: "True colour", pictures: { frame } }).cropped;
+    expect(words("cmr", "day")).toBe("Cropped from the daily mosaic");
+    // Metop's passes, from its orbits stacked.
+    expect(words("cmr", 35 * 60 * 1000)).toBe("Cropped from the latest orbits");
+    // Sentinel-3's, a swath a frame, and a GIBS granule layer's, a granule a frame.
+    expect(words("eumetview", 25 * 60 * 1000)).toBeUndefined();
+    expect(words("gibs", "granule")).toBeUndefined();
   });
 });
 

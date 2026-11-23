@@ -6,7 +6,7 @@
       class="card"
       :class="{ 'card--drawable': imagery.token, 'card--shown': isShown(imagery) }"
       :data-instrument="instrument"
-      :aria-label="`${IMAGERY_TYPES[imagery.type].title}, ${imagery.words.picture}`"
+      :aria-label="[IMAGERY_TYPES[imagery.type].title, imagery.words.picture, imagery.words.cropped].filter(Boolean).join(', ')"
       @click="toggle(imagery)"
     >
       <div class="card__preview">
@@ -36,6 +36,10 @@
           {{ IMAGERY_TYPES[imagery.type].title }}
         </div>
         <div class="card__picture">{{ imagery.words.picture }}</div>
+        <div v-if="imagery.words.cropped" class="card__cropped">
+          <UIcon name="lucide:crop" class="card__cropped-icon" />
+          {{ imagery.words.cropped }}
+        </div>
         <div class="card__actions">
           <USwitch
             v-if="imagery.token"
@@ -355,6 +359,19 @@ watch(() => props.focus, reveal);
 
 .card__picture {
   font-size: 12.5px;
+}
+
+.card__cropped {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--panel-muted);
+}
+
+.card__cropped-icon {
+  flex: none;
 }
 
 .card__actions {

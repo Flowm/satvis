@@ -21,10 +21,10 @@ interface Sensing {
   passed: boolean;
 }
 
-/** A day granule `minutes` after START, six minutes long. */
-function granule(minutes: number, day = true): Granule {
+/** A day granule `minutes` after START, six minutes long, with its first corner at `latitude`. */
+function granule(minutes: number, day = true, latitude?: number): Granule {
   const start = START + minutes * MINUTE;
-  return { start, end: start + 6 * MINUTE, day, outline: [] };
+  return { start, end: start + 6 * MINUTE, day, outline: latitude === undefined ? [] : [{ latitude, longitude: 11 }] };
 }
 
 /**
@@ -135,6 +135,16 @@ describe("showGranuleImagery", () => {
     setClock(TRAIL_MS / MINUTE + 7);
     await vi.advanceTimersByTimeAsync(0);
     expect(layers()).toEqual([12]);
+  });
+
+  test("shows each of the tiles of one scene, which share their start", async () => {
+    const { layers, outlines, setClock } = shown([granule(0, true, 48), granule(0, true, 49), granule(0, true, 50)]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(layers()).toEqual([0, 0, 0]);
+    expect(outlines()).toEqual(["0", "0", "0"]);
+    setClock(TRAIL_MS / MINUTE + 1);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(layers()).toEqual([]);
   });
 
   test("keeps the outline of a granule the provider has no pixels for, marked, and draws no layer for it", async () => {

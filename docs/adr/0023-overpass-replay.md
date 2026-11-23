@@ -107,7 +107,10 @@ and is not drawn.
 
 - The granules come from CMR, four hours around the clock's hour, again when the clock
   leaves them, and every 10 minutes while they reach the last four hours, as CMR lists a
-  granule hours after it is sensed. A granule both collections list is drawn once.
+  granule hours after it is sensed. A granule both collections list is drawn once, told
+  by its start, as the two copies' corners differ; one collection's granules are told by
+  start and corner, as HLS's tiles of one scene share a start (11 of one Landsat 9 scene
+  on 2026-11-19, of which a start alone kept 1).
 - Before its layer is made a granule's level-0 tile is fetched. A 404, or a tile with
   fewer than 50 opaque pixels, means GIBS has no picture of it: its outline turns grey
   and no layer asks for tiles that cannot come. A day granule covered 294 to 770 of
@@ -134,8 +137,13 @@ and under EUMETView's. The fill, the fan and the ribbon so meet at the satellite
 an old element set puts it: an old NOAA-20 granule fills up to 17 s early or late, not
 with its edge apart from the fan. A granule more than two minutes past its end counts as
 passed, as the plane, through the Earth, turns back toward it half an orbit later; one
-more than 90° of longitude across, near a pole, fills without a picture; one its provider has no pixels of fills grey, as its outline
-will be.
+more than 90° of longitude across, near a pole, is pictured in polar stereographic where
+EUMETView draws it (EPSG:3995 and 3976) and fills without a picture otherwise, as plate
+carrée would be mostly stretch; one its provider has no pixels of fills grey, as its outline
+will be. CMR splits a granule across the antimeridian in two, joined again as the Data
+Store's are, and closes one over a pole with a cut up the antimeridian and round the pole,
+left out: read as given, Metop-B's 2026-11-19T19:00Z granule was the sliver east of 180°
+and the next one drew the cut as a line across Antarctica.
 
 **The fill is shaded as the globe shades its tiles.** A ground primitive gets none of the
 globe's shading, so unshaded a granule filling in over Siberia at noon in November read

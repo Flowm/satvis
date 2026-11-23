@@ -154,8 +154,8 @@ async function opaquePixels(tile: Blob): Promise<number | undefined> {
 
 /**
  * Whether GIBS has the pixels of a granule layer's frame at `start`: its one tile at level 0,
- * a 404 where GIBS left the granule out, as it does about two in five of NOAA-20's daytime
- * ones, and nearly empty where it drew little of it. A frame it lacks would otherwise ask
+ * a 404 where GIBS left the granule out, as it does NOAA-20's daytime ones centred past 50° N
+ * or 54° S, and nearly empty where it drew little of it. A frame it lacks would otherwise ask
  * for every tile in view and be refused each. False, and asked again later, where GIBS
  * cannot be reached.
  */

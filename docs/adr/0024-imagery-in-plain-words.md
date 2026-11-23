@@ -38,14 +38,21 @@ from the interface; the glossary keeps it for the layer itself.
    title says it already ("six orbits stacked", a composite's "GeoRing");
 3. how often it updates, or the day it ended: "Once a day", "Every 10 min", "With each
    pass, hours behind live";
-4. how far back it goes: "Back to 2002", "The last 90 days".
+4. how far back it goes: "Back to 2002", "The last 90 days";
+5. for a passes layer whose pictures are cut from frames that hold other passes, where it
+   comes from: "Cropped from the daily mosaic", whose picture of a place may be another pass
+   of the day (where the passes overlap near the poles) or, for HLS, the other satellite of
+   the pair; "Cropped from the latest orbits", Metop's six orbits stacked, where an older
+   orbit shows through. Sentinel-3's swaths and GIBS's granule layers are a pass or a
+   granule a frame, and say nothing here.
 
 **The Imagery tab shows the first two and the picture's freshness; the rest is behind an
 info button.** A card is its picture, captioned with how fresh it is ("Yesterday", "Newest
 pass, 3 h ago", in amber "Last day, Jun 19, 2026"), the type with its icon, and the picture
 line, which also name the card for a screen reader. The info button opens updates, archive
-and the viewer link. A layer the globe cannot draw shows its viewer link beside the button,
-as that is its only action. Cards of layers that ended come last. The instrument badge over the picture is gone: the picture line names
+and the viewer link. The fifth slot is on the card, under the picture line, as it says what
+the picture on the card and the globe is. A layer the globe cannot draw shows its viewer
+link beside the button, as that is its only action. Cards of layers that ended come last. The instrument badge over the picture is gone: the picture line names
 the instrument.
 
 **Both of the Map panel's groups have a row per satellite, without the instrument**

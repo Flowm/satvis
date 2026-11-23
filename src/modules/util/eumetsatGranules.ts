@@ -83,6 +83,11 @@ export function joinAtAntimeridian(parts: Ring[]): Ring | undefined {
   return [...ring, ring[0]!];
 }
 
+/** One ring of a granule's parts, joined at the antimeridian, or where they do not join the largest part. */
+export function outerRing(parts: Ring[]): Ring | undefined {
+  return joinAtAntimeridian(parts) ?? parts.toSorted((a, b) => b.length - a.length)[0];
+}
+
 /** A feature's outline as points, its parts joined; undefined for one without a polygon. */
 function parseGeometry(geometry: unknown): GroundPoint[] | undefined {
   if (typeof geometry !== "object" || geometry === null) {
@@ -94,7 +99,7 @@ function parseGeometry(geometry: unknown): GroundPoint[] | undefined {
     ring = coordinates[0] as Ring;
   } else if (type === "MultiPolygon" && Array.isArray(coordinates)) {
     const parts = (coordinates as Ring[][]).map((polygon) => polygon[0]!);
-    ring = joinAtAntimeridian(parts) ?? parts.toSorted((a, b) => b.length - a.length)[0];
+    ring = outerRing(parts);
   }
   if (!Array.isArray(ring) || ring.length < 4 || !ring.every((point) => Array.isArray(point) && point.every(Number.isFinite))) {
     return undefined;

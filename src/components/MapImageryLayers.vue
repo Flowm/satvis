@@ -211,7 +211,13 @@ function buttonLabel(row: ImageryRow, { layer, name, extra }: ImageryRow["cells"
 /** What the layer is, as its card says it, and for passes how old the newest is, once known. */
 function tooltipOf(layer: ImageryLayer): string {
   const newest = layer.type === "passes" ? latest.get(layer.token)?.pictured.start : undefined;
-  return [IMAGERY_TYPES[layer.type].title, layer.words.picture, layer.words.updates, newest === undefined ? undefined : `Newest pass ${timeAgo(newest, wallClock.value)}`]
+  return [
+    IMAGERY_TYPES[layer.type].title,
+    layer.words.picture,
+    layer.words.cropped,
+    layer.words.updates,
+    newest === undefined ? undefined : `Newest pass ${timeAgo(newest, wallClock.value)}`,
+  ]
     .filter(Boolean)
     .join("\n");
 }

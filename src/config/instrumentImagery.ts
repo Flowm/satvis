@@ -379,16 +379,17 @@ function granuleFrame(pictures: GranulePictures, start: number): string {
 
 /**
  * The frame of the granule that starts at `start` (epoch ms) over `bounds`, as one WMS
- * picture `width` pixels across, stretched to the bounds' shape in plate carrée. JPEG: a
- * tenth of PNG's size for a granule, on black where it has no pixels, as EUMETView's and
- * GIBS's PNG layers would otherwise answer white.
+ * picture `width` pixels across, stretched to the bounds' shape in plate carrée, or with
+ * `srs` in that projection, the bounds in its metres. JPEG: a tenth of PNG's size for a
+ * granule, on black where it has no pixels, as EUMETView's and GIBS's PNG layers would
+ * otherwise answer white.
  */
-export function granulePictureUrl(pictures: GranulePictures, start: number, bounds: PreviewBounds, width: number, height: number): string {
+export function granulePictureUrl(pictures: GranulePictures, start: number, bounds: PreviewBounds, width: number, height: number, srs = "EPSG:4326"): string {
   const query = new URLSearchParams({
     SERVICE: "WMS",
     REQUEST: "GetMap",
     VERSION: "1.1.1",
-    SRS: "EPSG:4326",
+    SRS: srs,
     STYLES: "",
     LAYERS: pictures.layer,
     WIDTH: String(width),
@@ -450,6 +451,12 @@ export interface ImageryWords {
   ended: boolean;
   /** How far back its frames go: "Back to 2002", "The last 90 days", "2017–2022". */
   archive?: string;
+  /**
+   * Where a passes layer's pictures are cut from, where that frame holds other passes, whose
+   * pixels a granule's picture may show: "Cropped from the daily mosaic", "Cropped from the
+   * latest orbits".
+   */
+  cropped?: string;
 }
 
 /** What a type says of how often it updates, where its period does not. */
@@ -476,6 +483,8 @@ export function imageryWords(entry: {
   end?: string;
   window?: string;
   merged?: boolean;
+  /** The frames a granule layer's pictures are cut from. */
+  pictures?: Pick<GranulePictures, "frame">;
 }): ImageryWords {
   const { type, instrument, label, period, start, end, window } = entry;
   const [first = label, ...rest] = label.split(",").map((part) => part.trim());
@@ -500,7 +509,11 @@ export function imageryWords(entry: {
           : start !== undefined
             ? `Back to ${start.slice(0, 4)}`
             : undefined;
-  return { picture, ...(updates !== undefined && { updates }), ended: end !== undefined, ...(archive !== undefined && { archive }) };
+  // A `cmr` layer's EUMETView frames are another layer's, Metop's orbits stacked; a EUMETView
+  // layer's own are a pass each (Sentinel-3's swaths), as a GIBS granule layer's are a granule.
+  const frame = entry.pictures?.frame;
+  const cropped = frame === "day" ? "Cropped from the daily mosaic" : typeof frame === "number" && entry.provider === "cmr" ? "Cropped from the latest orbits" : undefined;
+  return { picture, ...(updates !== undefined && { updates }), ended: end !== undefined, ...(archive !== undefined && { archive }), ...(cropped !== undefined && { cropped }) };
 }
 
 /**
@@ -565,7 +578,7 @@ export function readImagery(entry: unknown): ImageryEntry | undefined {
     ...(known.link !== undefined && { viewer: known.viewer, href: imageryLink({ link: known.link, ended: known.ended }, layer, dates.end) }),
     ...(drawn !== undefined && { drawn }),
     type,
-    words: imageryWords({ type, provider, instrument, label, ...dates, merged }),
+    words: imageryWords({ type, provider, instrument, label, ...dates, merged, ...(drawn?.pictures !== undefined && { pictures: drawn.pictures }) }),
   };
 }
 
