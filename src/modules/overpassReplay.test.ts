@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { latestGranule, replayPlace, stationReplay } from "./overpassReplay";
+import { latestGranule, orbitOverpasses, replayPlace, stationReplay } from "./overpassReplay";
 import type { Granule, Overpass } from "./util/cmrGranules";
 
 const MINUTE = 60 * 1000;
@@ -71,5 +71,47 @@ describe("latestGranule", () => {
     const granules = await latestGranule(layer, new AbortController().signal, Date.parse("2026-11-22T00:00:00Z"));
     expect(granules?.newest.start).toBe(Date.parse("2026-11-21T01:53:59Z"));
     expect(granules?.pictured.start).toBe(Date.parse("2026-11-21T01:41:59Z"));
+  });
+});
+
+describe("orbitOverpasses", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** CMR's answer: a granule at noon of the day asked for, and one across each of its midnights. */
+  function answer(url: string) {
+    const [from] = new URL(url).searchParams.get("temporal")!.split(",");
+    const day = Date.parse(from!);
+    const granule = (start: number) => ({
+      time_start: new Date(start).toISOString(),
+      time_end: new Date(start + 10 * MINUTE).toISOString(),
+      day_night_flag: "DAY",
+      polygons: [["10 10 10 11 11 11 10 10"]],
+    });
+    return new Response(JSON.stringify({ feed: { entry: [granule(day - 5 * MINUTE), granule(day + 12 * 60 * MINUTE), granule(day + 24 * 60 * MINUTE - 5 * MINUTE)] } }));
+  }
+
+  test("asks CMR a day at a time, once a day, and lists a granule across midnight once", async () => {
+    const asked: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => {
+      asked.push(new URL(url).searchParams.get("temporal")!);
+      return answer(url);
+    });
+    const layer = { token: "cmr:HLSS30.Sentinel-2A", provider: "cmr" as const, layer: "HLSS30.Sentinel-2A", granules: ["C2021957295-LPCLOUD"] };
+    const now = Date.parse("2026-11-23T00:00:00Z");
+    const around = Date.parse("2026-11-10T03:00:00Z");
+    const first = await orbitOverpasses(layer, around, new AbortController().signal, now);
+    expect(asked).toHaveLength(3);
+    expect(first!.map(({ start }) => new Date(start).toISOString())).toEqual([
+      "2026-11-09T12:00:00.000Z",
+      "2026-11-09T23:55:00.000Z",
+      "2026-11-10T12:00:00.000Z",
+      "2026-11-10T23:55:00.000Z",
+    ]);
+    // Six hours on, the same three days.
+    await orbitOverpasses(layer, around + 6 * 60 * MINUTE, new AbortController().signal, now);
+    expect(asked).toHaveLength(3);
+    // A day on, one more.
+    await orbitOverpasses(layer, around + 24 * 60 * MINUTE, new AbortController().signal, now);
+    expect(asked).toHaveLength(4);
   });
 });

@@ -16,8 +16,9 @@ export function useSensedSpans(time: () => number): Ref<readonly { start: number
   const bucket = computed(() => Math.floor(time() / BUCKET_MS));
   watch(
     [() => layerOn.value?.layer.token, bucket],
-    ([token, at], _, onCleanup) => {
-      spans.value = [];
+    ([token, at], previous, onCleanup) => {
+      // The clock moving on keeps the spans until the new ones come: scrubbing past the buckets emptied the timeline.
+      if (token !== previous?.[0]) spans.value = [];
       const layer = layerOn.value?.layer;
       if (token === undefined || layer === undefined) return;
       const asking = new AbortController();
