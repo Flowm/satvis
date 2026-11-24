@@ -532,7 +532,7 @@ struct MapPanel: View {
         PanelSection("Basemap") {
             Choices(selection: $session.baseLayer, options: BaseLayer.allCases.map { ($0.title, $0) })
         }
-        SatelliteImagerySection(catalog: session.catalog, imagery: session.instrumentImagery, onShow: onShow)
+        SatelliteImagerySection(catalog: session.catalog, imagery: session.instrumentImagery, clock: session.clock, onShow: onShow)
         // The web app's names for the two.
         PanelSection("Terrain") {
             Segments(title: "Terrain", selection: $session.terrain, options: [("None", false), ("Re:Earth", true)])
@@ -550,13 +550,15 @@ struct MapPanel: View {
     }
 }
 
-/// The Map panel's satellite imagery, the web app's MapImageryLayers (ADR 0021): the
+/// The Map panel's satellite imagery, the web app's MapImageryLayers (ADR 0021, 0024): the
 /// layers the loaded records carry that have not stopped, in groups by orbit, one group
-/// open at a time. The list is read off the records, so the panel's first showing loads
-/// every group, as the satellite browser does.
+/// open at a time, a row a satellite or composite and a button a layer, named by its type.
+/// The list is read off the records, so the panel's first showing loads every group, as
+/// the satellite browser does.
 private struct SatelliteImagerySection: View {
     let catalog: CatalogModel
     let imagery: InstrumentImagery
+    let clock: ViewerClock
     let onShow: (CatalogEntry) -> Void
     @State private var isLoading = false
     /// The info panel's tab, the Imagery tab once a row's button is pressed.
@@ -566,8 +568,8 @@ private struct SatelliteImagerySection: View {
         // Worked out here, where only the catalog is read, so that a switch flipped in the
         // list does not go through every record again.
         SatelliteImageryList(
-            listings: SatelliteDetails.imageryListings(catalog.catalog.entries.values.map(\.record)), imagery: imagery, isLoading: isLoading,
-            onShow: show
+            listings: SatelliteDetails.imageryListings(catalog.catalog.entries.values.map(\.record)), imagery: imagery, clock: clock,
+            isLoading: isLoading, onShow: show
         )
         .task {
             isLoading = true
@@ -588,25 +590,37 @@ private struct SatelliteImagerySection: View {
     }
 }
 
-/// The satellite imagery's groups and switches.
+/// The satellite imagery's groups, rows and buttons.
 private struct SatelliteImageryList: View {
     let listings: [Listing]
     let imagery: InstrumentImagery
+    let clock: ViewerClock
     let isLoading: Bool
     let onShow: (Listing.Satellite) -> Void
     /// The group the user opened, or `.some(nil)` for none; nil until they choose, when
     /// the first group with a layer on is open.
     @State private var chosen: Listing.Group??
+    /// The newest pass of each passes layer of the open group, by token.
+    @State private var latest = LatestPasses()
 
     typealias Listing = SatelliteDetails.ImageryListing
 
     var body: some View {
         let listed = Set(listings.map(\.token))
-        let groups = Listing.Group.allCases.compactMap { key -> (key: Listing.Group, layers: [Listing], shown: Int)? in
+        let groups = Listing.Group.allCases.compactMap { key -> (key: Listing.Group, rows: [SatelliteDetails.ImageryRow], shown: Int)? in
             let layers = listings.filter { $0.group == key }
-            return layers.isEmpty ? nil : (key, layers, layers.filter { imagery.isShown($0.token) }.count)
+            return layers.isEmpty ? nil : (key, SatelliteDetails.imageryRows(layers), layers.filter { imagery.isShown($0.token) }.count)
         }
         let open = chosen ?? groups.first { $0.shown > 0 }?.key
+        // A composite's is no one satellite's own.
+        let passes = (groups.first { $0.key == open }?.rows ?? []).flatMap { row in
+            row.cells.compactMap { cell -> (key: String, layer: SatelliteDetails.GranuleLayer)? in
+                guard cell.listing.type == .passes, case .satellite = cell.listing.kind, let layer = cell.listing.imagery.granuleLayer else {
+                    return nil
+                }
+                return (cell.listing.token, layer)
+            }
+        }
         // Before the list arrives, or while its record has not loaded, so that a layer on
         // the globe can still be taken off.
         let unlisted = imagery.tokens.filter { !listed.contains($0) }
@@ -637,7 +651,7 @@ private struct SatelliteImageryList: View {
                                     Text(Self.title(group.key))
                                         .lineLimit(2)
                                     Spacer(minLength: 0)
-                                    Text(group.shown > 0 ? "\(group.shown) on" : "\(group.layers.count)")
+                                    Text(group.shown > 0 ? "\(group.shown) on" : "\(group.rows.count)")
                                         .font(.footnote)
                                         .foregroundStyle(group.shown > 0 ? Color.panelAccent : .secondary)
                                         .monospacedDigit()
@@ -651,86 +665,56 @@ private struct SatelliteImageryList: View {
                         }
                         .buttonStyle(PanelRowStyle())
                         .accessibilityLabel(Self.title(group.key))
-                        .accessibilityValue(group.shown > 0 ? "\(group.shown) on" : group.layers.count == 1 ? "1 layer" : "\(group.layers.count) layers")
+                        .accessibilityValue(group.shown > 0 ? "\(group.shown) on" : group.rows.count == 1 ? "1 satellite" : "\(group.rows.count) satellites")
                         .accessibilityHint(open == group.key ? "Hides its layers" : "Shows its layers")
                         if open == group.key {
-                            ForEach(group.layers, id: \.key) { layer in
-                                row(layer, open: open)
+                            ForEach(group.rows) { row in
+                                self.row(row, open: open)
                             }
                         }
                     }
                 }
             }
         }
-    }
-
-    /// A layer's switch: the satellite, "METEOSAT-12", not "METEOSAT-12 (MTG-I1)", its
-    /// instrument, and what the picture is, short; a composite's
-    /// name and cadence in their place. Then the button that opens the satellite's
-    /// Imagery tab, or a composite's menu of its satellites.
-    private func row(_ layer: Listing, open: Listing.Group?) -> some View {
-        let (name, aside, spoken): (String, String?, String) =
-            switch layer.kind {
-            case .satellite(let satellite, let instrument):
-                (satellite.name.replacing(/\s*\(.*\)$/, with: ""), instrument, "\(satellite.name) \(instrument) \(layer.imagery.label)")
-            case .composite: (layer.name, nil, layer.imagery.label)
-            }
-        return HStack(spacing: 0) {
-            Toggle(isOn: shown(layer.token, open: open)) {
-                let detail = HStack(spacing: 5) {
-                    if let aside {
-                        Text(aside)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    Text(SatelliteDetails.shortImageryLabel(layer.label))
-                        .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 1)
-                        .background(Color.panelSelected, in: .capsule)
-                }
-                .fixedSize()
-                // One line where it fits; on a panel as narrow as a phone's, the instrument
-                // and the picture under the name, as the web app's rows wrap there.
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 5) {
-                        Text(name)
-                            .fixedSize()
-                        Spacer(minLength: 4)
-                        detail
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(name)
-                            .truncationMode(.tail)
-                        detail
-                    }
-                    .padding(.vertical, 6)
-                }
-                // Ahead of the row's own spacer, which would take half the width the name needs.
-                .layoutPriority(1)
-            }
-            .accessibilityLabel(spoken)
-            imageryButton(layer)
+        .task(id: passes.map(\.key)) {
+            await latest.follow(passes)
         }
     }
 
-    /// Opens the Imagery tab of the layer's satellite, or a composite's menu of them.
-    @ViewBuilder private func imageryButton(_ layer: Listing) -> some View {
-        let mark = Image(systemName: "photo")
-            .foregroundStyle(.secondary)
-            .frame(width: 40)
-            .frame(maxHeight: .infinity)
-            .contentShape(.rect)
-        switch layer.kind {
-        case .satellite(let satellite, _):
-            Button {
-                onShow(satellite)
-            } label: {
-                mark
+    /// A satellite or composite, "METEOSAT-12", not "METEOSAT-12 (MTG-I1)", which opens its
+    /// Imagery tab or a menu of its satellites, and a button a layer, named by its type; a
+    /// satellite's second layer of a type only while it is on. A passes layer on with the
+    /// clock past its newest pass has the notice under them.
+    private func row(_ row: SatelliteDetails.ImageryRow, open: Listing.Group?) -> some View {
+        let isOn = row.cells.contains { imagery.isShown($0.listing.token) }
+        return VStack(alignment: .leading, spacing: 4) {
+            FlowLayout(spacing: 6, lineSpacing: 4) {
+                name(row)
+                ForEach(row.cells.filter { !$0.extra || imagery.isShown($0.listing.token) }, id: \.listing.key) { cell in
+                    typeButton(row, cell, open: open)
+                }
             }
-            .buttonStyle(PanelRowStyle())
-            .accessibilityLabel("Show the imagery of \(satellite.name)")
-        case .composite(let satellites):
+            ForEach(row.cells.filter { $0.listing.type == .passes && imagery.isShown($0.listing.token) }, id: \.listing.key) { cell in
+                TimelineView(.periodic(from: .now, by: 1)) { _ in
+                    if latest.isPastNewest(cell.listing.token, time: clock.now()), let newest = latest.latest[cell.listing.token]?.pictured {
+                        PassNotice(newest: newest.start) { latest.goToNewest(cell.listing.token, clock: clock) }
+                    }
+                }
+            }
+        }
+        .foregroundStyle(isOn ? Color.panelInk : .primary)
+        .padding(.leading, 16)
+        .padding(.trailing, 10)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+    }
+
+    /// The row's name: a satellite's opens its Imagery tab, a composite's a menu of its satellites.
+    @ViewBuilder private func name(_ row: SatelliteDetails.ImageryRow) -> some View {
+        if row.isComposite {
+            let satellites = Dictionary(
+                row.cells.flatMap { cell -> [Listing.Satellite] in if case .composite(let satellites) = cell.listing.kind { satellites } else { [] } }.map { ($0.id, $0) }
+            ) { first, _ in first }.values.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             Menu {
                 Section("Show the imagery of") {
                     ForEach(satellites, id: \.id) { satellite in
@@ -740,12 +724,55 @@ private struct SatelliteImageryList: View {
                     }
                 }
             } label: {
-                mark
+                Text(row.name).frame(minHeight: 28)
             }
             .menuStyle(.button)
-            .buttonStyle(PanelRowStyle())
-            .accessibilityLabel("Show the imagery of a satellite of the \(layer.name.lowercased())")
+            .buttonStyle(.plain)
+            .accessibilityLabel("Show the imagery of a satellite of the \(row.name.lowercased())")
+        } else if case .satellite(let satellite, _) = row.cells.first?.listing.kind {
+            Button {
+                onShow(satellite)
+            } label: {
+                Text(row.name.replacing(/\s*\(.*\)$/, with: "")).frame(minHeight: 28)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Show the imagery of \(row.name)")
         }
+    }
+
+    private func typeButton(_ row: SatelliteDetails.ImageryRow, _ cell: SatelliteDetails.ImageryRow.Cell, open: Listing.Group?) -> some View {
+        let layer = cell.listing
+        let isShown = imagery.isShown(layer.token)
+        return Button {
+            shown(layer.token, open: open).wrappedValue = !isShown
+        } label: {
+            Label(cell.name, systemImage: layer.type.symbol)
+                .labelStyle(TypeButtonLabelStyle())
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .frame(minHeight: 26)
+                .foregroundStyle(isShown ? Color.panelInk : .secondary)
+                .background(isShown ? Color.panelAccent.opacity(0.22) : .clear, in: .capsule)
+                .overlay {
+                    Capsule().strokeBorder(isShown ? Color.panelAccent : Color.white.opacity(0.12))
+                }
+                .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(row.isComposite ? "\(row.name), \(cell.name)" : "\(layer.type.title) of \(row.name)\(cell.extra ? " \(cell.name)" : "")")
+        .accessibilityValue(isShown ? "On" : "Off")
+        .accessibilityAddTraits(isShown ? [.isSelected] : [])
+        .accessibilityHint(tooltip(layer))
+        .help(tooltip(layer))
+    }
+
+    /// What the layer is, as its card says it, and for passes how old the newest is, once known.
+    private func tooltip(_ layer: Listing) -> String {
+        let newest = layer.type == .passes ? latest.latest[layer.token]?.pictured.start : nil
+        return [
+            layer.type.title, layer.words.picture, layer.words.cropped, layer.words.updates,
+            newest.map { "Newest pass \(Formats.timeAgo($0, now: Date.now.timeIntervalSince1970 * 1000))" },
+        ].compactMap(\.self).joined(separator: "\n")
     }
 
     /// Whether the layer `token` names is on the globe, and a switch's way to set it,
@@ -773,6 +800,16 @@ private struct SatelliteImageryList: View {
         switch group {
         case .geo: "globe.europe.africa"
         case .leo: "circle.dashed"
+        }
+    }
+}
+
+/// A type button's icon close beside its name.
+private struct TypeButtonLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 4) {
+            configuration.icon
+            configuration.title
         }
     }
 }

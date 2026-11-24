@@ -53,6 +53,16 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   follows the clock through the STAC collection's Slots while the layer is drawn,
   and makes the Imagery tab's picture of it from the newest Slot's tiles
   (`MosaicFrame.preview`), as it has no WMS.
+- A granule layer (ADR 0023) has no tiles of its own: `GranuleService` in the app
+  target lists its granules from CMR or EUMETSAT's Data Store, asks whether its
+  pictures' provider has each one's pixels, and cuts each granule's picture from
+  a WMS frame, in plate carrée or polar stereographic, with black made clear.
+  `GranuleImagery` keeps the day granules of the 50 minutes behind the clock and
+  hands them to the renderer, which fills each in behind its satellite's scan
+  line and outlines it once passed. Unlike the web app, which draws a passed GIBS
+  granule from its WMTS tiles, every granule keeps its picture, at most 1,024
+  pixels across. The words on its card and Map panel buttons (ADR 0024) come from
+  `SatelliteDetails.imageryWords`, held to the web app by the parity fixtures.
 
 ## Rendering
 

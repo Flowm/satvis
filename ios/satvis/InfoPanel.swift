@@ -18,6 +18,8 @@ struct InfoPanel: View {
     @State private var previews: [ImageryLayer: ImageryPreviewSource] = [:]
     /// The cards' width, the tab row's, in points.
     @State private var cardsWidth = 0.0
+    /// The newest pass of each of the satellite's granule layers.
+    @State private var latestPasses = LatestPasses()
 
     private var propagator: SGP4Propagator? { try? SGP4Propagator(entry.record.meanElements) }
 
@@ -47,7 +49,8 @@ struct InfoPanel: View {
                             instrumentList(instruments)
                         case .imagery:
                             ImageryCards(
-                                layers: imagery, previews: previews, columns: ImageryCards.columns(width: cardsWidth), drawn: session.instrumentImagery)
+                                layers: imagery, previews: previews, columns: ImageryCards.columns(width: cardsWidth), session: session, satellite: entry.id,
+                                latest: latestPasses)
                         default:
                             PassesSections(subject: .satellite(entry), clock: session.clock, passes: session.passes)
                         }
@@ -84,6 +87,9 @@ struct InfoPanel: View {
             }
             .panelList()
             .alertNotice(session.alerts)
+            .task(id: entry.id) {
+                await latestPasses.follow(imagery.compactMap { layer in layer.imagery.granuleLayer.map { (layer.imagery.key, $0) } })
+            }
             // Synchronously, so that no frame shows the last satellite's state on this one.
             .onChange(of: entry.id, initial: true) {
                 unfoldedInstruments = []

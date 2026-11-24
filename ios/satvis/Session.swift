@@ -70,6 +70,8 @@ final class Session {
     }
     /// The instrument imagery drawn over the base map (ADR 0020), kept in links as `imagery`.
     let instrumentImagery = InstrumentImagery()
+    /// The drawn granule layers' granules behind the clock (ADR 0023).
+    @ObservationIgnored let granuleImagery = GranuleImagery()
     /// Whether the globe follows Re:Earth's terrain, kept in links as `terrain`:
     /// off by default, as on the web.
     var terrain = launchMap.terrain {
@@ -98,7 +100,8 @@ final class Session {
     var mapCredits: [Credit] {
         Credit.map(
             baseLayer: baseLayer, terrain: terrain,
-            instrumentImagery: instrumentImagery.tokens.compactMap { SatelliteDetails.ImageryPreview.Provider(rawValue: String($0.prefix { $0 != ":" })) },
+            instrumentImagery: instrumentImagery.tokens.compactMap { SatelliteDetails.ImageryPreview.Provider(rawValue: String($0.prefix { $0 != ":" })) }
+                + instrumentImagery.granuleLayers.compactMap { ($0.layer.pictures?.provider.rawValue).flatMap(SatelliteDetails.ImageryPreview.Provider.init) },
             mosaic: instrumentImagery.mosaic.credit)
     }
 
@@ -260,7 +263,7 @@ final class Session {
     /// Loads what there is to show and keeps it in step until cancelled.
     func run() async {
         starMapLoader.show(starMap)
-        let watchers = [
+        let watchers: [Task<Void, Never>] = [
             Task { await watchActive() },
             Task { await watchStations() },
             Task { await watchMode() },
@@ -272,6 +275,11 @@ final class Session {
             Task { await watchInstrumentImagery() },
             Task {
                 await instrumentImagery.follow(now: { self.clock.now() }) { self.globe.instrumentImagery = $0 }
+            },
+            Task {
+                await granuleImagery.follow(
+                    now: { self.clock.now() }, isDrawn: { id in self.catalog.activeEntries.contains { $0.id == id } },
+                    apply: { self.globe.setGranules($0, fans: $1) })
             },
             Task { await countViews() },
         ]

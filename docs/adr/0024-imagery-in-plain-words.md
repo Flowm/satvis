@@ -98,10 +98,8 @@ it stays apart from EUMETSAT's natural colour mosaic: two layers, two sources, o
   and the providers for whether it has pixels: about a dozen catalogue queries and a few WMS
   requests each, again every ten minutes while it stays open.
 - The records' `imagery` is unchanged. The Imagery tab's entries carry `type` and `words`;
-  the parity fixtures have them, and the native app, which decodes only the fields it knows,
-  still names its rows and cards as ADR 0021 does, composites by "GeoRing". It does show our
-  own mosaic's new source, satvis and the repository link, which it reads from
-  `web-tables.json`.
+  the parity fixtures have them, and the native app words its cards and Map panel rows from
+  the same code, held to them (2026-11-24).
 
 ## Alternatives rejected
 
