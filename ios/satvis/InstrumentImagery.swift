@@ -77,13 +77,13 @@ final class InstrumentImagery {
         if !wanted.isEmpty {
             for entry in entries where entry.record.metadata["imagery"] != nil {
                 for layer in SatelliteDetails.drawableImagery(entry.record) {
-                    if let token = layer.preview?.token, wanted.contains(token), found[token] == nil {
+                    if let token = layer.token, wanted.contains(token), found[token] == nil {
                         found[token] = layer
                     }
                 }
             }
         }
-        layers = found.compactMapValues(\.preview)
+        layers = found.compactMapValues(\.tiles)
         let named = found.mapValues(\.label)
         if named != labels {
             labels = named

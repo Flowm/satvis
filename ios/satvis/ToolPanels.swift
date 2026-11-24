@@ -673,7 +673,7 @@ private struct SatelliteImageryList: View {
             switch layer.kind {
             case .satellite(let satellite, let instrument):
                 (satellite.name.replacing(/\s*\(.*\)$/, with: ""), instrument, "\(satellite.name) \(instrument) \(layer.imagery.label)")
-            case .composite(let name, _, let cadence): (name, cadence, layer.imagery.label)
+            case .composite: (layer.name, nil, layer.imagery.label)
             }
         return HStack(spacing: 0) {
             Toggle(isOn: shown(layer.token, open: open)) {
@@ -683,7 +683,7 @@ private struct SatelliteImageryList: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
-                    Text(layer.product)
+                    Text(SatelliteDetails.shortImageryLabel(layer.label))
                         .font(.caption)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 1)
@@ -730,7 +730,7 @@ private struct SatelliteImageryList: View {
             }
             .buttonStyle(PanelRowStyle())
             .accessibilityLabel("Show the imagery of \(satellite.name)")
-        case .composite(let name, let satellites, _):
+        case .composite(let satellites):
             Menu {
                 Section("Show the imagery of") {
                     ForEach(satellites, id: \.id) { satellite in
@@ -744,7 +744,7 @@ private struct SatelliteImageryList: View {
             }
             .menuStyle(.button)
             .buttonStyle(PanelRowStyle())
-            .accessibilityLabel("Show the imagery of a satellite of the \(name)")
+            .accessibilityLabel("Show the imagery of a satellite of the \(layer.name.lowercased())")
         }
     }
 

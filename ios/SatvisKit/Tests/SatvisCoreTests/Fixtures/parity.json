@@ -9970,6 +9970,7 @@
         "Orbit",
         "Orbit track",
         "Ground track",
+        "Ground track fan",
         "Sensor cone",
         "3D model",
         "Ground station link"
@@ -10047,6 +10048,8 @@
       "layers": [
         "NaturalEarth"
       ],
+      "imagery": [],
+      "replay": "",
       "terrain": "None",
       "stars": "Tycho1K",
       "scene": "3D",
@@ -10862,6 +10865,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -10892,6 +10897,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -10920,6 +10927,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -10952,6 +10961,8 @@
           "layers": [
             "VersaTiles"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -10989,6 +11000,8 @@
           "layers": [
             "VersaTiles"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "ReEarth",
           "stars": "DeepStar2K",
           "scene": "Sky",
@@ -11025,6 +11038,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11060,6 +11075,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11095,6 +11112,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11122,6 +11141,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11157,6 +11178,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11189,6 +11212,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "2D",
@@ -11220,6 +11245,8 @@
           "layers": [
             "VersaTiles"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "2D",
@@ -11250,6 +11277,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "Sky",
@@ -11286,6 +11315,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "Sky",
@@ -11316,6 +11347,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11351,6 +11384,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "Sky",
@@ -11381,6 +11416,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11414,6 +11451,8 @@
           "layers": [
             "VersaTiles"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11444,6 +11483,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11474,6 +11515,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11504,6 +11547,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "DeepStar1K",
           "scene": "3D",
@@ -11534,6 +11579,8 @@
           "layers": [
             "VersaTiles"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11568,6 +11615,8 @@
             "VersaTiles_0.5",
             "BlackMarble"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11598,6 +11647,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11628,6 +11679,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11658,6 +11711,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11691,6 +11746,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11722,6 +11779,8 @@
           "layers": [
             "VersaTiles"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11753,6 +11812,8 @@
           "layers": [
             "VersaTiles"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11784,6 +11845,8 @@
           "layers": [
             "NaturalEarth"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11814,6 +11877,8 @@
           "layers": [
             "VersaTiles"
           ],
+          "imagery": [],
+          "replay": "",
           "terrain": "None",
           "stars": "Tycho1K",
           "scene": "3D",
@@ -11824,6 +11889,43 @@
         },
         "invalid": [],
         "written": "elements=Point,Label"
+      },
+      {
+        "preset": "default",
+        "query": "sats=NOAA+20+(JPSS-1)&imagery=gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule&replay=Munich&time=2026-11-20T09:49Z&elements=Point,Label,Ground+track+fan",
+        "state": {
+          "elements": [
+            "Point",
+            "Label",
+            "Ground track fan"
+          ],
+          "sats": [
+            "NOAA 20 (JPSS-1)"
+          ],
+          "xsats": [],
+          "tags": [
+            "Weather"
+          ],
+          "gs": [],
+          "track": "",
+          "overpass": "elevation",
+          "layers": [
+            "NaturalEarth"
+          ],
+          "imagery": [
+            "gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule"
+          ],
+          "replay": "Munich",
+          "terrain": "None",
+          "stars": "Tycho1K",
+          "scene": "3D",
+          "unseen": "dim",
+          "camera": "Fixed",
+          "pixelratio": "native",
+          "time": "2026-11-20T09:49Z"
+        },
+        "invalid": [],
+        "written": "elements=Point,Label,Ground+track+fan&sats=NOAA+20+(JPSS-1)&imagery=gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule&replay=Munich&time=2026-11-20T09:49Z"
       }
     ],
     "sanitized": [
@@ -12084,6 +12186,4805 @@
           "2.25": "2.25",
           "native": "native"
         }
+      }
+    ]
+  },
+  "imagery": {
+    "satellites": [
+      {
+        "noradId": 25994,
+        "name": "TERRA",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "MODIS",
+            "provider": "gibs",
+            "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "P1D",
+            "start": "2000-02-24",
+            "maxLevel": 9,
+            "format": "jpeg"
+          },
+          {
+            "instrument": "MODIS",
+            "provider": "cmr",
+            "layer": "MOD03",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "PT5M",
+            "start": "2000-02-24",
+            "granules": [
+              "C1426422512-LANCEMODIS",
+              "C1379767668-LAADS"
+            ],
+            "pictures": {
+              "provider": "gibs",
+              "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+              "frame": "day"
+            }
+          },
+          {
+            "instrument": "MISR",
+            "provider": "gibs",
+            "layer": "MISR_AM1_Ellipsoid_Radiance_RGB_AN",
+            "label": "True colour, nadir camera",
+            "kind": "rgb",
+            "period": "P1D",
+            "start": "2017-09-01",
+            "end": "2022-10-12",
+            "maxLevel": 9,
+            "format": "png"
+          }
+        ],
+        "instruments": [
+          {
+            "name": "MODIS",
+            "imagery": [
+              {
+                "key": "gibs:MODIS_Terra_CorrectedReflectance_TrueColor",
+                "label": "True colour",
+                "detail": "daily since 2000",
+                "viewer": "NASA Worldview",
+                "href": "https://worldview.earthdata.nasa.gov/?l=MODIS_Terra_CorrectedReflectance_TrueColor",
+                "token": "gibs:MODIS_Terra_CorrectedReflectance_TrueColor",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+                  "format": "jpeg",
+                  "daily": true
+                },
+                "type": "daily",
+                "words": {
+                  "picture": "True colour · MODIS",
+                  "updates": "Once a day",
+                  "ended": false,
+                  "archive": "Back to 2000"
+                }
+              },
+              {
+                "key": "cmr:MOD03",
+                "label": "True colour",
+                "detail": "every 5 min since 2000",
+                "token": "cmr:MOD03",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+                  "format": "jpeg",
+                  "daily": true,
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+                    "frame": "day"
+                  }
+                },
+                "granuleLayer": {
+                  "token": "cmr:MOD03",
+                  "provider": "cmr",
+                  "layer": "MOD03",
+                  "granules": [
+                    "C1426422512-LANCEMODIS",
+                    "C1379767668-LAADS"
+                  ],
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+                    "frame": "day"
+                  }
+                },
+                "type": "passes",
+                "words": {
+                  "picture": "True colour · MODIS",
+                  "updates": "With each pass, hours behind live",
+                  "ended": false,
+                  "archive": "Back to 2000",
+                  "cropped": "Cropped from the daily mosaic"
+                }
+              }
+            ]
+          },
+          {
+            "name": "MISR",
+            "imagery": [
+              {
+                "key": "gibs:MISR_AM1_Ellipsoid_Radiance_RGB_AN",
+                "label": "True colour, nadir camera",
+                "detail": "daily, 2017–2022",
+                "viewer": "NASA Worldview",
+                "href": "https://worldview.earthdata.nasa.gov/?l=MISR_AM1_Ellipsoid_Radiance_RGB_AN&t=2022-10-12",
+                "token": "gibs:MISR_AM1_Ellipsoid_Radiance_RGB_AN",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "MISR_AM1_Ellipsoid_Radiance_RGB_AN",
+                  "format": "png",
+                  "daily": true,
+                  "end": "2022-10-12"
+                },
+                "type": "daily",
+                "words": {
+                  "picture": "True colour (nadir camera) · MISR",
+                  "updates": "Ended Oct 12, 2022",
+                  "ended": true,
+                  "archive": "2017–2022"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 27424,
+        "name": "AQUA",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "MODIS",
+            "provider": "gibs",
+            "layer": "MODIS_Aqua_CorrectedReflectance_TrueColor",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "P1D",
+            "start": "2002-07-03",
+            "maxLevel": 9,
+            "format": "jpeg"
+          },
+          {
+            "instrument": "MODIS",
+            "provider": "cmr",
+            "layer": "MYD03",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "PT5M",
+            "start": "2002-07-04",
+            "granules": [
+              "C1426640814-LANCEMODIS",
+              "C1379841358-LAADS"
+            ],
+            "pictures": {
+              "provider": "gibs",
+              "layer": "MODIS_Aqua_CorrectedReflectance_TrueColor",
+              "frame": "day"
+            }
+          }
+        ],
+        "instruments": [
+          {
+            "name": "MODIS",
+            "imagery": [
+              {
+                "key": "gibs:MODIS_Aqua_CorrectedReflectance_TrueColor",
+                "label": "True colour",
+                "detail": "daily since 2002",
+                "viewer": "NASA Worldview",
+                "href": "https://worldview.earthdata.nasa.gov/?l=MODIS_Aqua_CorrectedReflectance_TrueColor",
+                "token": "gibs:MODIS_Aqua_CorrectedReflectance_TrueColor",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "MODIS_Aqua_CorrectedReflectance_TrueColor",
+                  "format": "jpeg",
+                  "daily": true
+                },
+                "type": "daily",
+                "words": {
+                  "picture": "True colour · MODIS",
+                  "updates": "Once a day",
+                  "ended": false,
+                  "archive": "Back to 2002"
+                }
+              },
+              {
+                "key": "cmr:MYD03",
+                "label": "True colour",
+                "detail": "every 5 min since 2002",
+                "token": "cmr:MYD03",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "MODIS_Aqua_CorrectedReflectance_TrueColor",
+                  "format": "jpeg",
+                  "daily": true,
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "MODIS_Aqua_CorrectedReflectance_TrueColor",
+                    "frame": "day"
+                  }
+                },
+                "granuleLayer": {
+                  "token": "cmr:MYD03",
+                  "provider": "cmr",
+                  "layer": "MYD03",
+                  "granules": [
+                    "C1426640814-LANCEMODIS",
+                    "C1379841358-LAADS"
+                  ],
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "MODIS_Aqua_CorrectedReflectance_TrueColor",
+                    "frame": "day"
+                  }
+                },
+                "type": "passes",
+                "words": {
+                  "picture": "True colour · MODIS",
+                  "updates": "With each pass, hours behind live",
+                  "ended": false,
+                  "archive": "Back to 2002",
+                  "cropped": "Cropped from the daily mosaic"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 37849,
+        "name": "SUOMI NPP",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "VIIRS",
+            "provider": "gibs",
+            "layer": "VIIRS_SNPP_CorrectedReflectance_TrueColor",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "P1D",
+            "start": "2015-11-24",
+            "end": "2026-11-02",
+            "maxLevel": 9,
+            "format": "jpeg"
+          },
+          {
+            "instrument": "VIIRS",
+            "provider": "gibs",
+            "layer": "VIIRS_SNPP_CorrectedReflectance_TrueColor_Granule",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "PT6M",
+            "end": "2026-11-02",
+            "window": "P90D",
+            "maxLevel": 9,
+            "format": "png",
+            "granules": [
+              "C2105092427-LAADS"
+            ]
+          }
+        ],
+        "instruments": [
+          {
+            "name": "VIIRS",
+            "imagery": [
+              {
+                "key": "gibs:VIIRS_SNPP_CorrectedReflectance_TrueColor",
+                "label": "True colour",
+                "detail": "daily, 2015–2026",
+                "viewer": "NASA Worldview",
+                "href": "https://worldview.earthdata.nasa.gov/?l=VIIRS_SNPP_CorrectedReflectance_TrueColor&t=2026-11-02",
+                "token": "gibs:VIIRS_SNPP_CorrectedReflectance_TrueColor",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "VIIRS_SNPP_CorrectedReflectance_TrueColor",
+                  "format": "jpeg",
+                  "daily": true,
+                  "end": "2026-11-02"
+                },
+                "type": "daily",
+                "words": {
+                  "picture": "True colour · VIIRS",
+                  "updates": "Ended Nov 2, 2026",
+                  "ended": true,
+                  "archive": "2015–2026"
+                }
+              },
+              {
+                "key": "gibs:VIIRS_SNPP_CorrectedReflectance_TrueColor_Granule",
+                "label": "True colour",
+                "detail": "every 6 min, until 2026",
+                "viewer": "NASA Worldview",
+                "href": "https://worldview.earthdata.nasa.gov/?l=VIIRS_SNPP_CorrectedReflectance_TrueColor_Granule&t=2026-11-02",
+                "token": "gibs:VIIRS_SNPP_CorrectedReflectance_TrueColor_Granule",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "VIIRS_SNPP_CorrectedReflectance_TrueColor_Granule",
+                  "format": "png",
+                  "daily": false,
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "VIIRS_SNPP_CorrectedReflectance_TrueColor_Granule",
+                    "frame": "granule"
+                  },
+                  "end": "2026-11-02"
+                },
+                "granuleLayer": {
+                  "token": "gibs:VIIRS_SNPP_CorrectedReflectance_TrueColor_Granule",
+                  "provider": "gibs",
+                  "layer": "VIIRS_SNPP_CorrectedReflectance_TrueColor_Granule",
+                  "maxLevel": 9,
+                  "format": "png",
+                  "daily": false,
+                  "granules": [
+                    "C2105092427-LAADS"
+                  ],
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "VIIRS_SNPP_CorrectedReflectance_TrueColor_Granule",
+                    "frame": "granule"
+                  }
+                },
+                "type": "passes",
+                "words": {
+                  "picture": "True colour · VIIRS",
+                  "updates": "Ended Nov 2, 2026",
+                  "ended": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 43013,
+        "name": "NOAA 20 (JPSS-1)",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "VIIRS",
+            "provider": "gibs",
+            "layer": "VIIRS_NOAA20_CorrectedReflectance_TrueColor",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "P1D",
+            "start": "2018-01-05",
+            "maxLevel": 9,
+            "format": "jpeg"
+          },
+          {
+            "instrument": "VIIRS",
+            "provider": "gibs",
+            "layer": "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "PT6M",
+            "window": "P90D",
+            "maxLevel": 9,
+            "format": "png",
+            "granules": [
+              "C2208781576-LANCEMODIS",
+              "C2105084593-LAADS"
+            ]
+          }
+        ],
+        "instruments": [
+          {
+            "name": "VIIRS",
+            "imagery": [
+              {
+                "key": "gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor",
+                "label": "True colour",
+                "detail": "daily since 2018",
+                "viewer": "NASA Worldview",
+                "href": "https://worldview.earthdata.nasa.gov/?l=VIIRS_NOAA20_CorrectedReflectance_TrueColor",
+                "token": "gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "VIIRS_NOAA20_CorrectedReflectance_TrueColor",
+                  "format": "jpeg",
+                  "daily": true
+                },
+                "type": "daily",
+                "words": {
+                  "picture": "True colour · VIIRS",
+                  "updates": "Once a day",
+                  "ended": false,
+                  "archive": "Back to 2018"
+                }
+              },
+              {
+                "key": "gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+                "label": "True colour",
+                "detail": "every 6 min, last 90 days",
+                "viewer": "NASA Worldview",
+                "href": "https://worldview.earthdata.nasa.gov/?l=VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+                "token": "gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+                  "format": "png",
+                  "daily": false,
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+                    "frame": "granule"
+                  }
+                },
+                "granuleLayer": {
+                  "token": "gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+                  "provider": "gibs",
+                  "layer": "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+                  "maxLevel": 9,
+                  "format": "png",
+                  "daily": false,
+                  "granules": [
+                    "C2208781576-LANCEMODIS",
+                    "C2105084593-LAADS"
+                  ],
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+                    "frame": "granule"
+                  }
+                },
+                "type": "passes",
+                "words": {
+                  "picture": "True colour · VIIRS",
+                  "updates": "With each pass, hours behind live",
+                  "ended": false,
+                  "archive": "The last 90 days"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 54234,
+        "name": "NOAA 21 (JPSS-2)",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "VIIRS",
+            "provider": "gibs",
+            "layer": "VIIRS_NOAA21_CorrectedReflectance_TrueColor",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "P1D",
+            "start": "2023-02-10",
+            "maxLevel": 9,
+            "format": "jpeg"
+          },
+          {
+            "instrument": "VIIRS",
+            "provider": "cmr",
+            "layer": "VJ203MOD",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "PT6M",
+            "start": "2023-02-10",
+            "granules": [
+              "C3383721151-LANCEMODIS",
+              "C3478458790-LAADS"
+            ],
+            "pictures": {
+              "provider": "gibs",
+              "layer": "VIIRS_NOAA21_CorrectedReflectance_TrueColor",
+              "frame": "day"
+            }
+          }
+        ],
+        "instruments": [
+          {
+            "name": "VIIRS",
+            "imagery": [
+              {
+                "key": "gibs:VIIRS_NOAA21_CorrectedReflectance_TrueColor",
+                "label": "True colour",
+                "detail": "daily since 2023",
+                "viewer": "NASA Worldview",
+                "href": "https://worldview.earthdata.nasa.gov/?l=VIIRS_NOAA21_CorrectedReflectance_TrueColor",
+                "token": "gibs:VIIRS_NOAA21_CorrectedReflectance_TrueColor",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "VIIRS_NOAA21_CorrectedReflectance_TrueColor",
+                  "format": "jpeg",
+                  "daily": true
+                },
+                "type": "daily",
+                "words": {
+                  "picture": "True colour · VIIRS",
+                  "updates": "Once a day",
+                  "ended": false,
+                  "archive": "Back to 2023"
+                }
+              },
+              {
+                "key": "cmr:VJ203MOD",
+                "label": "True colour",
+                "detail": "every 6 min since 2023",
+                "token": "cmr:VJ203MOD",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "VIIRS_NOAA21_CorrectedReflectance_TrueColor",
+                  "format": "jpeg",
+                  "daily": true,
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "VIIRS_NOAA21_CorrectedReflectance_TrueColor",
+                    "frame": "day"
+                  }
+                },
+                "granuleLayer": {
+                  "token": "cmr:VJ203MOD",
+                  "provider": "cmr",
+                  "layer": "VJ203MOD",
+                  "granules": [
+                    "C3383721151-LANCEMODIS",
+                    "C3478458790-LAADS"
+                  ],
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "VIIRS_NOAA21_CorrectedReflectance_TrueColor",
+                    "frame": "day"
+                  }
+                },
+                "type": "passes",
+                "words": {
+                  "picture": "True colour · VIIRS",
+                  "updates": "With each pass, hours behind live",
+                  "ended": false,
+                  "archive": "Back to 2023",
+                  "cropped": "Cropped from the daily mosaic"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 58928,
+        "name": "PACE",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "OCI",
+            "provider": "gibs",
+            "layer": "OCI_PACE_True_Color",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "P1D",
+            "start": "2024-02-25",
+            "maxLevel": 7,
+            "format": "jpeg"
+          },
+          {
+            "instrument": "OCI",
+            "provider": "cmr",
+            "layer": "PACE_OCI_L1B_SCI",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "PT5M",
+            "start": "2024-03-05",
+            "granules": [
+              "C3392966952-OB_CLOUD"
+            ],
+            "pictures": {
+              "provider": "gibs",
+              "layer": "OCI_PACE_True_Color",
+              "frame": "day"
+            }
+          },
+          {
+            "instrument": "SPEXone",
+            "provider": "gibs",
+            "layer": "SPEXONE_PACE_True_Color",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "P1D",
+            "start": "2025-08-21",
+            "maxLevel": 7,
+            "format": "png"
+          },
+          {
+            "instrument": "HARP2",
+            "provider": "gibs",
+            "layer": "HARP2_PACE_True_Color",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "P1D",
+            "start": "2025-08-21",
+            "end": "2026-06-19",
+            "maxLevel": 7,
+            "format": "png"
+          }
+        ],
+        "instruments": [
+          {
+            "name": "OCI",
+            "imagery": [
+              {
+                "key": "gibs:OCI_PACE_True_Color",
+                "label": "True colour",
+                "detail": "daily since 2024",
+                "viewer": "NASA Worldview",
+                "href": "https://worldview.earthdata.nasa.gov/?l=OCI_PACE_True_Color",
+                "token": "gibs:OCI_PACE_True_Color",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "OCI_PACE_True_Color",
+                  "format": "jpeg",
+                  "daily": true
+                },
+                "type": "daily",
+                "words": {
+                  "picture": "True colour · OCI",
+                  "updates": "Once a day",
+                  "ended": false,
+                  "archive": "Back to 2024"
+                }
+              },
+              {
+                "key": "cmr:PACE_OCI_L1B_SCI",
+                "label": "True colour",
+                "detail": "every 5 min since 2024",
+                "token": "cmr:PACE_OCI_L1B_SCI",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "OCI_PACE_True_Color",
+                  "format": "jpeg",
+                  "daily": true,
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "OCI_PACE_True_Color",
+                    "frame": "day"
+                  }
+                },
+                "granuleLayer": {
+                  "token": "cmr:PACE_OCI_L1B_SCI",
+                  "provider": "cmr",
+                  "layer": "PACE_OCI_L1B_SCI",
+                  "granules": [
+                    "C3392966952-OB_CLOUD"
+                  ],
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "OCI_PACE_True_Color",
+                    "frame": "day"
+                  }
+                },
+                "type": "passes",
+                "words": {
+                  "picture": "True colour · OCI",
+                  "updates": "With each pass, hours behind live",
+                  "ended": false,
+                  "archive": "Back to 2024",
+                  "cropped": "Cropped from the daily mosaic"
+                }
+              }
+            ]
+          },
+          {
+            "name": "SPEXone",
+            "imagery": [
+              {
+                "key": "gibs:SPEXONE_PACE_True_Color",
+                "label": "True colour",
+                "detail": "daily since 2025",
+                "viewer": "NASA Worldview",
+                "href": "https://worldview.earthdata.nasa.gov/?l=SPEXONE_PACE_True_Color",
+                "token": "gibs:SPEXONE_PACE_True_Color",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "SPEXONE_PACE_True_Color",
+                  "format": "png",
+                  "daily": true
+                },
+                "type": "daily",
+                "words": {
+                  "picture": "True colour · SPEXone",
+                  "updates": "Once a day",
+                  "ended": false,
+                  "archive": "Back to 2025"
+                }
+              }
+            ]
+          },
+          {
+            "name": "HARP2",
+            "imagery": [
+              {
+                "key": "gibs:HARP2_PACE_True_Color",
+                "label": "True colour",
+                "detail": "daily, 2025–2026",
+                "viewer": "NASA Worldview",
+                "href": "https://worldview.earthdata.nasa.gov/?l=HARP2_PACE_True_Color&t=2026-06-19",
+                "token": "gibs:HARP2_PACE_True_Color",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "HARP2_PACE_True_Color",
+                  "format": "png",
+                  "daily": true,
+                  "end": "2026-06-19"
+                },
+                "type": "daily",
+                "words": {
+                  "picture": "True colour · HARP2",
+                  "updates": "Ended Jun 19, 2026",
+                  "ended": true,
+                  "archive": "2025–2026"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 38771,
+        "name": "METOP-B",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "AVHRR/3",
+            "provider": "eumetview",
+            "layer": "eps:m01_rgb_natural_fog",
+            "label": "Natural colour and fog, six orbits stacked",
+            "kind": "rgb",
+            "start": "2020-09-01",
+            "maxLevel": 6,
+            "format": "png"
+          },
+          {
+            "instrument": "AVHRR/3",
+            "provider": "cmr",
+            "layer": "AVHRRF_MB-STAR-L2P",
+            "label": "Natural colour",
+            "kind": "rgb",
+            "period": "PT10M",
+            "start": "2012-10-19",
+            "granules": [
+              "C2205121394-POCLOUD"
+            ],
+            "pictures": {
+              "provider": "eumetview",
+              "layer": "eps:m01_rgb_natural_fog",
+              "frame": "PT35M"
+            }
+          }
+        ],
+        "instruments": [
+          {
+            "name": "AVHRR/3",
+            "imagery": [
+              {
+                "key": "eumetview:eps:m01_rgb_natural_fog",
+                "label": "Natural colour and fog, six orbits stacked",
+                "detail": "since 2020",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=eps:m01_rgb_natural_fog",
+                "token": "eumetview:eps:m01_rgb_natural_fog",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "eps:m01_rgb_natural_fog",
+                  "format": "png",
+                  "daily": false
+                },
+                "type": "orbits",
+                "words": {
+                  "picture": "Natural colour + fog · AVHRR/3",
+                  "updates": "With each orbit",
+                  "ended": false,
+                  "archive": "Back to 2020"
+                }
+              },
+              {
+                "key": "cmr:AVHRRF_MB-STAR-L2P",
+                "label": "Natural colour",
+                "detail": "every 10 min since 2012",
+                "token": "cmr:AVHRRF_MB-STAR-L2P",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "eps:m01_rgb_natural_fog",
+                  "format": "jpeg",
+                  "daily": false,
+                  "pictures": {
+                    "provider": "eumetview",
+                    "layer": "eps:m01_rgb_natural_fog",
+                    "frame": 2100000
+                  }
+                },
+                "granuleLayer": {
+                  "token": "cmr:AVHRRF_MB-STAR-L2P",
+                  "provider": "cmr",
+                  "layer": "AVHRRF_MB-STAR-L2P",
+                  "granules": [
+                    "C2205121394-POCLOUD"
+                  ],
+                  "pictures": {
+                    "provider": "eumetview",
+                    "layer": "eps:m01_rgb_natural_fog",
+                    "frame": 2100000
+                  }
+                },
+                "type": "passes",
+                "words": {
+                  "picture": "Natural colour · AVHRR/3",
+                  "updates": "With each pass, hours behind live",
+                  "ended": false,
+                  "archive": "Back to 2012",
+                  "cropped": "Cropped from the latest orbits"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 43689,
+        "name": "METOP-C",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "AVHRR/3",
+            "provider": "eumetview",
+            "layer": "eps:m03_rgb_natural_fog",
+            "label": "Natural colour and fog, six orbits stacked",
+            "kind": "rgb",
+            "start": "2020-09-01",
+            "maxLevel": 6,
+            "format": "png"
+          },
+          {
+            "instrument": "AVHRR/3",
+            "provider": "cmr",
+            "layer": "AVHRRF_MC-STAR-L2P",
+            "label": "Natural colour",
+            "kind": "rgb",
+            "period": "PT10M",
+            "start": "2018-12-04",
+            "granules": [
+              "C2205121400-POCLOUD"
+            ],
+            "pictures": {
+              "provider": "eumetview",
+              "layer": "eps:m03_rgb_natural_fog",
+              "frame": "PT35M"
+            }
+          }
+        ],
+        "instruments": [
+          {
+            "name": "AVHRR/3",
+            "imagery": [
+              {
+                "key": "eumetview:eps:m03_rgb_natural_fog",
+                "label": "Natural colour and fog, six orbits stacked",
+                "detail": "since 2020",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=eps:m03_rgb_natural_fog",
+                "token": "eumetview:eps:m03_rgb_natural_fog",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "eps:m03_rgb_natural_fog",
+                  "format": "png",
+                  "daily": false
+                },
+                "type": "orbits",
+                "words": {
+                  "picture": "Natural colour + fog · AVHRR/3",
+                  "updates": "With each orbit",
+                  "ended": false,
+                  "archive": "Back to 2020"
+                }
+              },
+              {
+                "key": "cmr:AVHRRF_MC-STAR-L2P",
+                "label": "Natural colour",
+                "detail": "every 10 min since 2018",
+                "token": "cmr:AVHRRF_MC-STAR-L2P",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "eps:m03_rgb_natural_fog",
+                  "format": "jpeg",
+                  "daily": false,
+                  "pictures": {
+                    "provider": "eumetview",
+                    "layer": "eps:m03_rgb_natural_fog",
+                    "frame": 2100000
+                  }
+                },
+                "granuleLayer": {
+                  "token": "cmr:AVHRRF_MC-STAR-L2P",
+                  "provider": "cmr",
+                  "layer": "AVHRRF_MC-STAR-L2P",
+                  "granules": [
+                    "C2205121400-POCLOUD"
+                  ],
+                  "pictures": {
+                    "provider": "eumetview",
+                    "layer": "eps:m03_rgb_natural_fog",
+                    "frame": 2100000
+                  }
+                },
+                "type": "passes",
+                "words": {
+                  "picture": "Natural colour · AVHRR/3",
+                  "updates": "With each pass, hours behind live",
+                  "ended": false,
+                  "archive": "Back to 2018",
+                  "cropped": "Cropped from the latest orbits"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 41335,
+        "name": "SENTINEL-3A",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "OLCI",
+            "provider": "eumetview",
+            "layer": "copernicus:sentinel3a_olci_l1_rgb_fullres",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "PT3M",
+            "start": "2020-02-17",
+            "maxLevel": 8,
+            "format": "png",
+            "granules": [
+              "EO:EUM:DAT:0409"
+            ],
+            "platform": "Sentinel-3A",
+            "frame": "PT25M"
+          },
+          {
+            "instrument": "OLCI",
+            "provider": "copernicus-browser",
+            "layer": "S3OLCI_CDAS",
+            "label": "True colour scenes",
+            "kind": "rgb",
+            "merged": true
+          }
+        ],
+        "instruments": [
+          {
+            "name": "OLCI",
+            "imagery": [
+              {
+                "key": "eumetview:copernicus:sentinel3a_olci_l1_rgb_fullres",
+                "label": "True colour",
+                "detail": "every 3 min since 2020",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=copernicus:sentinel3a_olci_l1_rgb_fullres",
+                "token": "eumetview:copernicus:sentinel3a_olci_l1_rgb_fullres",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "copernicus:sentinel3a_olci_l1_rgb_fullres",
+                  "format": "jpeg",
+                  "daily": false,
+                  "pictures": {
+                    "provider": "eumetview",
+                    "layer": "copernicus:sentinel3a_olci_l1_rgb_fullres",
+                    "frame": 1500000
+                  }
+                },
+                "granuleLayer": {
+                  "token": "eumetview:copernicus:sentinel3a_olci_l1_rgb_fullres",
+                  "provider": "eumetview",
+                  "layer": "copernicus:sentinel3a_olci_l1_rgb_fullres",
+                  "maxLevel": 8,
+                  "format": "png",
+                  "daily": false,
+                  "granules": [
+                    "EO:EUM:DAT:0409"
+                  ],
+                  "platform": "Sentinel-3A",
+                  "pictures": {
+                    "provider": "eumetview",
+                    "layer": "copernicus:sentinel3a_olci_l1_rgb_fullres",
+                    "frame": 1500000
+                  }
+                },
+                "type": "passes",
+                "words": {
+                  "picture": "True colour · OLCI",
+                  "updates": "With each pass, hours behind live",
+                  "ended": false,
+                  "archive": "Back to 2020"
+                }
+              },
+              {
+                "key": "copernicus-browser:S3OLCI_CDAS",
+                "label": "True colour scenes",
+                "detail": "with other satellites",
+                "viewer": "Copernicus Browser",
+                "href": "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId=S3OLCI_CDAS",
+                "type": "scenes",
+                "words": {
+                  "picture": "True colour scenes · by Copernicus",
+                  "updates": "As new scenes come in",
+                  "ended": false
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 43437,
+        "name": "SENTINEL-3B",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "OLCI",
+            "provider": "eumetview",
+            "layer": "copernicus:sentinel3b_olci_l1_rgb_fullres",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "PT3M",
+            "start": "2020-02-17",
+            "maxLevel": 8,
+            "format": "png",
+            "granules": [
+              "EO:EUM:DAT:0409"
+            ],
+            "platform": "Sentinel-3B",
+            "frame": "PT25M"
+          },
+          {
+            "instrument": "OLCI",
+            "provider": "copernicus-browser",
+            "layer": "S3OLCI_CDAS",
+            "label": "True colour scenes",
+            "kind": "rgb",
+            "merged": true
+          }
+        ],
+        "instruments": [
+          {
+            "name": "OLCI",
+            "imagery": [
+              {
+                "key": "eumetview:copernicus:sentinel3b_olci_l1_rgb_fullres",
+                "label": "True colour",
+                "detail": "every 3 min since 2020",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=copernicus:sentinel3b_olci_l1_rgb_fullres",
+                "token": "eumetview:copernicus:sentinel3b_olci_l1_rgb_fullres",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "copernicus:sentinel3b_olci_l1_rgb_fullres",
+                  "format": "jpeg",
+                  "daily": false,
+                  "pictures": {
+                    "provider": "eumetview",
+                    "layer": "copernicus:sentinel3b_olci_l1_rgb_fullres",
+                    "frame": 1500000
+                  }
+                },
+                "granuleLayer": {
+                  "token": "eumetview:copernicus:sentinel3b_olci_l1_rgb_fullres",
+                  "provider": "eumetview",
+                  "layer": "copernicus:sentinel3b_olci_l1_rgb_fullres",
+                  "maxLevel": 8,
+                  "format": "png",
+                  "daily": false,
+                  "granules": [
+                    "EO:EUM:DAT:0409"
+                  ],
+                  "platform": "Sentinel-3B",
+                  "pictures": {
+                    "provider": "eumetview",
+                    "layer": "copernicus:sentinel3b_olci_l1_rgb_fullres",
+                    "frame": 1500000
+                  }
+                },
+                "type": "passes",
+                "words": {
+                  "picture": "True colour · OLCI",
+                  "updates": "With each pass, hours behind live",
+                  "ended": false,
+                  "archive": "Back to 2020"
+                }
+              },
+              {
+                "key": "copernicus-browser:S3OLCI_CDAS",
+                "label": "True colour scenes",
+                "detail": "with other satellites",
+                "viewer": "Copernicus Browser",
+                "href": "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId=S3OLCI_CDAS",
+                "type": "scenes",
+                "words": {
+                  "picture": "True colour scenes · by Copernicus",
+                  "updates": "As new scenes come in",
+                  "ended": false
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 39084,
+        "name": "LANDSAT 8",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "OLI",
+            "provider": "cmr",
+            "layer": "HLSL30.LANDSAT-8",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "PT1M",
+            "start": "2013-04-11",
+            "granules": [
+              "C2021957657-LPCLOUD"
+            ],
+            "platform": "LANDSAT-8",
+            "pictures": {
+              "provider": "gibs",
+              "layer": "HLS_L30_Nadir_BRDF_Adjusted_Reflectance",
+              "frame": "day"
+            }
+          },
+          {
+            "instrument": "OLI",
+            "provider": "copernicus-browser",
+            "layer": "CDAS_L8_L9_LOTL1",
+            "label": "True colour scenes",
+            "kind": "rgb",
+            "merged": true
+          }
+        ],
+        "instruments": [
+          {
+            "name": "OLI",
+            "imagery": [
+              {
+                "key": "cmr:HLSL30.LANDSAT-8",
+                "label": "True colour",
+                "detail": "every 1 min since 2013",
+                "token": "cmr:HLSL30.LANDSAT-8",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "HLS_L30_Nadir_BRDF_Adjusted_Reflectance",
+                  "format": "jpeg",
+                  "daily": true,
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "HLS_L30_Nadir_BRDF_Adjusted_Reflectance",
+                    "frame": "day"
+                  }
+                },
+                "granuleLayer": {
+                  "token": "cmr:HLSL30.LANDSAT-8",
+                  "provider": "cmr",
+                  "layer": "HLSL30.LANDSAT-8",
+                  "granules": [
+                    "C2021957657-LPCLOUD"
+                  ],
+                  "platform": "LANDSAT-8",
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "HLS_L30_Nadir_BRDF_Adjusted_Reflectance",
+                    "frame": "day"
+                  }
+                },
+                "type": "passes",
+                "words": {
+                  "picture": "True colour · OLI",
+                  "updates": "With each pass, hours behind live",
+                  "ended": false,
+                  "archive": "Back to 2013",
+                  "cropped": "Cropped from the daily mosaic"
+                }
+              },
+              {
+                "key": "copernicus-browser:CDAS_L8_L9_LOTL1",
+                "label": "True colour scenes",
+                "detail": "with other satellites",
+                "viewer": "Copernicus Browser",
+                "href": "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId=CDAS_L8_L9_LOTL1",
+                "type": "scenes",
+                "words": {
+                  "picture": "True colour scenes · by Copernicus",
+                  "updates": "As new scenes come in",
+                  "ended": false
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 49260,
+        "name": "LANDSAT 9",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "OLI-2",
+            "provider": "cmr",
+            "layer": "HLSL30.LANDSAT-9",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "PT1M",
+            "granules": [
+              "C2021957657-LPCLOUD"
+            ],
+            "platform": "LANDSAT-9",
+            "pictures": {
+              "provider": "gibs",
+              "layer": "HLS_L30_Nadir_BRDF_Adjusted_Reflectance",
+              "frame": "day"
+            }
+          },
+          {
+            "instrument": "OLI-2",
+            "provider": "copernicus-browser",
+            "layer": "CDAS_L8_L9_LOTL1",
+            "label": "True colour scenes",
+            "kind": "rgb",
+            "merged": true
+          }
+        ],
+        "instruments": [
+          {
+            "name": "OLI-2",
+            "imagery": [
+              {
+                "key": "cmr:HLSL30.LANDSAT-9",
+                "label": "True colour",
+                "detail": "every 1 min",
+                "token": "cmr:HLSL30.LANDSAT-9",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "HLS_L30_Nadir_BRDF_Adjusted_Reflectance",
+                  "format": "jpeg",
+                  "daily": true,
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "HLS_L30_Nadir_BRDF_Adjusted_Reflectance",
+                    "frame": "day"
+                  }
+                },
+                "granuleLayer": {
+                  "token": "cmr:HLSL30.LANDSAT-9",
+                  "provider": "cmr",
+                  "layer": "HLSL30.LANDSAT-9",
+                  "granules": [
+                    "C2021957657-LPCLOUD"
+                  ],
+                  "platform": "LANDSAT-9",
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "HLS_L30_Nadir_BRDF_Adjusted_Reflectance",
+                    "frame": "day"
+                  }
+                },
+                "type": "passes",
+                "words": {
+                  "picture": "True colour · OLI-2",
+                  "updates": "With each pass, hours behind live",
+                  "ended": false,
+                  "cropped": "Cropped from the daily mosaic"
+                }
+              },
+              {
+                "key": "copernicus-browser:CDAS_L8_L9_LOTL1",
+                "label": "True colour scenes",
+                "detail": "with other satellites",
+                "viewer": "Copernicus Browser",
+                "href": "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId=CDAS_L8_L9_LOTL1",
+                "type": "scenes",
+                "words": {
+                  "picture": "True colour scenes · by Copernicus",
+                  "updates": "As new scenes come in",
+                  "ended": false
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 40697,
+        "name": "SENTINEL-2A",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "MSI (Sentinel-2)",
+            "provider": "cmr",
+            "layer": "HLSS30.Sentinel-2A",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "PT1M",
+            "start": "2015-11-28",
+            "granules": [
+              "C2021957295-LPCLOUD"
+            ],
+            "platform": "Sentinel-2A",
+            "pictures": {
+              "provider": "gibs",
+              "layer": "HLS_S30_Nadir_BRDF_Adjusted_Reflectance",
+              "frame": "day"
+            }
+          },
+          {
+            "instrument": "MSI (Sentinel-2)",
+            "provider": "copernicus-browser",
+            "layer": "S2_L2A_CDAS",
+            "label": "True colour scenes",
+            "kind": "rgb",
+            "merged": true
+          }
+        ],
+        "instruments": [
+          {
+            "name": "MSI (Sentinel-2)",
+            "imagery": [
+              {
+                "key": "cmr:HLSS30.Sentinel-2A",
+                "label": "True colour",
+                "detail": "every 1 min since 2015",
+                "token": "cmr:HLSS30.Sentinel-2A",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "HLS_S30_Nadir_BRDF_Adjusted_Reflectance",
+                  "format": "jpeg",
+                  "daily": true,
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "HLS_S30_Nadir_BRDF_Adjusted_Reflectance",
+                    "frame": "day"
+                  }
+                },
+                "granuleLayer": {
+                  "token": "cmr:HLSS30.Sentinel-2A",
+                  "provider": "cmr",
+                  "layer": "HLSS30.Sentinel-2A",
+                  "granules": [
+                    "C2021957295-LPCLOUD"
+                  ],
+                  "platform": "Sentinel-2A",
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "HLS_S30_Nadir_BRDF_Adjusted_Reflectance",
+                    "frame": "day"
+                  }
+                },
+                "type": "passes",
+                "words": {
+                  "picture": "True colour · MSI (Sentinel-2)",
+                  "updates": "With each pass, hours behind live",
+                  "ended": false,
+                  "archive": "Back to 2015",
+                  "cropped": "Cropped from the daily mosaic"
+                }
+              },
+              {
+                "key": "copernicus-browser:S2_L2A_CDAS",
+                "label": "True colour scenes",
+                "detail": "with other satellites",
+                "viewer": "Copernicus Browser",
+                "href": "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId=S2_L2A_CDAS",
+                "type": "scenes",
+                "words": {
+                  "picture": "True colour scenes · by Copernicus",
+                  "updates": "As new scenes come in",
+                  "ended": false
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 42063,
+        "name": "SENTINEL-2B",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "MSI (Sentinel-2)",
+            "provider": "cmr",
+            "layer": "HLSS30.Sentinel-2B",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "PT1M",
+            "granules": [
+              "C2021957295-LPCLOUD"
+            ],
+            "platform": "Sentinel-2B",
+            "pictures": {
+              "provider": "gibs",
+              "layer": "HLS_S30_Nadir_BRDF_Adjusted_Reflectance",
+              "frame": "day"
+            }
+          },
+          {
+            "instrument": "MSI (Sentinel-2)",
+            "provider": "copernicus-browser",
+            "layer": "S2_L2A_CDAS",
+            "label": "True colour scenes",
+            "kind": "rgb",
+            "merged": true
+          }
+        ],
+        "instruments": [
+          {
+            "name": "MSI (Sentinel-2)",
+            "imagery": [
+              {
+                "key": "cmr:HLSS30.Sentinel-2B",
+                "label": "True colour",
+                "detail": "every 1 min",
+                "token": "cmr:HLSS30.Sentinel-2B",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "HLS_S30_Nadir_BRDF_Adjusted_Reflectance",
+                  "format": "jpeg",
+                  "daily": true,
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "HLS_S30_Nadir_BRDF_Adjusted_Reflectance",
+                    "frame": "day"
+                  }
+                },
+                "granuleLayer": {
+                  "token": "cmr:HLSS30.Sentinel-2B",
+                  "provider": "cmr",
+                  "layer": "HLSS30.Sentinel-2B",
+                  "granules": [
+                    "C2021957295-LPCLOUD"
+                  ],
+                  "platform": "Sentinel-2B",
+                  "pictures": {
+                    "provider": "gibs",
+                    "layer": "HLS_S30_Nadir_BRDF_Adjusted_Reflectance",
+                    "frame": "day"
+                  }
+                },
+                "type": "passes",
+                "words": {
+                  "picture": "True colour · MSI (Sentinel-2)",
+                  "updates": "With each pass, hours behind live",
+                  "ended": false,
+                  "cropped": "Cropped from the daily mosaic"
+                }
+              },
+              {
+                "key": "copernicus-browser:S2_L2A_CDAS",
+                "label": "True colour scenes",
+                "detail": "with other satellites",
+                "viewer": "Copernicus Browser",
+                "href": "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId=S2_L2A_CDAS",
+                "type": "scenes",
+                "words": {
+                  "picture": "True colour scenes · by Copernicus",
+                  "updates": "As new scenes come in",
+                  "ended": false
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 60133,
+        "name": "GOES 19",
+        "orbitClass": "GEO",
+        "entries": [
+          {
+            "instrument": "ABI",
+            "provider": "gibs",
+            "layer": "GOES-East_ABI_GeoColor",
+            "label": "GeoColor",
+            "kind": "rgb",
+            "period": "PT10M",
+            "window": "P90D",
+            "maxLevel": 7,
+            "format": "png"
+          },
+          {
+            "instrument": "ABI",
+            "provider": "georing",
+            "layer": "mosaic",
+            "label": "Day/Night, GeoRing",
+            "kind": "rgb",
+            "period": "PT1H",
+            "window": "P7D",
+            "maxLevel": 8,
+            "format": "webp",
+            "merged": true
+          },
+          {
+            "instrument": "ABI",
+            "provider": "eumetview",
+            "layer": "mumi:wideareacoverage_rgb_natural",
+            "label": "Natural colour, GeoRing",
+            "kind": "rgb",
+            "period": "PT3H",
+            "start": "2025-04-07",
+            "maxLevel": 6,
+            "format": "png",
+            "merged": true
+          }
+        ],
+        "instruments": [
+          {
+            "name": "ABI",
+            "imagery": [
+              {
+                "key": "gibs:GOES-East_ABI_GeoColor",
+                "label": "GeoColor",
+                "detail": "every 10 min, last 90 days",
+                "viewer": "NASA Worldview",
+                "href": "https://worldview.earthdata.nasa.gov/?l=GOES-East_ABI_GeoColor",
+                "token": "gibs:GOES-East_ABI_GeoColor",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "GOES-East_ABI_GeoColor",
+                  "format": "png",
+                  "daily": false
+                },
+                "type": "live",
+                "words": {
+                  "picture": "GeoColor · ABI",
+                  "updates": "Every 10 min",
+                  "ended": false,
+                  "archive": "The last 90 days"
+                }
+              },
+              {
+                "key": "georing:mosaic",
+                "label": "Day/Night, GeoRing",
+                "detail": "hourly, last 7 days, with other satellites",
+                "viewer": "satvis",
+                "href": "https://github.com/Flowm/georing-mosaic",
+                "token": "georing:mosaic",
+                "preview": {
+                  "provider": "georing",
+                  "layer": "mosaic",
+                  "format": "webp",
+                  "daily": false
+                },
+                "type": "mosaic",
+                "words": {
+                  "picture": "Day/Night · by satvis",
+                  "updates": "Hourly",
+                  "ended": false,
+                  "archive": "The last 7 days"
+                }
+              },
+              {
+                "key": "eumetview:mumi:wideareacoverage_rgb_natural",
+                "label": "Natural colour, GeoRing",
+                "detail": "every 3 h since 2025, with other satellites",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=mumi:wideareacoverage_rgb_natural",
+                "token": "eumetview:mumi:wideareacoverage_rgb_natural",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "mumi:wideareacoverage_rgb_natural",
+                  "format": "png",
+                  "daily": false
+                },
+                "type": "mosaic",
+                "words": {
+                  "picture": "Natural colour · by EUMETSAT",
+                  "updates": "Every 3 h",
+                  "ended": false,
+                  "archive": "Back to 2025"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 51850,
+        "name": "GOES 18",
+        "orbitClass": "GEO",
+        "entries": [
+          {
+            "instrument": "ABI",
+            "provider": "gibs",
+            "layer": "GOES-West_ABI_GeoColor",
+            "label": "GeoColor",
+            "kind": "rgb",
+            "period": "PT10M",
+            "window": "P90D",
+            "maxLevel": 7,
+            "format": "png"
+          },
+          {
+            "instrument": "ABI",
+            "provider": "georing",
+            "layer": "mosaic",
+            "label": "Day/Night, GeoRing",
+            "kind": "rgb",
+            "period": "PT1H",
+            "window": "P7D",
+            "maxLevel": 8,
+            "format": "webp",
+            "merged": true
+          },
+          {
+            "instrument": "ABI",
+            "provider": "eumetview",
+            "layer": "mumi:wideareacoverage_rgb_natural",
+            "label": "Natural colour, GeoRing",
+            "kind": "rgb",
+            "period": "PT3H",
+            "start": "2023-01-04",
+            "maxLevel": 6,
+            "format": "png",
+            "merged": true
+          }
+        ],
+        "instruments": [
+          {
+            "name": "ABI",
+            "imagery": [
+              {
+                "key": "gibs:GOES-West_ABI_GeoColor",
+                "label": "GeoColor",
+                "detail": "every 10 min, last 90 days",
+                "viewer": "NASA Worldview",
+                "href": "https://worldview.earthdata.nasa.gov/?l=GOES-West_ABI_GeoColor",
+                "token": "gibs:GOES-West_ABI_GeoColor",
+                "preview": {
+                  "provider": "gibs",
+                  "layer": "GOES-West_ABI_GeoColor",
+                  "format": "png",
+                  "daily": false
+                },
+                "type": "live",
+                "words": {
+                  "picture": "GeoColor · ABI",
+                  "updates": "Every 10 min",
+                  "ended": false,
+                  "archive": "The last 90 days"
+                }
+              },
+              {
+                "key": "georing:mosaic",
+                "label": "Day/Night, GeoRing",
+                "detail": "hourly, last 7 days, with other satellites",
+                "viewer": "satvis",
+                "href": "https://github.com/Flowm/georing-mosaic",
+                "token": "georing:mosaic",
+                "preview": {
+                  "provider": "georing",
+                  "layer": "mosaic",
+                  "format": "webp",
+                  "daily": false
+                },
+                "type": "mosaic",
+                "words": {
+                  "picture": "Day/Night · by satvis",
+                  "updates": "Hourly",
+                  "ended": false,
+                  "archive": "The last 7 days"
+                }
+              },
+              {
+                "key": "eumetview:mumi:wideareacoverage_rgb_natural",
+                "label": "Natural colour, GeoRing",
+                "detail": "every 3 h since 2023, with other satellites",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=mumi:wideareacoverage_rgb_natural",
+                "token": "eumetview:mumi:wideareacoverage_rgb_natural",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "mumi:wideareacoverage_rgb_natural",
+                  "format": "png",
+                  "daily": false
+                },
+                "type": "mosaic",
+                "words": {
+                  "picture": "Natural colour · by EUMETSAT",
+                  "updates": "Every 3 h",
+                  "ended": false,
+                  "archive": "Back to 2023"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 54743,
+        "name": "METEOSAT-12 (MTG-I1)",
+        "orbitClass": "GEO",
+        "entries": [
+          {
+            "instrument": "FCI",
+            "provider": "eumetview",
+            "layer": "mtg_fd:rgb_geocolour",
+            "label": "GeoColour",
+            "kind": "rgb",
+            "period": "PT10M",
+            "start": "2024-09-23",
+            "maxLevel": 7,
+            "format": "png"
+          },
+          {
+            "instrument": "FCI",
+            "provider": "eumetview",
+            "layer": "mtg_fd:rgb_truecolour",
+            "label": "True colour",
+            "kind": "rgb",
+            "period": "PT10M",
+            "start": "2024-09-23",
+            "maxLevel": 7,
+            "format": "png"
+          },
+          {
+            "instrument": "FCI",
+            "provider": "georing",
+            "layer": "mosaic",
+            "label": "Day/Night, GeoRing",
+            "kind": "rgb",
+            "period": "PT1H",
+            "window": "P7D",
+            "maxLevel": 8,
+            "format": "webp",
+            "merged": true
+          }
+        ],
+        "instruments": [
+          {
+            "name": "FCI",
+            "imagery": [
+              {
+                "key": "eumetview:mtg_fd:rgb_geocolour",
+                "label": "GeoColour",
+                "detail": "every 10 min since 2024",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=mtg_fd:rgb_geocolour",
+                "token": "eumetview:mtg_fd:rgb_geocolour",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "mtg_fd:rgb_geocolour",
+                  "format": "png",
+                  "daily": false
+                },
+                "type": "live",
+                "words": {
+                  "picture": "GeoColour · FCI",
+                  "updates": "Every 10 min",
+                  "ended": false,
+                  "archive": "Back to 2024"
+                }
+              },
+              {
+                "key": "eumetview:mtg_fd:rgb_truecolour",
+                "label": "True colour",
+                "detail": "every 10 min since 2024",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=mtg_fd:rgb_truecolour",
+                "token": "eumetview:mtg_fd:rgb_truecolour",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "mtg_fd:rgb_truecolour",
+                  "format": "png",
+                  "daily": false
+                },
+                "type": "live",
+                "words": {
+                  "picture": "True colour · FCI",
+                  "updates": "Every 10 min",
+                  "ended": false,
+                  "archive": "Back to 2024"
+                }
+              },
+              {
+                "key": "georing:mosaic",
+                "label": "Day/Night, GeoRing",
+                "detail": "hourly, last 7 days, with other satellites",
+                "viewer": "satvis",
+                "href": "https://github.com/Flowm/georing-mosaic",
+                "token": "georing:mosaic",
+                "preview": {
+                  "provider": "georing",
+                  "layer": "mosaic",
+                  "format": "webp",
+                  "daily": false
+                },
+                "type": "mosaic",
+                "words": {
+                  "picture": "Day/Night · by satvis",
+                  "updates": "Hourly",
+                  "ended": false,
+                  "archive": "The last 7 days"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 38552,
+        "name": "METEOSAT-10 (MSG-3)",
+        "orbitClass": "GEO",
+        "entries": [
+          {
+            "instrument": "SEVIRI",
+            "provider": "eumetview",
+            "layer": "msg_fes:rgb_natural",
+            "label": "Natural colour",
+            "kind": "rgb",
+            "period": "PT15M",
+            "start": "2023-03-21",
+            "maxLevel": 6,
+            "format": "png"
+          },
+          {
+            "instrument": "SEVIRI",
+            "provider": "eumetview",
+            "layer": "mumi:wideareacoverage_rgb_natural",
+            "label": "Natural colour, GeoRing",
+            "kind": "rgb",
+            "period": "PT3H",
+            "start": "2023-03-21",
+            "maxLevel": 6,
+            "format": "png",
+            "merged": true
+          }
+        ],
+        "instruments": [
+          {
+            "name": "SEVIRI",
+            "imagery": [
+              {
+                "key": "eumetview:msg_fes:rgb_natural",
+                "label": "Natural colour",
+                "detail": "every 15 min since 2023",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=msg_fes:rgb_natural",
+                "token": "eumetview:msg_fes:rgb_natural",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "msg_fes:rgb_natural",
+                  "format": "png",
+                  "daily": false
+                },
+                "type": "live",
+                "words": {
+                  "picture": "Natural colour · SEVIRI",
+                  "updates": "Every 15 min",
+                  "ended": false,
+                  "archive": "Back to 2023"
+                }
+              },
+              {
+                "key": "eumetview:mumi:wideareacoverage_rgb_natural",
+                "label": "Natural colour, GeoRing",
+                "detail": "every 3 h since 2023, with other satellites",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=mumi:wideareacoverage_rgb_natural",
+                "token": "eumetview:mumi:wideareacoverage_rgb_natural",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "mumi:wideareacoverage_rgb_natural",
+                  "format": "png",
+                  "daily": false
+                },
+                "type": "mosaic",
+                "words": {
+                  "picture": "Natural colour · by EUMETSAT",
+                  "updates": "Every 3 h",
+                  "ended": false,
+                  "archive": "Back to 2023"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 28912,
+        "name": "METEOSAT-9 (MSG-2)",
+        "orbitClass": "GEO",
+        "entries": [
+          {
+            "instrument": "SEVIRI",
+            "provider": "eumetview",
+            "layer": "msg_iodc:rgb_natural",
+            "label": "Natural colour",
+            "kind": "rgb",
+            "period": "PT15M",
+            "start": "2022-06-01",
+            "maxLevel": 6,
+            "format": "png"
+          },
+          {
+            "instrument": "SEVIRI",
+            "provider": "eumetview",
+            "layer": "mumi:wideareacoverage_rgb_natural",
+            "label": "Natural colour, GeoRing",
+            "kind": "rgb",
+            "period": "PT3H",
+            "start": "2022-06-01",
+            "maxLevel": 6,
+            "format": "png",
+            "merged": true
+          }
+        ],
+        "instruments": [
+          {
+            "name": "SEVIRI",
+            "imagery": [
+              {
+                "key": "eumetview:msg_iodc:rgb_natural",
+                "label": "Natural colour",
+                "detail": "every 15 min since 2022",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=msg_iodc:rgb_natural",
+                "token": "eumetview:msg_iodc:rgb_natural",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "msg_iodc:rgb_natural",
+                  "format": "png",
+                  "daily": false
+                },
+                "type": "live",
+                "words": {
+                  "picture": "Natural colour · SEVIRI",
+                  "updates": "Every 15 min",
+                  "ended": false,
+                  "archive": "Back to 2022"
+                }
+              },
+              {
+                "key": "eumetview:mumi:wideareacoverage_rgb_natural",
+                "label": "Natural colour, GeoRing",
+                "detail": "every 3 h since 2022, with other satellites",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=mumi:wideareacoverage_rgb_natural",
+                "token": "eumetview:mumi:wideareacoverage_rgb_natural",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "mumi:wideareacoverage_rgb_natural",
+                  "format": "png",
+                  "daily": false
+                },
+                "type": "mosaic",
+                "words": {
+                  "picture": "Natural colour · by EUMETSAT",
+                  "updates": "Every 3 h",
+                  "ended": false,
+                  "archive": "Back to 2022"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 40732,
+        "name": "METEOSAT-11 (MSG-4)",
+        "orbitClass": "GEO",
+        "entries": [
+          {
+            "instrument": "SEVIRI",
+            "provider": "eumetview",
+            "layer": "msg_rss:rgb_natural_nrt",
+            "label": "Natural colour, Europe",
+            "kind": "rgb",
+            "period": "PT5M",
+            "start": "2023-03-28",
+            "maxLevel": 6,
+            "format": "png"
+          }
+        ],
+        "instruments": [
+          {
+            "name": "SEVIRI",
+            "imagery": [
+              {
+                "key": "eumetview:msg_rss:rgb_natural_nrt",
+                "label": "Natural colour, Europe",
+                "detail": "every 5 min since 2023",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=msg_rss:rgb_natural_nrt",
+                "token": "eumetview:msg_rss:rgb_natural_nrt",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "msg_rss:rgb_natural_nrt",
+                  "format": "png",
+                  "daily": false
+                },
+                "type": "live",
+                "words": {
+                  "picture": "Natural colour (Europe) · SEVIRI",
+                  "updates": "Every 5 min",
+                  "ended": false,
+                  "archive": "Back to 2023"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 60989,
+        "name": "SENTINEL-2C",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "MSI (Sentinel-2)",
+            "provider": "copernicus-browser",
+            "layer": "S2_L2A_CDAS",
+            "label": "True colour scenes",
+            "kind": "rgb",
+            "merged": true
+          }
+        ],
+        "instruments": [
+          {
+            "name": "MSI (Sentinel-2)",
+            "imagery": [
+              {
+                "key": "copernicus-browser:S2_L2A_CDAS",
+                "label": "True colour scenes",
+                "detail": "with other satellites",
+                "viewer": "Copernicus Browser",
+                "href": "https://browser.dataspace.copernicus.eu/?themeId=DEFAULT-THEME&datasetId=S2_L2A_CDAS",
+                "type": "scenes",
+                "words": {
+                  "picture": "True colour scenes · by Copernicus",
+                  "updates": "As new scenes come in",
+                  "ended": false
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "noradId": 41836,
+        "name": "HIMAWARI-9",
+        "orbitClass": "LEO",
+        "entries": [
+          {
+            "instrument": "AHI",
+            "provider": "georing",
+            "layer": "mosaic",
+            "label": "Day/Night, GeoRing",
+            "kind": "rgb",
+            "period": "PT1H",
+            "window": "P7D",
+            "maxLevel": 8,
+            "format": "webp",
+            "merged": true
+          },
+          {
+            "instrument": "AHI",
+            "provider": "eumetview",
+            "layer": "mumi:wideareacoverage_rgb_natural",
+            "label": "Natural colour, GeoRing",
+            "kind": "rgb",
+            "period": "PT3H",
+            "start": "2022-12-13",
+            "maxLevel": 6,
+            "format": "png",
+            "merged": true
+          }
+        ],
+        "instruments": [
+          {
+            "name": "AHI",
+            "imagery": [
+              {
+                "key": "georing:mosaic",
+                "label": "Day/Night, GeoRing",
+                "detail": "hourly, last 7 days, with other satellites",
+                "viewer": "satvis",
+                "href": "https://github.com/Flowm/georing-mosaic",
+                "token": "georing:mosaic",
+                "preview": {
+                  "provider": "georing",
+                  "layer": "mosaic",
+                  "format": "webp",
+                  "daily": false
+                },
+                "type": "mosaic",
+                "words": {
+                  "picture": "Day/Night · by satvis",
+                  "updates": "Hourly",
+                  "ended": false,
+                  "archive": "The last 7 days"
+                }
+              },
+              {
+                "key": "eumetview:mumi:wideareacoverage_rgb_natural",
+                "label": "Natural colour, GeoRing",
+                "detail": "every 3 h since 2022, with other satellites",
+                "viewer": "EUMETView",
+                "href": "https://view.eumetsat.int/productviewer?v=mumi:wideareacoverage_rgb_natural",
+                "token": "eumetview:mumi:wideareacoverage_rgb_natural",
+                "preview": {
+                  "provider": "eumetview",
+                  "layer": "mumi:wideareacoverage_rgb_natural",
+                  "format": "png",
+                  "daily": false
+                },
+                "type": "mosaic",
+                "words": {
+                  "picture": "Natural colour · by EUMETSAT",
+                  "updates": "Every 3 h",
+                  "ended": false,
+                  "archive": "Back to 2022"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "layers": [
+      {
+        "key": "georing:mosaic",
+        "kind": "composite",
+        "token": "georing:mosaic",
+        "group": "geo",
+        "type": "mosaic",
+        "satellites": [
+          "GOES 18",
+          "GOES 19",
+          "HIMAWARI-9",
+          "METEOSAT-12 (MTG-I1)"
+        ]
+      },
+      {
+        "key": "eumetview:mumi:wideareacoverage_rgb_natural",
+        "kind": "composite",
+        "token": "eumetview:mumi:wideareacoverage_rgb_natural",
+        "group": "geo",
+        "type": "mosaic",
+        "satellites": [
+          "GOES 18",
+          "GOES 19",
+          "HIMAWARI-9",
+          "METEOSAT-9 (MSG-2)",
+          "METEOSAT-10 (MSG-3)"
+        ]
+      },
+      {
+        "key": "27424:gibs:MODIS_Aqua_CorrectedReflectance_TrueColor",
+        "kind": "satellite",
+        "token": "gibs:MODIS_Aqua_CorrectedReflectance_TrueColor",
+        "group": "leo",
+        "type": "daily",
+        "name": "AQUA"
+      },
+      {
+        "key": "27424:cmr:MYD03",
+        "kind": "satellite",
+        "token": "cmr:MYD03",
+        "group": "leo",
+        "type": "passes",
+        "name": "AQUA"
+      },
+      {
+        "key": "51850:gibs:GOES-West_ABI_GeoColor",
+        "kind": "satellite",
+        "token": "gibs:GOES-West_ABI_GeoColor",
+        "group": "geo",
+        "type": "live",
+        "name": "GOES 18"
+      },
+      {
+        "key": "60133:gibs:GOES-East_ABI_GeoColor",
+        "kind": "satellite",
+        "token": "gibs:GOES-East_ABI_GeoColor",
+        "group": "geo",
+        "type": "live",
+        "name": "GOES 19"
+      },
+      {
+        "key": "39084:cmr:HLSL30.LANDSAT-8",
+        "kind": "satellite",
+        "token": "cmr:HLSL30.LANDSAT-8",
+        "group": "leo",
+        "type": "passes",
+        "name": "LANDSAT 8"
+      },
+      {
+        "key": "49260:cmr:HLSL30.LANDSAT-9",
+        "kind": "satellite",
+        "token": "cmr:HLSL30.LANDSAT-9",
+        "group": "leo",
+        "type": "passes",
+        "name": "LANDSAT 9"
+      },
+      {
+        "key": "28912:eumetview:msg_iodc:rgb_natural",
+        "kind": "satellite",
+        "token": "eumetview:msg_iodc:rgb_natural",
+        "group": "geo",
+        "type": "live",
+        "name": "METEOSAT-9 (MSG-2)"
+      },
+      {
+        "key": "38552:eumetview:msg_fes:rgb_natural",
+        "kind": "satellite",
+        "token": "eumetview:msg_fes:rgb_natural",
+        "group": "geo",
+        "type": "live",
+        "name": "METEOSAT-10 (MSG-3)"
+      },
+      {
+        "key": "40732:eumetview:msg_rss:rgb_natural_nrt",
+        "kind": "satellite",
+        "token": "eumetview:msg_rss:rgb_natural_nrt",
+        "group": "geo",
+        "type": "live",
+        "name": "METEOSAT-11 (MSG-4)"
+      },
+      {
+        "key": "54743:eumetview:mtg_fd:rgb_geocolour",
+        "kind": "satellite",
+        "token": "eumetview:mtg_fd:rgb_geocolour",
+        "group": "geo",
+        "type": "live",
+        "name": "METEOSAT-12 (MTG-I1)"
+      },
+      {
+        "key": "54743:eumetview:mtg_fd:rgb_truecolour",
+        "kind": "satellite",
+        "token": "eumetview:mtg_fd:rgb_truecolour",
+        "group": "geo",
+        "type": "live",
+        "name": "METEOSAT-12 (MTG-I1)"
+      },
+      {
+        "key": "38771:cmr:AVHRRF_MB-STAR-L2P",
+        "kind": "satellite",
+        "token": "cmr:AVHRRF_MB-STAR-L2P",
+        "group": "leo",
+        "type": "passes",
+        "name": "METOP-B"
+      },
+      {
+        "key": "38771:eumetview:eps:m01_rgb_natural_fog",
+        "kind": "satellite",
+        "token": "eumetview:eps:m01_rgb_natural_fog",
+        "group": "leo",
+        "type": "orbits",
+        "name": "METOP-B"
+      },
+      {
+        "key": "43689:cmr:AVHRRF_MC-STAR-L2P",
+        "kind": "satellite",
+        "token": "cmr:AVHRRF_MC-STAR-L2P",
+        "group": "leo",
+        "type": "passes",
+        "name": "METOP-C"
+      },
+      {
+        "key": "43689:eumetview:eps:m03_rgb_natural_fog",
+        "kind": "satellite",
+        "token": "eumetview:eps:m03_rgb_natural_fog",
+        "group": "leo",
+        "type": "orbits",
+        "name": "METOP-C"
+      },
+      {
+        "key": "43013:gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor",
+        "kind": "satellite",
+        "token": "gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor",
+        "group": "leo",
+        "type": "daily",
+        "name": "NOAA 20 (JPSS-1)"
+      },
+      {
+        "key": "43013:gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+        "kind": "satellite",
+        "token": "gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+        "group": "leo",
+        "type": "passes",
+        "name": "NOAA 20 (JPSS-1)"
+      },
+      {
+        "key": "54234:gibs:VIIRS_NOAA21_CorrectedReflectance_TrueColor",
+        "kind": "satellite",
+        "token": "gibs:VIIRS_NOAA21_CorrectedReflectance_TrueColor",
+        "group": "leo",
+        "type": "daily",
+        "name": "NOAA 21 (JPSS-2)"
+      },
+      {
+        "key": "54234:cmr:VJ203MOD",
+        "kind": "satellite",
+        "token": "cmr:VJ203MOD",
+        "group": "leo",
+        "type": "passes",
+        "name": "NOAA 21 (JPSS-2)"
+      },
+      {
+        "key": "58928:gibs:OCI_PACE_True_Color",
+        "kind": "satellite",
+        "token": "gibs:OCI_PACE_True_Color",
+        "group": "leo",
+        "type": "daily",
+        "name": "PACE"
+      },
+      {
+        "key": "58928:cmr:PACE_OCI_L1B_SCI",
+        "kind": "satellite",
+        "token": "cmr:PACE_OCI_L1B_SCI",
+        "group": "leo",
+        "type": "passes",
+        "name": "PACE"
+      },
+      {
+        "key": "58928:gibs:SPEXONE_PACE_True_Color",
+        "kind": "satellite",
+        "token": "gibs:SPEXONE_PACE_True_Color",
+        "group": "leo",
+        "type": "daily",
+        "name": "PACE"
+      },
+      {
+        "key": "40697:cmr:HLSS30.Sentinel-2A",
+        "kind": "satellite",
+        "token": "cmr:HLSS30.Sentinel-2A",
+        "group": "leo",
+        "type": "passes",
+        "name": "SENTINEL-2A"
+      },
+      {
+        "key": "42063:cmr:HLSS30.Sentinel-2B",
+        "kind": "satellite",
+        "token": "cmr:HLSS30.Sentinel-2B",
+        "group": "leo",
+        "type": "passes",
+        "name": "SENTINEL-2B"
+      },
+      {
+        "key": "41335:eumetview:copernicus:sentinel3a_olci_l1_rgb_fullres",
+        "kind": "satellite",
+        "token": "eumetview:copernicus:sentinel3a_olci_l1_rgb_fullres",
+        "group": "leo",
+        "type": "passes",
+        "name": "SENTINEL-3A"
+      },
+      {
+        "key": "43437:eumetview:copernicus:sentinel3b_olci_l1_rgb_fullres",
+        "kind": "satellite",
+        "token": "eumetview:copernicus:sentinel3b_olci_l1_rgb_fullres",
+        "group": "leo",
+        "type": "passes",
+        "name": "SENTINEL-3B"
+      },
+      {
+        "key": "25994:gibs:MODIS_Terra_CorrectedReflectance_TrueColor",
+        "kind": "satellite",
+        "token": "gibs:MODIS_Terra_CorrectedReflectance_TrueColor",
+        "group": "leo",
+        "type": "daily",
+        "name": "TERRA"
+      },
+      {
+        "key": "25994:cmr:MOD03",
+        "kind": "satellite",
+        "token": "cmr:MOD03",
+        "group": "leo",
+        "type": "passes",
+        "name": "TERRA"
+      }
+    ],
+    "rows": {
+      "geo": [
+        {
+          "key": "composite:mosaic",
+          "name": "World mosaic",
+          "composite": true,
+          "cells": [
+            {
+              "key": "georing:mosaic",
+              "name": "Day/Night",
+              "extra": false
+            },
+            {
+              "key": "eumetview:mumi:wideareacoverage_rgb_natural",
+              "name": "Natural",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "GOES 18",
+          "name": "GOES 18",
+          "composite": false,
+          "cells": [
+            {
+              "key": "51850:gibs:GOES-West_ABI_GeoColor",
+              "name": "Live",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "GOES 19",
+          "name": "GOES 19",
+          "composite": false,
+          "cells": [
+            {
+              "key": "60133:gibs:GOES-East_ABI_GeoColor",
+              "name": "Live",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "METEOSAT-9 (MSG-2)",
+          "name": "METEOSAT-9 (MSG-2)",
+          "composite": false,
+          "cells": [
+            {
+              "key": "28912:eumetview:msg_iodc:rgb_natural",
+              "name": "Live",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "METEOSAT-10 (MSG-3)",
+          "name": "METEOSAT-10 (MSG-3)",
+          "composite": false,
+          "cells": [
+            {
+              "key": "38552:eumetview:msg_fes:rgb_natural",
+              "name": "Live",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "METEOSAT-11 (MSG-4)",
+          "name": "METEOSAT-11 (MSG-4)",
+          "composite": false,
+          "cells": [
+            {
+              "key": "40732:eumetview:msg_rss:rgb_natural_nrt",
+              "name": "Live",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "METEOSAT-12 (MTG-I1)",
+          "name": "METEOSAT-12 (MTG-I1)",
+          "composite": false,
+          "cells": [
+            {
+              "key": "54743:eumetview:mtg_fd:rgb_geocolour",
+              "name": "Live",
+              "extra": false
+            },
+            {
+              "key": "54743:eumetview:mtg_fd:rgb_truecolour",
+              "name": "True",
+              "extra": true
+            }
+          ]
+        }
+      ],
+      "leo": [
+        {
+          "key": "AQUA",
+          "name": "AQUA",
+          "composite": false,
+          "cells": [
+            {
+              "key": "27424:gibs:MODIS_Aqua_CorrectedReflectance_TrueColor",
+              "name": "Daily",
+              "extra": false
+            },
+            {
+              "key": "27424:cmr:MYD03",
+              "name": "Passes",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "LANDSAT 8",
+          "name": "LANDSAT 8",
+          "composite": false,
+          "cells": [
+            {
+              "key": "39084:cmr:HLSL30.LANDSAT-8",
+              "name": "Passes",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "LANDSAT 9",
+          "name": "LANDSAT 9",
+          "composite": false,
+          "cells": [
+            {
+              "key": "49260:cmr:HLSL30.LANDSAT-9",
+              "name": "Passes",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "METOP-B",
+          "name": "METOP-B",
+          "composite": false,
+          "cells": [
+            {
+              "key": "38771:eumetview:eps:m01_rgb_natural_fog",
+              "name": "Orbits",
+              "extra": false
+            },
+            {
+              "key": "38771:cmr:AVHRRF_MB-STAR-L2P",
+              "name": "Passes",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "METOP-C",
+          "name": "METOP-C",
+          "composite": false,
+          "cells": [
+            {
+              "key": "43689:eumetview:eps:m03_rgb_natural_fog",
+              "name": "Orbits",
+              "extra": false
+            },
+            {
+              "key": "43689:cmr:AVHRRF_MC-STAR-L2P",
+              "name": "Passes",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "NOAA 20 (JPSS-1)",
+          "name": "NOAA 20 (JPSS-1)",
+          "composite": false,
+          "cells": [
+            {
+              "key": "43013:gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor",
+              "name": "Daily",
+              "extra": false
+            },
+            {
+              "key": "43013:gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+              "name": "Passes",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "NOAA 21 (JPSS-2)",
+          "name": "NOAA 21 (JPSS-2)",
+          "composite": false,
+          "cells": [
+            {
+              "key": "54234:gibs:VIIRS_NOAA21_CorrectedReflectance_TrueColor",
+              "name": "Daily",
+              "extra": false
+            },
+            {
+              "key": "54234:cmr:VJ203MOD",
+              "name": "Passes",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "PACE",
+          "name": "PACE",
+          "composite": false,
+          "cells": [
+            {
+              "key": "58928:gibs:OCI_PACE_True_Color",
+              "name": "Daily",
+              "extra": false
+            },
+            {
+              "key": "58928:gibs:SPEXONE_PACE_True_Color",
+              "name": "SPEXone",
+              "extra": true
+            },
+            {
+              "key": "58928:cmr:PACE_OCI_L1B_SCI",
+              "name": "Passes",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "SENTINEL-2A",
+          "name": "SENTINEL-2A",
+          "composite": false,
+          "cells": [
+            {
+              "key": "40697:cmr:HLSS30.Sentinel-2A",
+              "name": "Passes",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "SENTINEL-2B",
+          "name": "SENTINEL-2B",
+          "composite": false,
+          "cells": [
+            {
+              "key": "42063:cmr:HLSS30.Sentinel-2B",
+              "name": "Passes",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "SENTINEL-3A",
+          "name": "SENTINEL-3A",
+          "composite": false,
+          "cells": [
+            {
+              "key": "41335:eumetview:copernicus:sentinel3a_olci_l1_rgb_fullres",
+              "name": "Passes",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "SENTINEL-3B",
+          "name": "SENTINEL-3B",
+          "composite": false,
+          "cells": [
+            {
+              "key": "43437:eumetview:copernicus:sentinel3b_olci_l1_rgb_fullres",
+              "name": "Passes",
+              "extra": false
+            }
+          ]
+        },
+        {
+          "key": "TERRA",
+          "name": "TERRA",
+          "composite": false,
+          "cells": [
+            {
+              "key": "25994:gibs:MODIS_Terra_CorrectedReflectance_TrueColor",
+              "name": "Daily",
+              "extra": false
+            },
+            {
+              "key": "25994:cmr:MOD03",
+              "name": "Passes",
+              "extra": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "granules": {
+    "cmrEntries": [
+      {
+        "entry": {
+          "collection_concept_id": "C2208781576-LANCEMODIS",
+          "time_start": "2026-11-20T09:54:00.000Z",
+          "time_end": "2026-11-20T10:00:00.000Z",
+          "day_night_flag": "DAY",
+          "polygons": [
+            [
+              "14.218523 38.306084 18.426548 66.22702 39.330738 63.761784 34.278229 30.160732 14.218523 38.306084"
+            ]
+          ]
+        },
+        "granule": {
+          "start": 1795168440000,
+          "end": 1795168800000,
+          "day": true,
+          "outline": [
+            {
+              "latitude": 14.218523,
+              "longitude": 38.306084
+            },
+            {
+              "latitude": 18.426548,
+              "longitude": 66.22702
+            },
+            {
+              "latitude": 39.330738,
+              "longitude": 63.761784
+            },
+            {
+              "latitude": 34.278229,
+              "longitude": 30.160732
+            },
+            {
+              "latitude": 14.218523,
+              "longitude": 38.306084
+            }
+          ]
+        }
+      },
+      {
+        "entry": {
+          "collection_concept_id": "C2208781576-LANCEMODIS",
+          "time_start": "2026-11-20T09:54:00.000Z",
+          "time_end": "2026-11-20T10:00:00.000Z",
+          "day_night_flag": "BOTH",
+          "polygons": [
+            [
+              "14.218523 38.306084 18.426548 66.22702 39.330738 63.761784 34.278229 30.160732 14.218523 38.306084"
+            ]
+          ]
+        },
+        "granule": {
+          "start": 1795168440000,
+          "end": 1795168800000,
+          "day": true,
+          "outline": [
+            {
+              "latitude": 14.218523,
+              "longitude": 38.306084
+            },
+            {
+              "latitude": 18.426548,
+              "longitude": 66.22702
+            },
+            {
+              "latitude": 39.330738,
+              "longitude": 63.761784
+            },
+            {
+              "latitude": 34.278229,
+              "longitude": 30.160732
+            },
+            {
+              "latitude": 14.218523,
+              "longitude": 38.306084
+            }
+          ]
+        }
+      },
+      {
+        "entry": {
+          "collection_concept_id": "C2208781576-LANCEMODIS",
+          "time_start": "2026-11-20T09:54:00.000Z",
+          "time_end": "2026-11-20T10:00:00.000Z",
+          "day_night_flag": "NIGHT",
+          "polygons": [
+            [
+              "14.218523 38.306084 18.426548 66.22702 39.330738 63.761784 34.278229 30.160732 14.218523 38.306084"
+            ]
+          ]
+        },
+        "granule": {
+          "start": 1795168440000,
+          "end": 1795168800000,
+          "day": false,
+          "outline": [
+            {
+              "latitude": 14.218523,
+              "longitude": 38.306084
+            },
+            {
+              "latitude": 18.426548,
+              "longitude": 66.22702
+            },
+            {
+              "latitude": 39.330738,
+              "longitude": 63.761784
+            },
+            {
+              "latitude": 34.278229,
+              "longitude": 30.160732
+            },
+            {
+              "latitude": 14.218523,
+              "longitude": 38.306084
+            }
+          ]
+        }
+      },
+      {
+        "entry": {
+          "collection_concept_id": "C2208781576-LANCEMODIS",
+          "time_start": "2026-11-20T09:54:00.000Z",
+          "time_end": "2026-11-20T10:00:00.000Z",
+          "day_night_flag": "UNSPECIFIED",
+          "polygons": [
+            [
+              "14.218523 38.306084 18.426548 66.22702 39.330738 63.761784 34.278229 30.160732 14.218523 38.306084"
+            ]
+          ]
+        },
+        "granule": {
+          "start": 1795168440000,
+          "end": 1795168800000,
+          "day": true,
+          "outline": [
+            {
+              "latitude": 14.218523,
+              "longitude": 38.306084
+            },
+            {
+              "latitude": 18.426548,
+              "longitude": 66.22702
+            },
+            {
+              "latitude": 39.330738,
+              "longitude": 63.761784
+            },
+            {
+              "latitude": 34.278229,
+              "longitude": 30.160732
+            },
+            {
+              "latitude": 14.218523,
+              "longitude": 38.306084
+            }
+          ]
+        }
+      },
+      {
+        "entry": {
+          "collection_concept_id": "C2208781576-LANCEMODIS",
+          "time_start": "2026-11-20T21:54:00.000Z",
+          "time_end": "2026-11-20T22:00:00.000Z",
+          "day_night_flag": "UNSPECIFIED",
+          "polygons": [
+            [
+              "14.218523 38.306084 18.426548 66.22702 39.330738 63.761784 34.278229 30.160732 14.218523 38.306084"
+            ]
+          ]
+        },
+        "granule": {
+          "start": 1795211640000,
+          "end": 1795212000000,
+          "day": false,
+          "outline": [
+            {
+              "latitude": 14.218523,
+              "longitude": 38.306084
+            },
+            {
+              "latitude": 18.426548,
+              "longitude": 66.22702
+            },
+            {
+              "latitude": 39.330738,
+              "longitude": 63.761784
+            },
+            {
+              "latitude": 34.278229,
+              "longitude": 30.160732
+            },
+            {
+              "latitude": 14.218523,
+              "longitude": 38.306084
+            }
+          ]
+        }
+      },
+      {
+        "entry": {
+          "collection_concept_id": "C2208781576-LANCEMODIS",
+          "time_start": "2026-11-19T19:00:00.000Z",
+          "time_end": "2026-11-19T19:06:00.000Z",
+          "day_night_flag": "UNSPECIFIED",
+          "polygons": [
+            [
+              "-52.09473 170.92676 -55.43262 180 -42.13379 180 -52.09473 170.92676"
+            ],
+            [
+              "-19.97949 -169.02441 -32.27832 -174.1543 -42.13379 -180 -55.43262 -180 -59.09082 -162.30371 -59.95508 -142.99414 -45.34473 -143.42871 -25.74902 -141.63477 -23.50293 -155.42871 -19.97949 -169.02441"
+            ]
+          ]
+        },
+        "granule": {
+          "start": 1795114800000,
+          "end": 1795115160000,
+          "day": true,
+          "outline": [
+            {
+              "latitude": -42.13379,
+              "longitude": 180
+            },
+            {
+              "latitude": -52.09473,
+              "longitude": 170.92676
+            },
+            {
+              "latitude": -55.43262,
+              "longitude": 180
+            },
+            {
+              "latitude": -59.09082,
+              "longitude": 197.69629
+            },
+            {
+              "latitude": -59.95508,
+              "longitude": 217.00586
+            },
+            {
+              "latitude": -45.34473,
+              "longitude": 216.57129
+            },
+            {
+              "latitude": -25.74902,
+              "longitude": 218.36523
+            },
+            {
+              "latitude": -23.50293,
+              "longitude": 204.57129
+            },
+            {
+              "latitude": -19.97949,
+              "longitude": 190.97559
+            },
+            {
+              "latitude": -32.27832,
+              "longitude": 185.8457
+            },
+            {
+              "latitude": -42.13379,
+              "longitude": 180
+            }
+          ]
+        }
+      },
+      {
+        "entry": {
+          "collection_concept_id": "C2208781576-LANCEMODIS",
+          "time_start": "2026-11-19T19:10:00.000Z",
+          "time_end": "2026-11-19T19:16:00.000Z",
+          "day_night_flag": "UNSPECIFIED",
+          "polygons": [
+            [
+              "-90 -180 -90 0 -90 180 -55.4 180 -67.6 101.4 -85.4 4.7 -69.5 -140.4 -55.4 -180 -90 -180"
+            ]
+          ]
+        },
+        "granule": {
+          "start": 1795115400000,
+          "end": 1795115760000,
+          "day": true,
+          "outline": [
+            {
+              "latitude": -55.4,
+              "longitude": 180
+            },
+            {
+              "latitude": -67.6,
+              "longitude": 101.4
+            },
+            {
+              "latitude": -85.4,
+              "longitude": 4.7
+            },
+            {
+              "latitude": -69.5,
+              "longitude": -140.4
+            },
+            {
+              "latitude": -55.4,
+              "longitude": 180
+            }
+          ]
+        }
+      },
+      {
+        "entry": {
+          "collection_concept_id": "C2208781576-LANCEMODIS",
+          "time_start": "2026-11-20T09:54:00.000Z",
+          "time_end": "2026-11-20T10:00:00.000Z",
+          "day_night_flag": "DAY",
+          "polygons": [
+            [
+              "1 2 3"
+            ]
+          ]
+        },
+        "granule": null
+      },
+      {
+        "entry": {
+          "collection_concept_id": "C2208781576-LANCEMODIS",
+          "time_start": "yesterday",
+          "time_end": "2026-11-20T10:00:00.000Z",
+          "day_night_flag": "DAY",
+          "polygons": [
+            [
+              "14.218523 38.306084 18.426548 66.22702 39.330738 63.761784 34.278229 30.160732 14.218523 38.306084"
+            ]
+          ]
+        },
+        "granule": null
+      },
+      {
+        "entry": {
+          "collection_concept_id": "C2208781576-LANCEMODIS",
+          "time_start": "2026-11-20T09:54:00.000Z",
+          "time_end": "2026-11-20T10:00:00.000Z",
+          "day_night_flag": "DAY"
+        },
+        "granule": null
+      },
+      {
+        "entry": null,
+        "granule": null
+      }
+    ],
+    "dataStoreFeatures": [
+      {
+        "feature": {
+          "type": "Feature",
+          "geometry": {
+            "type": "MultiPolygon",
+            "coordinates": [
+              [
+                [
+                  [
+                    -180,
+                    30.8
+                  ],
+                  [
+                    -179.63,
+                    30.74
+                  ],
+                  [
+                    -178.93,
+                    30.62
+                  ],
+                  [
+                    -178.22,
+                    30.5
+                  ],
+                  [
+                    -177.51,
+                    30.37
+                  ],
+                  [
+                    -176.81,
+                    30.24
+                  ],
+                  [
+                    -176.11,
+                    30.1
+                  ],
+                  [
+                    -175.41,
+                    29.97
+                  ],
+                  [
+                    -174.72,
+                    29.82
+                  ],
+                  [
+                    -174.02,
+                    29.68
+                  ],
+                  [
+                    -173.33,
+                    29.53
+                  ],
+                  [
+                    -172.64,
+                    29.38
+                  ],
+                  [
+                    -171.95,
+                    29.22
+                  ],
+                  [
+                    -171.26,
+                    29.06
+                  ],
+                  [
+                    -170.44,
+                    31.69
+                  ],
+                  [
+                    -169.57,
+                    34.31
+                  ],
+                  [
+                    -168.65,
+                    36.93
+                  ],
+                  [
+                    -167.67,
+                    39.54
+                  ],
+                  [
+                    -168.44,
+                    39.72
+                  ],
+                  [
+                    -169.22,
+                    39.89
+                  ],
+                  [
+                    -170,
+                    40.06
+                  ],
+                  [
+                    -170.78,
+                    40.22
+                  ],
+                  [
+                    -171.57,
+                    40.37
+                  ],
+                  [
+                    -172.36,
+                    40.52
+                  ],
+                  [
+                    -173.15,
+                    40.67
+                  ],
+                  [
+                    -173.95,
+                    40.81
+                  ],
+                  [
+                    -174.75,
+                    40.94
+                  ],
+                  [
+                    -175.56,
+                    41.07
+                  ],
+                  [
+                    -176.36,
+                    41.19
+                  ],
+                  [
+                    -177.17,
+                    41.31
+                  ],
+                  [
+                    -177.99,
+                    41.42
+                  ],
+                  [
+                    -178.8,
+                    41.53
+                  ],
+                  [
+                    -179.62,
+                    41.63
+                  ],
+                  [
+                    -180,
+                    41.67
+                  ],
+                  [
+                    -180,
+                    30.8
+                  ]
+                ]
+              ],
+              [
+                [
+                  [
+                    180,
+                    41.67
+                  ],
+                  [
+                    179.56,
+                    41.72
+                  ],
+                  [
+                    178.74,
+                    41.81
+                  ],
+                  [
+                    177.91,
+                    41.89
+                  ],
+                  [
+                    177.08,
+                    41.97
+                  ],
+                  [
+                    176.66,
+                    39.34
+                  ],
+                  [
+                    176.24,
+                    36.71
+                  ],
+                  [
+                    175.8,
+                    34.09
+                  ],
+                  [
+                    175.36,
+                    31.46
+                  ],
+                  [
+                    176.08,
+                    31.37
+                  ],
+                  [
+                    176.8,
+                    31.27
+                  ],
+                  [
+                    177.52,
+                    31.17
+                  ],
+                  [
+                    178.23,
+                    31.07
+                  ],
+                  [
+                    178.94,
+                    30.97
+                  ],
+                  [
+                    179.65,
+                    30.85
+                  ],
+                  [
+                    180,
+                    30.8
+                  ],
+                  [
+                    180,
+                    41.67
+                  ]
+                ]
+              ]
+            ]
+          },
+          "properties": {
+            "date": "2026-11-20T21:55:48Z/2026-11-20T21:58:48.000Z"
+          }
+        },
+        "granule": {
+          "start": 1795211748000,
+          "end": 1795211928000,
+          "day": true,
+          "outline": [
+            {
+              "latitude": 30.8,
+              "longitude": 180
+            },
+            {
+              "latitude": 30.74,
+              "longitude": 180.37
+            },
+            {
+              "latitude": 30.62,
+              "longitude": 181.07
+            },
+            {
+              "latitude": 30.5,
+              "longitude": 181.78
+            },
+            {
+              "latitude": 30.37,
+              "longitude": 182.49
+            },
+            {
+              "latitude": 30.24,
+              "longitude": 183.19
+            },
+            {
+              "latitude": 30.1,
+              "longitude": 183.89
+            },
+            {
+              "latitude": 29.97,
+              "longitude": 184.59
+            },
+            {
+              "latitude": 29.82,
+              "longitude": 185.28
+            },
+            {
+              "latitude": 29.68,
+              "longitude": 185.98
+            },
+            {
+              "latitude": 29.53,
+              "longitude": 186.67
+            },
+            {
+              "latitude": 29.38,
+              "longitude": 187.36
+            },
+            {
+              "latitude": 29.22,
+              "longitude": 188.05
+            },
+            {
+              "latitude": 29.06,
+              "longitude": 188.74
+            },
+            {
+              "latitude": 31.69,
+              "longitude": 189.56
+            },
+            {
+              "latitude": 34.31,
+              "longitude": 190.43
+            },
+            {
+              "latitude": 36.93,
+              "longitude": 191.35
+            },
+            {
+              "latitude": 39.54,
+              "longitude": 192.33
+            },
+            {
+              "latitude": 39.72,
+              "longitude": 191.56
+            },
+            {
+              "latitude": 39.89,
+              "longitude": 190.78
+            },
+            {
+              "latitude": 40.06,
+              "longitude": 190
+            },
+            {
+              "latitude": 40.22,
+              "longitude": 189.22
+            },
+            {
+              "latitude": 40.37,
+              "longitude": 188.43
+            },
+            {
+              "latitude": 40.52,
+              "longitude": 187.64
+            },
+            {
+              "latitude": 40.67,
+              "longitude": 186.85
+            },
+            {
+              "latitude": 40.81,
+              "longitude": 186.05
+            },
+            {
+              "latitude": 40.94,
+              "longitude": 185.25
+            },
+            {
+              "latitude": 41.07,
+              "longitude": 184.44
+            },
+            {
+              "latitude": 41.19,
+              "longitude": 183.64
+            },
+            {
+              "latitude": 41.31,
+              "longitude": 182.83
+            },
+            {
+              "latitude": 41.42,
+              "longitude": 182.01
+            },
+            {
+              "latitude": 41.53,
+              "longitude": 181.2
+            },
+            {
+              "latitude": 41.63,
+              "longitude": 180.38
+            },
+            {
+              "latitude": 41.67,
+              "longitude": 180
+            },
+            {
+              "latitude": 41.72,
+              "longitude": 179.56
+            },
+            {
+              "latitude": 41.81,
+              "longitude": 178.74
+            },
+            {
+              "latitude": 41.89,
+              "longitude": 177.91
+            },
+            {
+              "latitude": 41.97,
+              "longitude": 177.08
+            },
+            {
+              "latitude": 39.34,
+              "longitude": 176.66
+            },
+            {
+              "latitude": 36.71,
+              "longitude": 176.24
+            },
+            {
+              "latitude": 34.09,
+              "longitude": 175.8
+            },
+            {
+              "latitude": 31.46,
+              "longitude": 175.36
+            },
+            {
+              "latitude": 31.37,
+              "longitude": 176.08
+            },
+            {
+              "latitude": 31.27,
+              "longitude": 176.8
+            },
+            {
+              "latitude": 31.17,
+              "longitude": 177.52
+            },
+            {
+              "latitude": 31.07,
+              "longitude": 178.23
+            },
+            {
+              "latitude": 30.97,
+              "longitude": 178.94
+            },
+            {
+              "latitude": 30.85,
+              "longitude": 179.65
+            },
+            {
+              "latitude": 30.8,
+              "longitude": 180
+            }
+          ]
+        }
+      },
+      {
+        "feature": {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [
+                  10,
+                  40
+                ],
+                [
+                  20,
+                  40
+                ],
+                [
+                  20,
+                  50
+                ],
+                [
+                  10,
+                  50
+                ],
+                [
+                  10,
+                  40
+                ]
+              ]
+            ]
+          },
+          "properties": {
+            "date": "2026-11-20T10:00:00.123456Z/2026-11-20T10:03:00.123Z"
+          }
+        },
+        "granule": {
+          "start": 1795168800123,
+          "end": 1795168980123,
+          "day": true,
+          "outline": [
+            {
+              "latitude": 40,
+              "longitude": 10
+            },
+            {
+              "latitude": 40,
+              "longitude": 20
+            },
+            {
+              "latitude": 50,
+              "longitude": 20
+            },
+            {
+              "latitude": 50,
+              "longitude": 10
+            },
+            {
+              "latitude": 40,
+              "longitude": 10
+            }
+          ]
+        }
+      },
+      {
+        "feature": {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              0,
+              0
+            ]
+          },
+          "properties": {
+            "date": "2026-11-20T21:55:48Z/2026-11-20T21:58:48.000Z"
+          }
+        },
+        "granule": null
+      },
+      {
+        "feature": {
+          "properties": {
+            "date": "yesterday"
+          },
+          "geometry": {
+            "type": "MultiPolygon",
+            "coordinates": [
+              [
+                [
+                  [
+                    -180,
+                    30.8
+                  ],
+                  [
+                    -179.63,
+                    30.74
+                  ],
+                  [
+                    -178.93,
+                    30.62
+                  ],
+                  [
+                    -178.22,
+                    30.5
+                  ],
+                  [
+                    -177.51,
+                    30.37
+                  ],
+                  [
+                    -176.81,
+                    30.24
+                  ],
+                  [
+                    -176.11,
+                    30.1
+                  ],
+                  [
+                    -175.41,
+                    29.97
+                  ],
+                  [
+                    -174.72,
+                    29.82
+                  ],
+                  [
+                    -174.02,
+                    29.68
+                  ],
+                  [
+                    -173.33,
+                    29.53
+                  ],
+                  [
+                    -172.64,
+                    29.38
+                  ],
+                  [
+                    -171.95,
+                    29.22
+                  ],
+                  [
+                    -171.26,
+                    29.06
+                  ],
+                  [
+                    -170.44,
+                    31.69
+                  ],
+                  [
+                    -169.57,
+                    34.31
+                  ],
+                  [
+                    -168.65,
+                    36.93
+                  ],
+                  [
+                    -167.67,
+                    39.54
+                  ],
+                  [
+                    -168.44,
+                    39.72
+                  ],
+                  [
+                    -169.22,
+                    39.89
+                  ],
+                  [
+                    -170,
+                    40.06
+                  ],
+                  [
+                    -170.78,
+                    40.22
+                  ],
+                  [
+                    -171.57,
+                    40.37
+                  ],
+                  [
+                    -172.36,
+                    40.52
+                  ],
+                  [
+                    -173.15,
+                    40.67
+                  ],
+                  [
+                    -173.95,
+                    40.81
+                  ],
+                  [
+                    -174.75,
+                    40.94
+                  ],
+                  [
+                    -175.56,
+                    41.07
+                  ],
+                  [
+                    -176.36,
+                    41.19
+                  ],
+                  [
+                    -177.17,
+                    41.31
+                  ],
+                  [
+                    -177.99,
+                    41.42
+                  ],
+                  [
+                    -178.8,
+                    41.53
+                  ],
+                  [
+                    -179.62,
+                    41.63
+                  ],
+                  [
+                    -180,
+                    41.67
+                  ],
+                  [
+                    -180,
+                    30.8
+                  ]
+                ]
+              ],
+              [
+                [
+                  [
+                    180,
+                    41.67
+                  ],
+                  [
+                    179.56,
+                    41.72
+                  ],
+                  [
+                    178.74,
+                    41.81
+                  ],
+                  [
+                    177.91,
+                    41.89
+                  ],
+                  [
+                    177.08,
+                    41.97
+                  ],
+                  [
+                    176.66,
+                    39.34
+                  ],
+                  [
+                    176.24,
+                    36.71
+                  ],
+                  [
+                    175.8,
+                    34.09
+                  ],
+                  [
+                    175.36,
+                    31.46
+                  ],
+                  [
+                    176.08,
+                    31.37
+                  ],
+                  [
+                    176.8,
+                    31.27
+                  ],
+                  [
+                    177.52,
+                    31.17
+                  ],
+                  [
+                    178.23,
+                    31.07
+                  ],
+                  [
+                    178.94,
+                    30.97
+                  ],
+                  [
+                    179.65,
+                    30.85
+                  ],
+                  [
+                    180,
+                    30.8
+                  ],
+                  [
+                    180,
+                    41.67
+                  ]
+                ]
+              ]
+            ]
+          }
+        },
+        "granule": null
+      }
+    ],
+    "searchUrls": [
+      {
+        "query": {
+          "collections": [
+            "C2208781576-LANCEMODIS",
+            "C2105084593-LAADS"
+          ],
+          "start": 1795161600000,
+          "end": 1795176000000
+        },
+        "url": "https://cmr.earthdata.nasa.gov/search/granules.json?collection_concept_id=C2208781576-LANCEMODIS&collection_concept_id=C2105084593-LAADS&temporal=2026-11-20T08%3A00%3A00.000Z%2C2026-11-20T12%3A00%3A00.000Z&page_size=2000&sort_key=start_date"
+      },
+      {
+        "query": {
+          "collections": [
+            "C2021957657-LPCLOUD"
+          ],
+          "platform": "LANDSAT-8",
+          "start": 1792540800000,
+          "end": 1795132800500,
+          "point": {
+            "latitude": 48.1351,
+            "longitude": 11.582
+          }
+        },
+        "url": "https://cmr.earthdata.nasa.gov/search/granules.json?collection_concept_id=C2021957657-LPCLOUD&platform=LANDSAT-8&temporal=2026-10-21T00%3A00%3A00.000Z%2C2026-11-20T00%3A00%3A00.500Z&point=11.582%2C48.1351&page_size=2000&sort_key=start_date"
+      },
+      {
+        "query": {
+          "collections": [
+            "C2208781576-LANCEMODIS"
+          ],
+          "start": 1787356800000,
+          "end": 1795132800000,
+          "newest": 36
+        },
+        "url": "https://cmr.earthdata.nasa.gov/search/granules.json?collection_concept_id=C2208781576-LANCEMODIS&temporal=2026-08-22T00%3A00%3A00.000Z%2C2026-11-20T00%3A00%3A00.000Z&page_size=36&sort_key=-start_date"
+      }
+    ],
+    "dataStoreUrls": [
+      {
+        "query": {
+          "collections": [
+            "EO:EUM:DAT:0409"
+          ],
+          "platform": "Sentinel-3A",
+          "start": 1795046400000,
+          "end": 1795132800000
+        },
+        "page": 0,
+        "url": "https://api.eumetsat.int/data/search-products/1.0.0/os?format=json&pi=EO%3AEUM%3ADAT%3A0409&sat=Sentinel-3A&dtstart=2026-11-19T00%3A00%3A00.000Z&dtend=2026-11-20T00%3A00%3A00.000Z&c=500&si=0&sort=start%2Ctime%2C1"
+      },
+      {
+        "query": {
+          "collections": [
+            "EO:EUM:DAT:0409"
+          ],
+          "platform": "Sentinel-3A",
+          "start": 1795046400000,
+          "end": 1795132800000
+        },
+        "page": 2,
+        "url": "https://api.eumetsat.int/data/search-products/1.0.0/os?format=json&pi=EO%3AEUM%3ADAT%3A0409&sat=Sentinel-3A&dtstart=2026-11-19T00%3A00%3A00.000Z&dtend=2026-11-20T00%3A00%3A00.000Z&c=500&si=1000&sort=start%2Ctime%2C1"
+      },
+      {
+        "query": {
+          "collections": [
+            "EO:EUM:DAT:0409"
+          ],
+          "platform": "Sentinel-3B",
+          "start": 1792540800000,
+          "end": 1795132800000,
+          "point": {
+            "latitude": -33.9249,
+            "longitude": 18.4241
+          }
+        },
+        "page": 0,
+        "url": "https://api.eumetsat.int/data/search-products/1.0.0/os?format=json&pi=EO%3AEUM%3ADAT%3A0409&sat=Sentinel-3B&dtstart=2026-10-21T00%3A00%3A00.000Z&dtend=2026-11-20T00%3A00%3A00.000Z&geo=POINT%2818.4241+-33.9249%29&c=500&si=0&sort=start%2Ctime%2C1"
+      },
+      {
+        "query": {
+          "collections": [
+            "EO:EUM:DAT:0409"
+          ],
+          "platform": "Sentinel-3B",
+          "start": 1792540800000,
+          "end": 1795132800000,
+          "point": {
+            "latitude": -33.9249,
+            "longitude": 18.4241
+          }
+        },
+        "page": 2,
+        "url": "https://api.eumetsat.int/data/search-products/1.0.0/os?format=json&pi=EO%3AEUM%3ADAT%3A0409&sat=Sentinel-3B&dtstart=2026-10-21T00%3A00%3A00.000Z&dtend=2026-11-20T00%3A00%3A00.000Z&geo=POINT%2818.4241+-33.9249%29&c=500&si=1000&sort=start%2Ctime%2C1"
+      },
+      {
+        "query": {
+          "collections": [
+            "EO:EUM:DAT:0409"
+          ],
+          "start": 0,
+          "end": 1795132800000,
+          "newest": 36
+        },
+        "page": 0,
+        "url": "https://api.eumetsat.int/data/search-products/1.0.0/os?format=json&pi=EO%3AEUM%3ADAT%3A0409&dtstart=1970-01-01T00%3A00%3A00.000Z&dtend=2026-11-20T00%3A00%3A00.000Z&c=36&si=0&sort=start%2Ctime%2C0"
+      },
+      {
+        "query": {
+          "collections": [
+            "EO:EUM:DAT:0409"
+          ],
+          "start": 0,
+          "end": 1795132800000,
+          "newest": 36
+        },
+        "page": 2,
+        "url": "https://api.eumetsat.int/data/search-products/1.0.0/os?format=json&pi=EO%3AEUM%3ADAT%3A0409&dtstart=1970-01-01T00%3A00%3A00.000Z&dtend=2026-11-20T00%3A00%3A00.000Z&c=36&si=1000&sort=start%2Ctime%2C0"
+      }
+    ],
+    "samples": [
+      {
+        "granule": {
+          "start": 1795168440000,
+          "end": 1795168800000,
+          "day": true,
+          "outline": [
+            {
+              "latitude": 14.2,
+              "longitude": 38.3
+            },
+            {
+              "latitude": 18.4,
+              "longitude": 66.2
+            },
+            {
+              "latitude": 39.3,
+              "longitude": 63.8
+            },
+            {
+              "latitude": 34.3,
+              "longitude": 30.2
+            },
+            {
+              "latitude": 14.2,
+              "longitude": 38.3
+            }
+          ]
+        },
+        "key": "1795168440000 14.2 38.3",
+        "extent": {
+          "west": 30.2,
+          "south": 14.2,
+          "east": 66.2,
+          "north": 39.3
+        },
+        "centre": {
+          "latitude": 26.549999999999997,
+          "longitude": 49.625
+        },
+        "probe": {
+          "west": 47.200000000000045,
+          "south": 25.75,
+          "east": 49.200000000000045,
+          "north": 27.75
+        }
+      },
+      {
+        "granule": {
+          "start": 1795168800000,
+          "end": 1795169160000,
+          "day": true,
+          "outline": [
+            {
+              "latitude": 34.3,
+              "longitude": 30.2
+            },
+            {
+              "latitude": 39.3,
+              "longitude": 63.8
+            },
+            {
+              "latitude": 60.1,
+              "longitude": 70.4
+            },
+            {
+              "latitude": 52.5,
+              "longitude": 20.1
+            },
+            {
+              "latitude": 34.3,
+              "longitude": 30.2
+            }
+          ]
+        },
+        "key": "1795168800000 34.3 30.2",
+        "extent": {
+          "west": 20.1,
+          "south": 34.3,
+          "east": 70.4,
+          "north": 60.1
+        },
+        "centre": {
+          "latitude": 46.55,
+          "longitude": 46.125
+        },
+        "probe": {
+          "west": 44.25,
+          "south": 46.2,
+          "east": 46.25,
+          "north": 48.2
+        }
+      },
+      {
+        "granule": {
+          "start": 1795169219000,
+          "end": 1795169579000,
+          "day": false,
+          "outline": [
+            {
+              "latitude": 52.5,
+              "longitude": 20.1
+            },
+            {
+              "latitude": 60.1,
+              "longitude": 70.4
+            },
+            {
+              "latitude": 80.2,
+              "longitude": 120.4
+            },
+            {
+              "latitude": 70.3,
+              "longitude": -10.2
+            },
+            {
+              "latitude": 52.5,
+              "longitude": 20.1
+            }
+          ]
+        },
+        "key": "1795169219000 52.5 20.1",
+        "extent": {
+          "west": -10.2,
+          "south": 52.5,
+          "east": 120.4,
+          "north": 80.2
+        },
+        "centre": {
+          "latitude": 65.775,
+          "longitude": 50.174999999999955
+        },
+        "probe": {
+          "west": 54.10000000000002,
+          "south": 65.35,
+          "east": 56.10000000000002,
+          "north": 67.35
+        }
+      },
+      {
+        "granule": {
+          "start": 1795174800000,
+          "end": 1795175160000,
+          "day": true,
+          "outline": [
+            {
+              "latitude": -10,
+              "longitude": 175
+            },
+            {
+              "latitude": -12,
+              "longitude": -175
+            },
+            {
+              "latitude": 10,
+              "longitude": -172
+            },
+            {
+              "latitude": 12,
+              "longitude": 178
+            },
+            {
+              "latitude": -10,
+              "longitude": 175
+            }
+          ]
+        },
+        "key": "1795174800000 -10 175",
+        "extent": {
+          "west": 175,
+          "south": -12,
+          "east": 188,
+          "north": 12
+        },
+        "centre": {
+          "latitude": 0,
+          "longitude": -178.5
+        },
+        "probe": {
+          "west": -179.5,
+          "south": -1,
+          "east": -177.5,
+          "north": 1
+        }
+      },
+      {
+        "granule": {
+          "start": 1795175190000,
+          "end": 1795175250000,
+          "day": true,
+          "outline": [
+            {
+              "latitude": 1.5,
+              "longitude": 10.25
+            },
+            {
+              "latitude": 1.5,
+              "longitude": 11.65
+            },
+            {
+              "latitude": 2.9,
+              "longitude": 11.65
+            },
+            {
+              "latitude": 2.9,
+              "longitude": 10.25
+            },
+            {
+              "latitude": 1.5,
+              "longitude": 10.25
+            }
+          ]
+        },
+        "key": "1795175190000 1.5 10.25",
+        "extent": {
+          "west": 10.25,
+          "south": 1.5,
+          "east": 11.65,
+          "north": 2.9
+        },
+        "centre": {
+          "latitude": 2.2,
+          "longitude": 10.950000000000045
+        },
+        "probe": {
+          "west": 10.600000000000046,
+          "south": 1.85,
+          "east": 11.300000000000045,
+          "north": 2.5500000000000003
+        }
+      }
+    ],
+    "overpasses": [
+      {
+        "start": 1795168440000,
+        "end": 1795169579000,
+        "count": 3,
+        "day": true
+      },
+      {
+        "start": 1795174800000,
+        "end": 1795175250000,
+        "count": 2,
+        "day": true
+      }
+    ],
+    "sun": [
+      {
+        "instant": "2026-11-20T09:54:00Z",
+        "point": {
+          "latitude": 0,
+          "longitude": 0
+        },
+        "elevation": 56.29699180468768
+      },
+      {
+        "instant": "2026-11-20T09:54:00Z",
+        "point": {
+          "latitude": 48.1,
+          "longitude": 11.6
+        },
+        "elevation": 20.616666879876593
+      },
+      {
+        "instant": "2026-11-20T09:54:00Z",
+        "point": {
+          "latitude": -33.9,
+          "longitude": 18.4
+        },
+        "elevation": 73.50961045743402
+      },
+      {
+        "instant": "2026-11-20T09:54:00Z",
+        "point": {
+          "latitude": 78.2,
+          "longitude": 15.6
+        },
+        "elevation": -8.184854460915968
+      },
+      {
+        "instant": "2026-11-20T09:54:00Z",
+        "point": {
+          "latitude": -77.8,
+          "longitude": 166.7
+        },
+        "elevation": 10.385633571226116
+      },
+      {
+        "instant": "2026-06-21T12:00:00Z",
+        "point": {
+          "latitude": 0,
+          "longitude": 0
+        },
+        "elevation": 66.56038897962506
+      },
+      {
+        "instant": "2026-06-21T12:00:00Z",
+        "point": {
+          "latitude": 48.1,
+          "longitude": 11.6
+        },
+        "elevation": 63.79383792201543
+      },
+      {
+        "instant": "2026-06-21T12:00:00Z",
+        "point": {
+          "latitude": -33.9,
+          "longitude": 18.4
+        },
+        "elevation": 30.176976419775894
+      },
+      {
+        "instant": "2026-06-21T12:00:00Z",
+        "point": {
+          "latitude": 78.2,
+          "longitude": 15.6
+        },
+        "elevation": 34.779587679817446
+      },
+      {
+        "instant": "2026-06-21T12:00:00Z",
+        "point": {
+          "latitude": -77.8,
+          "longitude": 166.7
+        },
+        "elevation": -35.24439346202551
+      },
+      {
+        "instant": "2026-03-20T00:00:00Z",
+        "point": {
+          "latitude": 0,
+          "longitude": 0
+        },
+        "elevation": -88.08349618525739
+      },
+      {
+        "instant": "2026-03-20T00:00:00Z",
+        "point": {
+          "latitude": 48.1,
+          "longitude": 11.6
+        },
+        "elevation": -41.40829441828124
+      },
+      {
+        "instant": "2026-03-20T00:00:00Z",
+        "point": {
+          "latitude": -33.9,
+          "longitude": 18.4
+        },
+        "elevation": -52.51172061443599
+      },
+      {
+        "instant": "2026-03-20T00:00:00Z",
+        "point": {
+          "latitude": 78.2,
+          "longitude": 15.6
+        },
+        "elevation": -11.701064110041115
+      },
+      {
+        "instant": "2026-03-20T00:00:00Z",
+        "point": {
+          "latitude": -77.8,
+          "longitude": 166.7
+        },
+        "elevation": 12.0081641572381
+      }
+    ],
+    "polar": [
+      {
+        "projection": {
+          "srs": "EPSG:3995",
+          "pole": 1,
+          "trueScaleLatitude": 71
+        },
+        "radiusScale": 12367396.218459869,
+        "points": [
+          {
+            "point": {
+              "latitude": 0,
+              "longitude": 0
+            },
+            "projected": {
+              "x": 0,
+              "y": -12367396.218459867
+            }
+          },
+          {
+            "point": {
+              "latitude": 48.1,
+              "longitude": 11.6
+            },
+            "projected": {
+              "x": 956869.7693483726,
+              "y": -4661506.036075854
+            }
+          },
+          {
+            "point": {
+              "latitude": -33.9,
+              "longitude": 18.4
+            },
+            "projected": {
+              "x": 2087822.3616746783,
+              "y": -6276225.565991697
+            }
+          },
+          {
+            "point": {
+              "latitude": 78.2,
+              "longitude": 15.6
+            },
+            "projected": {
+              "x": 345956.36466102744,
+              "y": -1239076.4631053994
+            }
+          },
+          {
+            "point": {
+              "latitude": -77.8,
+              "longitude": 166.7
+            },
+            "projected": {
+              "x": 306055.5143771337,
+              "y": 1294705.936765364
+            }
+          }
+        ]
+      },
+      {
+        "projection": {
+          "srs": "EPSG:3976",
+          "pole": -1,
+          "trueScaleLatitude": -70
+        },
+        "radiusScale": 12330389.18440409,
+        "points": [
+          {
+            "point": {
+              "latitude": 0,
+              "longitude": 0
+            },
+            "projected": {
+              "x": 0,
+              "y": 12330389.184404088
+            }
+          },
+          {
+            "point": {
+              "latitude": 48.1,
+              "longitude": 11.6
+            },
+            "projected": {
+              "x": 954006.522184967,
+              "y": 4647557.383539697
+            }
+          },
+          {
+            "point": {
+              "latitude": -33.9,
+              "longitude": 18.4
+            },
+            "projected": {
+              "x": 2081574.9582701053,
+              "y": 6257445.178498676
+            }
+          },
+          {
+            "point": {
+              "latitude": 78.2,
+              "longitude": 15.6
+            },
+            "projected": {
+              "x": 344921.1573512047,
+              "y": 1235368.767155672
+            }
+          },
+          {
+            "point": {
+              "latitude": -77.8,
+              "longitude": 166.7
+            },
+            "projected": {
+              "x": 305139.70262149454,
+              "y": -1290831.7804071663
+            }
+          }
+        ]
+      }
+    ],
+    "pictureUrls": [
+      {
+        "pictures": {
+          "provider": "gibs",
+          "layer": "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+          "frame": "granule"
+        },
+        "start": 1795219110250,
+        "bounds": {
+          "west": -10.1234,
+          "south": 20.5,
+          "east": 12.25,
+          "north": 41.0005
+        },
+        "width": 1024,
+        "height": 600,
+        "srs": "EPSG:4326",
+        "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule&WIDTH=1024&HEIGHT=600&BBOX=-10.123%2C20.500%2C12.250%2C41.001&FORMAT=image%2Fjpeg&BGCOLOR=0x000000&TIME=2026-11-20T23%3A58%3A30Z"
+      },
+      {
+        "pictures": {
+          "provider": "gibs",
+          "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+          "frame": "day"
+        },
+        "start": 1795219110250,
+        "bounds": {
+          "west": -10.1234,
+          "south": 20.5,
+          "east": 12.25,
+          "north": 41.0005
+        },
+        "width": 1024,
+        "height": 600,
+        "srs": "EPSG:4326",
+        "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=MODIS_Terra_CorrectedReflectance_TrueColor&WIDTH=1024&HEIGHT=600&BBOX=-10.123%2C20.500%2C12.250%2C41.001&FORMAT=image%2Fjpeg&BGCOLOR=0x000000&TIME=2026-11-20"
+      },
+      {
+        "pictures": {
+          "provider": "eumetview",
+          "layer": "copernicus:sentinel3a_olci_l1_rgb_fullres",
+          "frame": 1500000
+        },
+        "start": 1795219110250,
+        "bounds": {
+          "west": -10.1234,
+          "south": 20.5,
+          "east": 12.25,
+          "north": 41.0005
+        },
+        "width": 1024,
+        "height": 600,
+        "srs": "EPSG:3995",
+        "url": "https://view.eumetsat.int/geoserver/ows?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A3995&STYLES=&LAYERS=copernicus%3Asentinel3a_olci_l1_rgb_fullres&WIDTH=1024&HEIGHT=600&BBOX=-10.123%2C20.500%2C12.250%2C41.001&FORMAT=image%2Fjpeg&BGCOLOR=0x000000&TIME=2026-11-21T00%3A23%3A30Z"
+      }
+    ],
+    "previews": [
+      {
+        "preview": {
+          "provider": "gibs",
+          "layer": "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+          "format": "jpeg",
+          "daily": false,
+          "pictures": {
+            "provider": "gibs",
+            "layer": "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+            "frame": "granule"
+          },
+          "granule": 1795219110250
+        },
+        "centre": {
+          "latitude": 63.4,
+          "longitude": 170
+        },
+        "halfWidthDeg": 20,
+        "nowMs": 1795316400000,
+        "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule&WIDTH=480&HEIGHT=270&BBOX=150.00%2C38.75%2C190.00%2C61.25&FORMAT=image%2Fjpeg&TIME=2026-11-20T23%3A58%3A30Z"
+      },
+      {
+        "preview": {
+          "provider": "gibs",
+          "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+          "format": "jpeg",
+          "daily": true,
+          "pictures": {
+            "provider": "gibs",
+            "layer": "MODIS_Terra_CorrectedReflectance_TrueColor",
+            "frame": "day"
+          },
+          "granule": 1795219110250
+        },
+        "centre": {
+          "latitude": 63.4,
+          "longitude": 170
+        },
+        "halfWidthDeg": 20,
+        "nowMs": 1795316400000,
+        "url": "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=MODIS_Terra_CorrectedReflectance_TrueColor&WIDTH=480&HEIGHT=270&BBOX=150.00%2C38.75%2C190.00%2C61.25&FORMAT=image%2Fjpeg&TIME=2026-11-20"
+      },
+      {
+        "preview": {
+          "provider": "eumetview",
+          "layer": "copernicus:sentinel3a_olci_l1_rgb_fullres",
+          "format": "jpeg",
+          "daily": false,
+          "pictures": {
+            "provider": "eumetview",
+            "layer": "copernicus:sentinel3a_olci_l1_rgb_fullres",
+            "frame": 1500000
+          },
+          "granule": 1795219110250
+        },
+        "centre": {
+          "latitude": 63.4,
+          "longitude": 170
+        },
+        "halfWidthDeg": 20,
+        "nowMs": 1795316400000,
+        "url": "https://view.eumetsat.int/geoserver/ows?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1&SRS=EPSG%3A4326&STYLES=&LAYERS=copernicus%3Asentinel3a_olci_l1_rgb_fullres&WIDTH=480&HEIGHT=270&BBOX=150.00%2C38.75%2C190.00%2C61.25&FORMAT=image%2Fpng&TRANSPARENT=TRUE&TIME=2026-11-21T00%3A23%3A30Z"
+      }
+    ],
+    "replayPlaces": {
+      "steps": [
+        {
+          "start": 1794996000000,
+          "end": 1794996720000,
+          "on": true
+        },
+        {
+          "start": 1795081200000,
+          "end": 1795081920000,
+          "on": false
+        },
+        {
+          "start": 1795081200000,
+          "end": 1795081920000,
+          "on": true
+        },
+        {
+          "start": 1795172400000,
+          "end": 1795172760000,
+          "on": true
+        }
+      ],
+      "places": [
+        {
+          "time": 1794873600000,
+          "current": null,
+          "previous": null,
+          "next": 0
+        },
+        {
+          "time": 1794995640000,
+          "current": 0,
+          "previous": null,
+          "next": 1
+        },
+        {
+          "time": 1794995700000,
+          "current": 0,
+          "previous": null,
+          "next": 1
+        },
+        {
+          "time": 1794995760000,
+          "current": 0,
+          "previous": null,
+          "next": 1
+        },
+        {
+          "time": 1794996720000,
+          "current": 0,
+          "previous": null,
+          "next": 1
+        },
+        {
+          "time": 1794997320000,
+          "current": 0,
+          "previous": null,
+          "next": 1
+        },
+        {
+          "time": 1794997320001,
+          "current": null,
+          "previous": 0,
+          "next": 1
+        },
+        {
+          "time": 1795080840000,
+          "current": 2,
+          "previous": 1,
+          "next": 3
+        },
+        {
+          "time": 1795080900000,
+          "current": 2,
+          "previous": 1,
+          "next": 3
+        },
+        {
+          "time": 1795080960000,
+          "current": 2,
+          "previous": 1,
+          "next": 3
+        },
+        {
+          "time": 1795081920000,
+          "current": 2,
+          "previous": 1,
+          "next": 3
+        },
+        {
+          "time": 1795082520000,
+          "current": 2,
+          "previous": 1,
+          "next": 3
+        },
+        {
+          "time": 1795082520001,
+          "current": null,
+          "previous": 2,
+          "next": 3
+        },
+        {
+          "time": 1795080840000,
+          "current": 2,
+          "previous": 1,
+          "next": 3
+        },
+        {
+          "time": 1795080900000,
+          "current": 2,
+          "previous": 1,
+          "next": 3
+        },
+        {
+          "time": 1795080960000,
+          "current": 2,
+          "previous": 1,
+          "next": 3
+        },
+        {
+          "time": 1795081920000,
+          "current": 2,
+          "previous": 1,
+          "next": 3
+        },
+        {
+          "time": 1795082520000,
+          "current": 2,
+          "previous": 1,
+          "next": 3
+        },
+        {
+          "time": 1795082520001,
+          "current": null,
+          "previous": 2,
+          "next": 3
+        },
+        {
+          "time": 1795172040000,
+          "current": 3,
+          "previous": 2,
+          "next": null
+        },
+        {
+          "time": 1795172100000,
+          "current": 3,
+          "previous": 2,
+          "next": null
+        },
+        {
+          "time": 1795172160000,
+          "current": 3,
+          "previous": 2,
+          "next": null
+        },
+        {
+          "time": 1795172760000,
+          "current": 3,
+          "previous": 2,
+          "next": null
+        },
+        {
+          "time": 1795173360000,
+          "current": 3,
+          "previous": 2,
+          "next": null
+        },
+        {
+          "time": 1795173360001,
+          "current": null,
+          "previous": 3,
+          "next": null
+        },
+        {
+          "time": 1795219200000,
+          "current": null,
+          "previous": 3,
+          "next": null
+        }
+      ]
+    },
+    "leadMs": 300000,
+    "afterOverpassMs": 600000
+  },
+  "passImagery": [
+    {
+      "day": true,
+      "pictured": true,
+      "pixels": null,
+      "imagery": "asking"
+    },
+    {
+      "day": true,
+      "pictured": true,
+      "pixels": [
+        true,
+        true
+      ],
+      "imagery": "image"
+    },
+    {
+      "day": true,
+      "pictured": true,
+      "pixels": [
+        true,
+        false
+      ],
+      "imagery": "part"
+    },
+    {
+      "day": true,
+      "pictured": true,
+      "pixels": [
+        false,
+        false
+      ],
+      "imagery": "outline"
+    },
+    {
+      "day": true,
+      "pictured": false,
+      "pixels": [
+        true
+      ],
+      "imagery": "outline"
+    },
+    {
+      "day": false,
+      "pictured": true,
+      "pixels": [
+        true
+      ],
+      "imagery": "night"
+    }
+  ],
+  "imageryFormats": {
+    "agesInWords": [
+      {
+        "ago": 0,
+        "text": "just now"
+      },
+      {
+        "ago": 3540000,
+        "text": "59 min ago"
+      },
+      {
+        "ago": 3600000,
+        "text": "1 hour ago"
+      },
+      {
+        "ago": 7200000,
+        "text": "2 hours ago"
+      },
+      {
+        "ago": 86340000,
+        "text": "23 hours ago"
+      },
+      {
+        "ago": 86400000,
+        "text": "1 day ago"
+      },
+      {
+        "ago": 180000000,
+        "text": "2 days ago"
+      }
+    ],
+    "dates": [
+      {
+        "iso": "2026-06-19",
+        "text": "Jun 19, 2026"
+      },
+      {
+        "iso": "2026-11-02T00:00:00Z",
+        "text": "Nov 2, 2026"
+      },
+      {
+        "iso": "2002-07-04",
+        "text": "Jul 4, 2002"
       }
     ]
   }

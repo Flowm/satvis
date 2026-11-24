@@ -52,6 +52,8 @@ public struct WebTables: Sendable, Decodable {
         public var link: String?
         /// Appended for a layer that stopped, `{end}` its last frame's date.
         public var ended: String?
+        /// Who makes its composites, which a composite's picture line credits: "by EUMETSAT".
+        public var maker: String?
 
         /// What JavaScript's `encodeURIComponent` leaves as it is.
         private static let unreserved = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()")

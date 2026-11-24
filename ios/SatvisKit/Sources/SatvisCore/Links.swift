@@ -120,6 +120,8 @@ struct LinkState: Sendable, Hashable {
     var layers: [String]
     /// The instrument imagery drawn on the globe, each `provider:layer` (ADR 0020).
     var imagery: [String]
+    /// The ground station, by name, whose overpasses the replay bar steps through (ADR 0023).
+    var replay: String
     var terrain: String
     /// In the web app's whole vocabulary, Tycho1K included, which the app draws as
     /// DeepStar1K (`StarMapName.drawn`): a link keeps what it asked for.
@@ -136,7 +138,7 @@ struct LinkState: Sendable, Hashable {
 
     /// The web app's defaults before any preset (src/stores).
     static let global = LinkState(
-        elements: ["Point", "Label"], sats: [], xsats: [], tags: [], gs: [], track: "", overpass: .elevation, layers: ["NaturalEarth"], imagery: [], terrain: "None",
+        elements: ["Point", "Label"], sats: [], xsats: [], tags: [], gs: [], track: "", overpass: .elevation, layers: ["NaturalEarth"], imagery: [], replay: "", terrain: "None",
         stars: .tycho1K, scene: "3D", unseen: .dim, camera: .fixed, pixelRatio: "native", time: nil)
 }
 
@@ -186,6 +188,7 @@ enum LinkCodec {
         Field("overpass", \.overpass, .enumeration),
         Field("layers", \.layers, .layerList(layers)),
         Field("imagery", \.imagery, .list),
+        Field("replay", \.replay, .plain),
         Field("terrain", \.terrain, .oneOf(terrains)),
         Field("stars", \.stars, .enumeration),
         Field("scene", \.scene, .oneOf(scenes)),

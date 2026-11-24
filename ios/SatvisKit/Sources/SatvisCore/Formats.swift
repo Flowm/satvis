@@ -60,10 +60,52 @@ public enum Formats {
         let parts = calendar.dateComponents([.weekday, .day, .month], from: date)
         let day = String(format: "%02d", parts.day!)
         let month = months[parts.month! - 1]
+        return "\(weekdays[parts.weekday! - 1])\(dayFirst ? " \(day) \(month)" : ", \(month) \(day)")"
+    }
+
+    /// "19 Jun 2026" or "Jun 19, 2026": a day as ISO 8601 gives it, in the region's
+    /// order of day and month, as the web app's `formatDate`. Text that is no date comes
+    /// back as it is.
+    public static func date(_ iso: String) -> String {
+        let digits = iso.prefix(10).split(separator: "-").compactMap { Int($0) }
+        guard digits.count == 3, (1...12).contains(digits[1]) else {
+            return iso
+        }
+        let month = months[digits[1] - 1]
+        return dayFirst ? "\(digits[2]) \(month) \(digits[0])" : "\(month) \(digits[2]), \(digits[0])"
+    }
+
+    /// Whether the region writes the day before the month: "25 Oct", not "Oct 25".
+    private static var dayFirst: Bool {
         // A pattern's quoted literals could hold either letter.
         let pattern = (DateFormatter.dateFormat(fromTemplate: "ddMMM", options: 0, locale: locale) ?? "").replacing(/'[^']*'/, with: "")
-        let dayFirst = (pattern.firstIndex(of: "d") ?? pattern.endIndex) < (pattern.firstIndex(of: "M") ?? pattern.endIndex)
-        return "\(weekdays[parts.weekday! - 1])\(dayFirst ? " \(day) \(month)" : ", \(month) \(day)")"
+        return (pattern.firstIndex(of: "d") ?? pattern.endIndex) < (pattern.firstIndex(of: "M") ?? pattern.endIndex)
+    }
+
+    /// "just now", "5 min ago", "3 h ago", "2 d ago": how long before `now` an instant
+    /// was, both in milliseconds since 1970.
+    public static func timeAgo(_ at: Double, now: Double) -> String {
+        let minutes = ((now - at) / 60_000).rounded(.down)
+        if minutes < 1 {
+            return "just now"
+        }
+        if minutes < 60 {
+            return "\(Int(minutes)) min ago"
+        }
+        let hours = (minutes / 60).rounded(.down)
+        return hours < 24 ? "\(Int(hours)) h ago" : "\(Int((hours / 24).rounded(.down))) d ago"
+    }
+
+    /// "just now", "5 min ago", "3 hours ago", "2 days ago": `timeAgo` with room to
+    /// spell out the units.
+    public static func timeAgoInWords(_ at: Double, now: Double) -> String {
+        let minutes = ((now - at) / 60_000).rounded(.down)
+        if minutes < 60 {
+            return timeAgo(at, now: now)
+        }
+        let hours = Int((minutes / 60).rounded(.down))
+        let (count, unit) = hours < 24 ? (hours, "hour") : (hours / 24, "day")
+        return "\(count) \(unit)\(count == 1 ? "" : "s") ago"
     }
 
     /// The same in every region, as the web app's: the browser's locale data has
