@@ -16,7 +16,8 @@ enum CameraMode: Sendable, Equatable {
     case sky
 }
 
-/// How the tracked satellite's 3D model can be framed close up, as the scene has it.
+/// How the tracked satellite can be framed, as the scene has it: chasing its swath,
+/// or close up on its 3D model.
 enum TrackedModel {
     /// Not drawn yet, as a link tracks one before it is: asked again next frame.
     case notDrawn
@@ -26,6 +27,8 @@ enum TrackedModel {
     case loading
     /// Its bounding sphere's radius, in metres.
     case loaded(radius: Double)
+    /// Chased over its recorded swath from this camera, whatever its model (ADR 0023).
+    case chase(TrackingCamera)
 }
 
 /// The cameras the globe is seen through, the flights between them and what the
@@ -49,6 +52,9 @@ struct CameraRig {
     private var homeFlight: (from: OrbitCamera, to: OrbitCamera, start: Double)?
     /// The flight into tracking or out of it, while one is under way.
     private var poseFlight: PoseFlight?
+    /// The broadcast camera of an overpass replay, while it holds the free camera's
+    /// view (ADR 0023).
+    private var broadcast: BroadcastCamera?
     /// What is tracked and may be framed close up on its 3D model: once the
     /// satellite is drawn, as a link tracks one before it is, and its model has
     /// loaded. A gesture since leaves the camera where the user put it.
@@ -132,6 +138,7 @@ struct CameraRig {
         }
         self.projection = projection
         fadesProjection = animated
+        endBroadcast()
         homeFlight = nil
         poseFlight = nil
         mapFlight = nil
@@ -175,6 +182,7 @@ struct CameraRig {
     /// `animated` flies there from the last pose, once a frame is drawn; without
     /// it the camera cuts.
     mutating func enterSky(_ camera: SkyCamera, animated: Bool, uptime now: Double) {
+        endBroadcast()
         // From wherever a flight into or out of tracking has got to.
         poseFlight = nil
         mapFlight = nil
@@ -243,6 +251,7 @@ struct CameraRig {
             skyFlight = nil
             skyCamera = nil
         }
+        endBroadcast()
         startPoseFlight(animated, uptime: uptime)
         cameraMode = .tracking(id)
         trackingCamera = TrackingCamera()
@@ -268,6 +277,9 @@ struct CameraRig {
             trackingCamera = .framing(modelRadius: Self.fallbackModelRadius)
         case .loaded(let radius):
             trackingCamera = .framing(modelRadius: radius)
+            framingModel = nil
+        case .chase(let camera):
+            trackingCamera = camera
             framingModel = nil
         }
     }
@@ -295,6 +307,7 @@ struct CameraRig {
         guard cameraMode != .sky, let aspectRatio = drawnAspectRatio else {
             return
         }
+        stopBroadcast(animated: animated, uptime: uptime)
         stopTracking(animated: animated, uptime: uptime)
         if drawnProjection == .twoD {
             flyMap(animated, uptime: uptime, duration: Self.homeFlightDuration)
@@ -309,6 +322,85 @@ struct CameraRig {
             homeFlight = (orbitCamera, home, uptime)
         } else {
             orbitCamera = home
+        }
+    }
+
+    /// Whether the broadcast camera holds the view.
+    var isBroadcasting: Bool { broadcast != nil }
+
+    /// Hands the view to `camera`, letting go of what is followed; `animated`
+    /// swings it in from the last pose. False, leaving the camera as it was, in the
+    /// sky view, on the way to or from it, or on the map.
+    mutating func startBroadcast(_ camera: BroadcastCamera, animated: Bool, uptime: Double) -> Bool {
+        guard cameraMode != .sky, skyFlight == nil, projection == .threeD, drawnProjection == .threeD else {
+            return false
+        }
+        endBroadcast()
+        var camera = camera
+        camera.swing = animated ? lastPose.map { ($0, uptime) } : nil
+        broadcast = camera
+        cameraMode = .orbit
+        homeFlight = nil
+        poseFlight = nil
+        framingModel = nil
+        return true
+    }
+
+    /// Ends the broadcast, its view left to the free camera over where it looks
+    /// (`OrbitCamera.facing`), which can only look straight down: `animated` flies
+    /// there, else the camera cuts.
+    mutating func stopBroadcast(animated: Bool, uptime: Double) {
+        guard broadcast != nil else {
+            return
+        }
+        endBroadcast()
+        poseFlight = animated ? lastPose.map { PoseFlight(from: $0, start: uptime) } : nil
+    }
+
+    /// Ends the broadcast, leaving the free camera over where it looks, for what
+    /// takes the view over from it to fly from the last pose.
+    private mutating func endBroadcast() {
+        guard broadcast != nil else {
+            return
+        }
+        broadcast = nil
+        if let lastPose, lastPose.mapCamera == nil {
+            orbitCamera = OrbitCamera.facing(lastPose)
+        }
+    }
+
+    /// The view to fly back to (`fly(to:)`): the free camera, the one tracking
+    /// began from while something is followed, and in the sky view the one it goes
+    /// back to; over where the broadcast looks while it holds the view. Nil before
+    /// the view has a size.
+    func currentView() -> CameraView? {
+        guard let orbitCamera, let aspectRatio else {
+            return nil
+        }
+        if drawnProjection == .twoD, let mapCamera {
+            return CameraView(globe: mapCamera.globe(aspectRatio: aspectRatio), map: mapCamera)
+        }
+        if broadcast != nil, let lastPose, lastPose.mapCamera == nil {
+            return CameraView(globe: .facing(lastPose), map: nil)
+        }
+        return CameraView(globe: orbitCamera, map: nil)
+    }
+
+    /// Flies the free camera to `view`, letting go of what is followed and ending
+    /// any broadcast, from the last pose over `PoseFlight.duration`; without
+    /// `animated` the camera cuts. Not in the sky view or on the way to or from it.
+    mutating func fly(to view: CameraView, animated: Bool, uptime: Double) {
+        guard cameraMode != .sky, skyFlight == nil else {
+            return
+        }
+        endBroadcast()
+        homeFlight = nil
+        framingModel = nil
+        startPoseFlight(animated, uptime: uptime)
+        cameraMode = .orbit
+        orbitCamera = view.globe
+        if let aspectRatio {
+            mapCamera = view.map ?? MapCamera.matching(view.globe, aspectRatio: aspectRatio)
         }
     }
 
@@ -472,6 +564,11 @@ struct CameraRig {
             trackingCamera.keepAboveGround(target: position, velocity: velocity, groundHeight: groundHeight)
             pose = trackingCamera.pose(target: position, velocity: velocity)
         }
+        if cameraMode == .orbit, var camera = broadcast {
+            let satellite = camera.satellite
+            pose = camera.pose(uptime: uptime, time: now) { target(satellite, $0) } ?? pose
+            broadcast = camera
+        }
         if let flight = poseFlight {
             if cameraMode != .sky {
                 pose = PoseFlight.pose(from: flight.from, to: pose, t: flight.progress(at: uptime))
@@ -566,6 +663,7 @@ struct CameraRig {
         trackingCamera = TrackingCamera()
         homeFlight = nil
         poseFlight = nil
+        broadcast = nil
         if cameraMode == .sky {
             landOnGlobe()
         }

@@ -81,20 +81,25 @@ vertex MapGlobeOut mapGlobeVertex(uint vid [[vertex_id]], const device GlobeVert
 /// The imagery lit by the Sun, as GlobeFS.glsl shades it in 2D: no ground
 /// atmosphere, and the lighting faded by half the view's larger extent, its
 /// distances less the largest radius. Then the ground tracks, as on the globe.
+inline float3 mapShade(float3 color, float3 positionWC, float3 normal, constant FrameUniforms &frame, texturecube<float> overlay, sampler imagerySampler,
+                       int overlayShown) {
+    float fadeOut = lightingFadeOutDistance - ellipsoidRadii.x;
+    float fadeIn = lightingFadeInDistance - ellipsoidRadii.x;
+    float fade = clamp((frame.cameraDistance - fadeOut) / (fadeIn - fadeOut), 0.0, 1.0);
+    float diffuseIntensity = clamp(max(dot(frame.sunDirection, normalize(normal)), 0.0) * 5.0 + 0.3, 0.0, 1.0);
+    float3 result = color * mix(1.0, diffuseIntensity, fade);
+    if (overlayShown != 0) {
+        float coverage = overlay.sample(imagerySampler, normalize(positionWC)).r;
+        result = mix(result, gammaCorrect(float3(139.0 / 255.0, 0.0, 0.0)), coverage);
+    }
+    return result;
+}
+
 fragment float4 mapGlobeFragment(MapGlobeOut in [[stage_in]], constant FrameUniforms &frame [[buffer(1)]], texture2d<float> imagery [[texture(0)]],
                                  texturecube<float> overlay [[texture(1)]], sampler imagerySampler [[sampler(0)]],
                                  constant int &overlayShown [[buffer(2)]]) {
     float3 color = gammaCorrect(imagery.sample(imagerySampler, in.uv).rgb);
-    float fadeOut = lightingFadeOutDistance - ellipsoidRadii.x;
-    float fadeIn = lightingFadeInDistance - ellipsoidRadii.x;
-    float fade = clamp((frame.cameraDistance - fadeOut) / (fadeIn - fadeOut), 0.0, 1.0);
-    float diffuseIntensity = clamp(max(dot(frame.sunDirection, normalize(in.normal)), 0.0) * 5.0 + 0.3, 0.0, 1.0);
-    float3 result = color * mix(1.0, diffuseIntensity, fade);
-    if (overlayShown != 0) {
-        float coverage = overlay.sample(imagerySampler, normalize(in.positionWC)).r;
-        result = mix(result, gammaCorrect(float3(139.0 / 255.0, 0.0, 0.0)), coverage);
-    }
-    return float4(result, 1.0);
+    return float4(mapShade(color, in.positionWC, in.normal, frame, overlay, imagerySampler, overlayShown), 1.0);
 }
 
 /// Satellites as points over the place under them.

@@ -15,7 +15,7 @@ enum ShaderLibrary {
     /// The models' shaders and what they call, which the close-up compiles alone.
     /// In order: `Models` calls `Tonemap`.
     static let models = ["Common", "Tonemap", "Models"]
-    static let files = ["Common", "Sky", "Globe", "Surface", "Points", "Lines", "Labels", "Stations", "Footprints", "Map"] + models.dropFirst()
+    static let files = ["Common", "Sky", "Globe", "Surface", "Points", "Lines", "Labels", "Stations", "Footprints", "Map", "Granules"] + models.dropFirst()
 
     /// The shaders compiled twice: safe math for the vertex functions that place a
     /// satellite, where fast math may regroup the high/low subtraction from the
@@ -114,6 +114,29 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         didSet { pacer.needsDraw = true }
     }
 
+    /// The satellites whose own granule layer is on: tracking one chases its swath
+    /// (ADR 0023). The tracked satellite is tracked again, into the chase or out of
+    /// it, when it joins or leaves them.
+    var chasing: Set<String> = [] {
+        didSet {
+            if case .tracking(let id) = cameraMode, chasing.contains(id) != chasesTracked {
+                track(id, animated: !Self.reducesMotion)
+            }
+        }
+    }
+    /// Whether what is tracked was tracked into the chase.
+    private var chasesTracked = false
+
+    /// Whether the system asks for reduced motion, which cuts the flights the
+    /// renderer starts by itself.
+    static var reducesMotion: Bool {
+        #if canImport(UIKit)
+            UIAccessibility.isReduceMotionEnabled
+        #else
+            NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        #endif
+    }
+
     /// The device's own clock, for `clock`.
     static let wallClock: @Sendable (_ ahead: Double) -> Double = { (Date().timeIntervalSince1970 + $0) * 1000 }
 
@@ -121,6 +144,8 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let queue: MTLCommandQueue
     private let pipelines: ScenePipelines
     private let overlay: GroundOverlay
+    /// The granules replayed behind the clock, and the ground track fans.
+    private let granules: GranuleOverlay
     let surface: Surface
     private var imagery: MTLTexture?
     private var stars: MTLTexture?
@@ -184,9 +209,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// The last frame of the other projection, fading out over the frames since
     /// the change.
     private var fade: ProjectionFade
-    /// Counts what came in for the tiles, the models and the ground tracks, each
-    /// counting up alone.
-    private var contentRevision: Int { surface.revision + models.revision + overlay.revision }
+    /// Counts what came in for the tiles, the models, the ground tracks and the
+    /// granules, each counting up alone.
+    private var contentRevision: Int { surface.revision + models.revision + overlay.revision + granules.revision }
     /// The frames' averages over the last half second, while measured.
     public var frameStats: FrameStats? { measuresFrames ? meter.stats : nil }
 
@@ -253,6 +278,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             throw RendererError.noDevice
         }
         self.overlay = overlay
+        granules = GranuleOverlay(device: device, queue: queue)
         surface = try Surface(device: device, library: libraries.precise, site: URL(string: "https://satvis.space/")!)
         models = SatelliteModels(device: device)
         loop = FrameLoop(queue: queue, faults: faults)
@@ -350,6 +376,13 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         pacer.needsDraw = true
     }
 
+    /// The granules to draw (ADR 0023), and the satellites whose ground track fan is
+    /// drawn with the component off: those a drawn granule layer follows.
+    func setGranules(_ granules: [GranuleDrawing], fans: Set<String>) {
+        self.granules.set(granules, fans: fans)
+        pacer.needsDraw = true
+    }
+
     /// Whether the globe follows Re:Earth's terrain, the sky view's ground too.
     /// Off by default, as on the web.
     func setTerrain(_ enabled: Bool) {
@@ -418,6 +451,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Follows what has this id. `animated` flies there from where the camera
     /// is, as the web app's Track button does; a link or a double tap cuts.
     func track(_ id: String, animated: Bool) {
+        chasesTracked = chasing.contains(id)
         rig.track(id, animated: animated, uptime: ProcessInfo.processInfo.systemUptime, model: { self.trackedModel($0) })
     }
 
@@ -426,6 +460,11 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private func trackedModel(_ id: String) -> TrackedModel {
         guard let satellite = points.satellite(id) else {
             return .notDrawn
+        }
+        if chasesTracked {
+            // A low orbit's height where it has no place, as the web app's.
+            let altitude = points.position(of: id, at: clock(0)).map { geodeticPosition($0).height } ?? 800_000
+            return .chase(.chase(swathKm: Self.swathKm(satellite), altitude: altitude))
         }
         guard components.contains(.model), let model = satellite.model else {
             return .noModel
@@ -440,6 +479,55 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// satellite to another. `animated` flies back.
     func stopTracking(animated: Bool) {
         rig.stopTracking(animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
+    }
+
+    /// Across a satellite's swath, both sides of its track: the web app's 200 km
+    /// where its record carries none.
+    private static func swathKm(_ satellite: PointSatellite) -> Double {
+        let swath = satellite.footprint?.swath ?? .default
+        return swath.starboardKm + swath.portKm
+    }
+
+    /// Holds the camera beyond `station` from the ground track of the satellite
+    /// with this id, turning each frame to keep it in view (ADR 0023); `animated`
+    /// swings in from where the camera is. False where it cannot start now: the
+    /// satellite not drawn or with no place at the clock, the sky view, or the map.
+    /// Runs until `stopBroadcast`, a gesture, tracking, the sky view or a change
+    /// of projection.
+    func startBroadcast(satellite: String, station: GroundPoint, animated: Bool) -> Bool {
+        guard let drawn = points.satellite(satellite),
+            let camera = BroadcastCamera(
+                satellite: satellite, station: station, swathKm: Self.swathKm(drawn), now: clock(0),
+                position: { self.points.position(of: satellite, at: $0) })
+        else {
+            return false
+        }
+        pacer.needsDraw = true
+        return rig.startBroadcast(camera, animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
+    }
+
+    /// Ends the broadcast, flying to the free camera over where it looks, which can
+    /// only look straight down; nothing where none runs.
+    func stopBroadcast() {
+        guard rig.isBroadcasting else {
+            return
+        }
+        rig.stopBroadcast(animated: !Self.reducesMotion, uptime: ProcessInfo.processInfo.systemUptime)
+        pacer.needsDraw = true
+    }
+
+    /// The view to fly back to with `fly(to:)` (`CameraRig.currentView`); nil
+    /// before the view has a size.
+    func currentView() -> CameraView? {
+        rig.currentView()
+    }
+
+    /// Flies to `view`, letting go of what is followed and ending any broadcast, over
+    /// two seconds; without `animated`, as reduced motion asks, the camera cuts. Not
+    /// in the sky view.
+    func fly(to view: CameraView, animated: Bool) {
+        rig.fly(to: view, animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
+        pacer.needsDraw = true
     }
 
     /// Back to where the app opens, letting go of what is followed. `animated`
@@ -460,16 +548,19 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// A drag of `points` on a view of `size` points: moves the free camera over
     /// the globe, circles what is followed, or turns the sky view.
     public func drag(by points: SIMD2<Double>, viewSize size: CGSize) {
+        stopBroadcast()
         rig.drag(by: points, viewSize: size)
     }
 
     /// A pinch: nearer for a scale above 1.
     public func zoom(by scale: Double) {
+        stopBroadcast()
         rig.zoom(by: scale)
     }
 
     /// A twist, in radians.
     public func rotate(by radians: Double) {
+        stopBroadcast()
         rig.rotate(by: radians)
     }
 
@@ -585,9 +676,10 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         }
         let commands = target.commands
         let plan = prepareFrame(pose: pose, size: size, now: now, commands: commands)
+        let fans = granules.fans(points: points, enabled: components.contains(.groundTrackFan))
         let scene = ScenePass(
             pipelines: pipelines, surface: surface, overlay: overlay, points: points, stars: stars, pin: pin, stations: stations, links: links,
-            components: components, cameraMode: cameraMode,
+            components: components, fans: (fans.buffer, fans.count), cameraMode: cameraMode,
             // Only once landed: the flight shows the globe from space.
             showsCamera: passthrough != nil && isSkySettled)
         scene.encode(plan, commands: commands, hdr: hdr, depth: depth, screen: target.drawable.texture)
@@ -621,7 +713,14 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private func mustDraw(pose: CameraPose, time: Double, size: SIMD2<Double>, paced: Bool) -> Bool {
         pacer.mustDraw(
             pose: pose, time: time, paced: paced, settled: surface.isSettled, content: contentRevision,
-            pixelRate: { FramePacer.pixelRate(points, components: components, links: links, pose: pose, time: time, size: size) },
+            pixelRate: {
+                // A granule's fill follows its satellite's scan line, on the map too, where no fan is drawn.
+                var fanned = granules.isEmpty ? [] : granules.sweepers(at: time, points: points)
+                if pose.mapCamera == nil {
+                    fanned.formUnion(granules.fans(points: points, enabled: components.contains(.groundTrackFan)).indices)
+                }
+                return FramePacer.pixelRate(points, components: components, links: links, fanned: fanned, pose: pose, time: time, size: size)
+            },
             linkSpan: { FramePacer.linkSpan(links, shown: components.contains(.groundStationLink), around: time) })
     }
 
@@ -662,7 +761,9 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             surfaceTiles = selection.draw.filter { $0.texture != nil }
         }
         let pointFrames = points.prepared?.samples != nil && points.prepared?.instances != nil ? pointFrames(at: now, models: placements) : nil
-        return FramePlan(uniforms: frame, drawn: drawnFrame, placements: placements, surfaceTiles: surfaceTiles, pointFrames: pointFrames)
+        return FramePlan(
+            uniforms: frame, drawn: drawnFrame, placements: placements, surfaceTiles: surfaceTiles, pointFrames: pointFrames,
+            granules: granules.frame(at: now, points: points))
     }
 
     /// Keeps the frame just drawn, the last of the old projection, to fade from,

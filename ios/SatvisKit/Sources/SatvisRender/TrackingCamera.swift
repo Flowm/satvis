@@ -52,6 +52,8 @@ struct TrackingCamera: Sendable, Equatable {
     var pitch = atan2(4200.0, 3600.0)
     /// Metres from the satellite.
     var range = (3600.0 * 3600 + 4200 * 4200).squareRoot() * 1000
+    /// Radians the view looks down past what it follows: the chase's (`Chase.tilt`).
+    var tilt = 0.0
 
     init() {}
 
@@ -108,7 +110,12 @@ struct TrackingCamera: Sendable, Equatable {
         let back = cos(pitch) * (sin(heading) * x + cos(heading) * y) + sin(pitch) * up
         let right = normalize(cross(up, back))
         // Nearer than a metre to a cubesat's model: the near plane comes in with it.
-        return CameraPose(position: target + range * back, right: right, up: cross(back, right), back: back, near: min(1, range / 10))
+        var pose = CameraPose(position: target + range * back, right: right, up: cross(back, right), back: back, near: min(1, range / 10))
+        if tilt != 0 {
+            // Turned about its right axis, as CesiumJS's `lookDown`.
+            (pose.back, pose.up) = (cos(tilt) * back + sin(tilt) * pose.up, cos(tilt) * pose.up - sin(tilt) * back)
+        }
+        return pose
     }
 
     /// The steepest the camera looks down on what it follows.
@@ -141,7 +148,7 @@ struct TrackingCamera: Sendable, Equatable {
             range = (rise * rise + level * level).squareRoot()
         } else {
             pitch = Self.maximumPitch
-            range = (floor - geodeticPosition(target).height) / dot(pose(target: target, velocity: velocity).back, normal)
+            range = (floor - geodeticPosition(target).height) / dot(normalize(pose(target: target, velocity: velocity).position - target), normal)
         }
     }
 

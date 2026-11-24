@@ -43,6 +43,10 @@ struct FramePacer {
     /// while they are `shown`; a link moves no faster than its satellite, which
     /// the pacing bounds. Worked out once a frame drawn: checked at every vsync,
     /// 2,455 links took a quarter of an iPad mini's main thread.
+    /// The swath a scan line is paced by where its satellite has none: wider than any
+    /// instrument's, VIIRS's 3,000 km.
+    static let widestSwath = SwathExtents(starboardKm: 1600, portKm: 1600)
+
     static func linkSpan(_ links: [StationLink], shown: Bool, around time: Double) -> Range<Double> {
         guard shown else {
             return -Double.infinity..<Double.infinity
@@ -64,15 +68,17 @@ struct FramePacer {
     /// The most device pixels a simulation second anything on a frame drawn from
     /// `pose` at `time` can move (`RenderPacing.pixelRate`): each satellite and its
     /// ground station links, which move no faster than it does, where they pass
-    /// nearest, and its orbit's lines where Shaders/Lines.msl draws their
-    /// segments, an orbit's at the Earth's turn there.
+    /// nearest, its orbit's lines where Shaders/Lines.msl draws their segments, an
+    /// orbit's at the Earth's turn there, and for those `fanned` its ground track
+    /// fan, or the scan line a granule fills in behind, which reach the ground.
     static func pixelRate(
-        _ points: SatellitePoints, components: SatelliteComponents, links: [StationLink], pose: CameraPose, time: Double, size: SIMD2<Double>
+        _ points: SatellitePoints, components: SatelliteComponents, links: [StationLink], fanned: Set<Int> = [], pose: CameraPose, time: Double,
+        size: SIMD2<Double>
     ) -> Double {
         if let map = pose.mapCamera {
             let lines = components.contains(.orbit) || components.contains(.orbitTrack)
             return RenderPacing.mapPixelRate(
-                points.prepared?.motions ?? [], lines: lines, pixelsPerMetre: max(size.x, size.y) / map.span,
+                points.prepared?.motions ?? [], lines: lines, stretched: fanned, pixelsPerMetre: max(size.x, size.y) / map.span,
                 latitude: { points.satellites[$0].trajectory.position(at: time).map { geodeticPosition($0).latitude } })
         }
         let (satellites, motions, camera) = (points.satellites, points.prepared?.motions ?? [], pose.position)
@@ -97,6 +103,10 @@ struct FramePacer {
                 min($0, RenderPacing.segmentDistance($1, position, from: camera))
             }
             var parts = [(nearest, own)]
+            // Each point of the fan moves no faster than the satellite.
+            if fanned.contains(index), let next = trajectory.position(at: time + 1000), let axes = FanAxes(position: position, next: next) {
+                parts.append((axes.distance(from: camera, swath: satellites[index].footprint?.swath ?? Self.widestSwath), own))
+            }
             let (start, step) = ((trajectory.startMilliseconds - time) / 1000, trajectory.stepMilliseconds / 1000)
             let current = Int((-start / step).rounded(.down))
             let strides = RenderPacing.lineStrides(motion, stepsLines: stepsLines, cameraDistance: length(camera), pixelsPerRadian: focal)
@@ -122,7 +132,7 @@ struct FramePacer {
             return parts
         }
         return RenderPacing.pixelRate(
-            motions, nearest: nearest, lines: orbit || track, linked: Set(stations.keys.compactMap(points.index(of:))),
+            motions, nearest: nearest, lines: orbit || track, linked: Set(stations.keys.compactMap(points.index(of:))).union(fanned),
             cones: components.contains(.sensorCone), camera: camera,
             pixelsPerRadian: RenderPacing.pixelsPerRadian(width: size.x, height: size.y, verticalFieldOfView: pose.verticalFieldOfView(aspectRatio: size.x / size.y)))
     }

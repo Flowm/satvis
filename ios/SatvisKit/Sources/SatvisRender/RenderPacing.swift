@@ -273,8 +273,9 @@ enum RenderPacing {
     /// stretched east to west by the map's 1 / cos(latitude), at its `latitude`
     /// in radians now and 5° on, nil where it is not drawn. A line reaches nearer
     /// a pole than its satellite is, so with `lines` every satellite is stretched
-    /// as at `mapStretchLatitude`. Infinite once every frame would be drawn anyway.
-    static func mapPixelRate(_ motions: [OrbitMotion?], lines: Bool, pixelsPerMetre: Double, latitude: (Int) -> Double?) -> Double {
+    /// as at `mapStretchLatitude`, as are those `stretched`, whose scan line reaches
+    /// across the track. Infinite once every frame would be drawn anyway.
+    static func mapPixelRate(_ motions: [OrbitMotion?], lines: Bool, stretched: Set<Int> = [], pixelsPerMetre: Double, latitude: (Int) -> Double?) -> Double {
         let enough = pixels * fastestDisplay / pixelsPerMetre
         let widest = 1 / cos(mapStretchLatitude)
         var fastest = 0.0
@@ -289,7 +290,7 @@ enum RenderPacing {
                 continue
             }
             var stretch = widest
-            if !lines {
+            if !lines, !stretched.contains(index) {
                 guard let latitude = latitude(index) else {
                     continue
                 }
