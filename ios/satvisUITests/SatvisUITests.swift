@@ -164,10 +164,10 @@ nonisolated class SatvisUITests: XCTestCase {
     }
 
     // An instrument with imagery has a button on its line that opens the Imagery tab,
-    // a card a layer: the picture under the instrument's name, what the layer is, and a
-    // link to it in its provider's viewer. A card's Show switch draws its layer on the
-    // globe, and a press elsewhere on the card does what the switch does; the Map panel
-    // opens on the group it is in, to take it off there.
+    // a card a layer (ADR 0024): its picture, its type over what it pictures, and behind
+    // its info button how often it updates and a link to its provider's viewer. A card's
+    // Show switch draws its layer on the globe, and a press elsewhere on the card does
+    // what the switch does; the Map panel opens on the group it is in, to take it off there.
     @MainActor
     func testShowsAnInstrumentsImageryFromItsLine() {
         let app = search("METEOSAT-12 (MTG-I1)")
@@ -180,65 +180,66 @@ nonisolated class SatvisUITests: XCTestCase {
         button.tap()
         XCTAssert(app.buttons["Imagery (3)"].waitForExistence(timeout: 5))
         XCTAssert(app.buttons["Imagery (3)"].isSelected)
-        let show = app.switches["Show GeoColour on the globe"]
+        let show = app.switches["Show GeoColour as a map layer"]
         XCTAssert(show.waitForExistence(timeout: 5))
         XCTAssertEqual(show.value as? String, "0")
-        flip(app, "Show GeoColour on the globe")
+        flip(app, "Show GeoColour as a map layer")
         XCTAssert(waitForValue(show, "1"))
-        let card = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'GeoColour, '")).firstMatch
+        let card = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'Live view, GeoColour'")).firstMatch
         card.tap()
         XCTAssert(waitForValue(show, "0"))
         card.tap()
         XCTAssert(waitForValue(show, "1"))
         for layer in ["GeoColour", "True colour"] {
-            let picture = app.images["FCI, \(layer)"]
+            let picture = app.images.matching(NSPredicate(format: "label BEGINSWITH %@", "Live view, \(layer) · FCI")).firstMatch
             // Under a phone's half-height sheet, in a lazy list.
             for _ in 0..<3 where !picture.waitForExistence(timeout: 2) {
                 app.collectionViews.firstMatch.swipeUp()
             }
             XCTAssert(picture.exists, layer)
         }
-        let detail = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'True colour, every 10 min since 2024'")).firstMatch
-        for _ in 0..<3 where !detail.waitForExistence(timeout: 2) {
-            app.collectionViews.firstMatch.swipeUp()
+        let about = app.buttons["About this layer"].firstMatch
+        for _ in 0..<3 where !about.isHittable {
+            app.collectionViews.firstMatch.swipeDown()
         }
-        XCTAssert(detail.exists)
-        let link = app.links["Open in EUMETView"].firstMatch
-        for _ in 0..<3 where !link.waitForExistence(timeout: 2) {
-            app.collectionViews.firstMatch.swipeUp()
-        }
-        XCTAssert(link.exists)
+        about.tap()
+        XCTAssert(app.staticTexts["Every 10 min"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssert(app.staticTexts["Back to 2024"].firstMatch.exists)
+        XCTAssert(app.links["Open in EUMETView"].firstMatch.exists)
         app.navigationBars.buttons["Close"].firstMatch.tap()
         openFromMenu(app, "Map")
-        let listed = app.switches["METEOSAT-12 (MTG-I1) FCI GeoColour"]
+        let listed = app.buttons["Live view of METEOSAT-12 (MTG-I1)"]
         XCTAssert(listed.waitForExistence(timeout: 10))
-        XCTAssertEqual(listed.value as? String, "1")
+        XCTAssertEqual(listed.value as? String, "On")
         XCTAssertEqual(app.buttons["GEO satellites"].value as? String, "1 on")
-        flip(app, "METEOSAT-12 (MTG-I1) FCI GeoColour")
-        XCTAssert(waitForValue(listed, "0"))
+        listed.tap()
+        XCTAssert(waitForValue(listed, "Off"))
     }
 
     // The Map panel lists every layer the records carry, in groups by the satellite's
-    // orbit, one open at a time (ADR 0021), and draws one from there.
+    // orbit, one open at a time (ADR 0021), a button a layer named by its type (ADR
+    // 0024), and draws one from there.
     @MainActor
     func testDrawsALayerFromTheMapPanel() {
         let app = launch()
         openFromMenu(app, "Map")
         let leo = app.buttons["LEO satellites"]
         XCTAssert(leo.waitForExistence(timeout: 10))
+        let terra = app.buttons["Daily mosaic of TERRA"]
         // Closed until one is opened, with no layer on.
-        XCTAssertFalse(app.switches["TERRA MODIS True colour"].exists)
+        XCTAssertFalse(terra.exists)
         leo.tap()
-        flip(app, "TERRA MODIS True colour")
-        XCTAssert(waitForValue(app.switches["TERRA MODIS True colour"], "1"))
+        XCTAssert(terra.waitForExistence(timeout: 5))
+        terra.tap()
+        XCTAssert(waitForValue(terra, "On"))
         XCTAssertEqual(leo.value as? String, "1 on")
         app.buttons["GEO satellites"].tap()
-        XCTAssert(app.switches["GOES 19 ABI GeoColor"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.switches["TERRA MODIS True colour"].exists)
+        XCTAssert(app.buttons["Live view of GOES 19"].waitForExistence(timeout: 5))
+        XCTAssertFalse(terra.exists)
     }
 
-    // A composite is one row, first in its group, named by its label's qualifier; its
-    // button's menu lists its satellites, and one opens that satellite's Imagery tab
+    // A composite is one row, first in its group, named by its type (ADR 0024); its
+    // name's menu lists its satellites, and one opens that satellite's Imagery tab
     // (ADR 0021). A satellite's own row opens its Imagery tab at once.
     @MainActor
     func testShowsTheImageryOfACompositesSatellite() {
@@ -247,11 +248,11 @@ nonisolated class SatvisUITests: XCTestCase {
         let geo = app.buttons["GEO satellites"]
         XCTAssert(geo.waitForExistence(timeout: 10))
         geo.tap()
-        let ring = app.switches["Day/Night, GeoRing"]
+        let ring = app.buttons["World mosaic, Day/Night"]
         XCTAssert(ring.waitForExistence(timeout: 5))
-        XCTAssertEqual(ring.value as? String, "0")
-        XCTAssertLessThan(ring.frame.minY, app.switches["GOES 19 ABI GeoColor"].frame.minY)
-        app.buttons["Show the imagery of a satellite of the GeoRing"].tap()
+        XCTAssertEqual(ring.value as? String, "Off")
+        XCTAssertLessThan(ring.frame.minY, app.buttons["Live view of GOES 19"].frame.minY)
+        app.buttons["Show the imagery of a satellite of the world mosaic"].tap()
         XCTAssert(app.buttons["GOES 19"].waitForExistence(timeout: 5))
         let meteosat = app.buttons["METEOSAT-12 (MTG-I1)"]
         XCTAssert(meteosat.exists)
@@ -260,7 +261,7 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(app.buttons["Imagery (3)"].waitForExistence(timeout: 5))
         XCTAssert(app.buttons["Imagery (3)"].isSelected)
         // The third card, under a phone's half-height sheet, in a lazy list.
-        let mosaic = app.images["FCI, Day/Night, GeoRing"]
+        let mosaic = app.images.matching(NSPredicate(format: "label BEGINSWITH 'World mosaic, Day/Night'")).firstMatch
         for _ in 0..<3 where !mosaic.waitForExistence(timeout: 2) {
             app.collectionViews.firstMatch.swipeUp()
         }
@@ -283,9 +284,9 @@ nonisolated class SatvisUITests: XCTestCase {
     func testDrawsTheImageryALinkNames() {
         let app = launch(link: "/?imagery=eumetview:mtg_fd:rgb_geocolour")
         openFromMenu(app, "Map")
-        let listed = app.switches["METEOSAT-12 (MTG-I1) FCI GeoColour"]
+        let listed = app.buttons["Live view of METEOSAT-12 (MTG-I1)"]
         XCTAssert(listed.waitForExistence(timeout: 10))
-        XCTAssertEqual(listed.value as? String, "1")
+        XCTAssertEqual(listed.value as? String, "On")
     }
 
     // A layer that stopped is not in the groups; one a link draws is switched off above
@@ -300,32 +301,33 @@ nonisolated class SatvisUITests: XCTestCase {
     }
 
     // An instrument's imagery button opens the Imagery tab at that instrument's first
-    // card, here the second; the tab opened from the tab row starts at the top.
+    // card, here the second, as a stopped layer's card comes last; the tab opened from
+    // the tab row starts at the top.
     @MainActor
     func testOpensTheImageryTabAtTheInstrumentsCard() {
         let app = search("TERRA")
         app.buttons["Details of TERRA"].tap()
         XCTAssert(app.navigationBars["TERRA"].waitForExistence(timeout: 10))
         app.buttons["Instruments"].tap()
-        let button = app.buttons["Imagery of MODIS"]
+        let button = app.buttons["Imagery of MISR"]
         XCTAssert(button.waitForExistence(timeout: 5))
         button.tap()
         let tabs = app.buttons["Imagery (2)"]
         XCTAssert(tabs.waitForExistence(timeout: 5))
-        let modis = app.images["MODIS, True colour"]
-        XCTAssert(modis.waitForExistence(timeout: 5))
+        let misr = app.images.matching(NSPredicate(format: "label BEGINSWITH 'Daily mosaic, True colour (nadir camera) · MISR'")).firstMatch
+        XCTAssert(misr.waitForExistence(timeout: 5))
         // Whole, and under the pinned tab row, once the scroll has settled.
         let list = app.collectionViews.firstMatch
-        let shown = NSPredicate { _, _ in modis.frame.minY >= tabs.frame.maxY && modis.frame.maxY <= list.frame.maxY }
+        let shown = NSPredicate { _, _ in misr.frame.minY >= tabs.frame.maxY && misr.frame.maxY <= list.frame.maxY }
         wait(for: [XCTNSPredicateExpectation(predicate: shown, object: nil)], timeout: 5)
         // Another tab, then back: the focus is forgotten, and the first card on top.
         app.buttons["Instruments"].tap()
         XCTAssert(button.waitForExistence(timeout: 5))
         tabs.tap()
-        let misr = app.images["MISR, True colour, nadir camera, Ended 2022-10-12"]
-        XCTAssert(misr.waitForExistence(timeout: 5))
-        XCTAssertGreaterThanOrEqual(misr.frame.minY, tabs.frame.maxY)
-        XCTAssertLessThan(misr.frame.minY, tabs.frame.maxY + 60)
+        let modis = app.images.matching(NSPredicate(format: "label BEGINSWITH 'Daily mosaic, True colour · MODIS'")).firstMatch
+        XCTAssert(modis.waitForExistence(timeout: 5))
+        XCTAssertGreaterThanOrEqual(modis.frame.minY, tabs.frame.maxY)
+        XCTAssertLessThan(modis.frame.minY, tabs.frame.maxY + 60)
     }
 
     // The Graphics panel's Hide UI hides the menu column, the clock deck and the
@@ -470,9 +472,9 @@ nonisolated class SatvisUITests: XCTestCase {
         openFromMenu(app, "Components")
         let panel = app.descendants(matching: .any)["Orbit track"]
         XCTAssert(panel.waitForExistence(timeout: 5))
-        // On the globe, right of its middle and below the panel, which reaches 475 pt
-        // down a 390 × 844 phone. On the window, for an iPhone Duo opened.
-        let spot = app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.6))
+        // On the globe, right of its middle and below the panel, which reaches 534 pt
+        // down a 402 × 874 phone. On the window, for an iPhone Duo opened.
+        let spot = app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.65))
         let add = app.buttons["Add ground station here"]
         // Until the globe has drawn a frame to find the ground in. Just past the
         // hold: lifted at 0.6 s, SwiftUI still reports a tap, which closed the panel;
