@@ -17,20 +17,21 @@ actor GranuleService {
     /// GIBS WMTS, whose level-0 tile of a granule says whether GIBS drew it.
     nonisolated private static let gibsWMTS = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best"
 
-    /// Milliseconds.
+    /// A minute, in milliseconds.
     nonisolated private static let minute = 60_000.0
+    /// An hour, in milliseconds.
     nonisolated private static let hour = 60 * minute
+    /// A day, in milliseconds.
     nonisolated private static let day = 24 * hour
 
-    /// How long a granule found without pixels is taken as without them: its provider may
+    /// Seconds a granule found without pixels is taken as without them: its provider may
     /// still be taking it in.
     nonisolated private static let recheck: TimeInterval = 10 * 60
     /// Opaque pixels a granule's level-0 GIBS tile has at least where GIBS drew it.
     nonisolated private static let minOpaquePixels = 50
     /// Pixels across a cut probe; half of them lit is a granule there.
     nonisolated private static let probeSize = 16
-    /// Darker than this in every channel is the black a picture is on, where the frame has
-    /// no pixels.
+    /// Darker than this in every channel is the black where the frame has no pixels.
     nonisolated private static let black: UInt8 = 8
     /// Times a picture is asked for before it counts as missing: GIBS's WMS answers about
     /// one small request in five with an empty exception, and the next one with it.
@@ -38,52 +39,36 @@ actor GranuleService {
     /// How far past the newest frame EUMETView's capabilities list its pictures may reach.
     nonisolated private static let eumetViewGridSlack = hour
 
-    /// How far back the newest granule is looked for: as long as GIBS keeps a granule
-    /// layer's frames.
+    /// How far back the newest granule is looked for: as long as GIBS keeps a granule layer's frames.
     nonisolated private static let latestWithin = 90 * day
     /// Newest day granules asked for pixels before giving up.
     nonisolated private static let latestTries = 12
     /// Degrees from the equator past which a granule is not the one a card pictures.
     nonisolated private static let latestMaxLatitude = 50.0
 
-    /// How far around the clock a satellite's own overpasses are listed: a day each way.
+    /// How far each way from the clock a satellite's own overpasses are listed.
     nonisolated private static let orbitsAround = day
-    /// How long a day the catalogue may still add granules to is asked again.
+    /// How long after a day ends the catalogue may still add granules to it, in milliseconds.
     nonisolated private static let growingDay = 4 * day
+    /// Seconds before such a day is listed again.
     nonisolated private static let growingDayTTL: TimeInterval = 10 * 60
     /// Days kept at most, a fortnight's scrubbing either way.
     nonisolated private static let maxDays = 32
 
-    // A cut picture's sizes, `GranuleLayers.ts`'s.
-    /// Pixels across a kept picture at most, at least, and a degree of it at most.
-    nonisolated private static let keptWidth = 1024.0
-    nonisolated private static let keptMinWidth = 256.0
-    nonisolated private static let keptPixelsPerDegree = 256.0
+    // When a granule gets a picture, `GranuleLayers.ts`'s.
     /// Degrees from the equator past which a granule cut from a daily layer gets no picture:
     /// its day's later passes overlap it there.
     nonisolated private static let dailyMaxLatitude = 60.0
     /// Degrees of longitude past which a granule is pictured in polar stereographic where
     /// its provider draws that (EUMETView), and gets no picture otherwise.
     nonisolated private static let pictureMaxSpan = 90.0
-    /// Metres padded around a polar picture, and a kept polar pixel's metres at least.
-    nonisolated private static let polarMargin = 50_000.0
-    nonisolated private static let keptPolarPixel = 430.0
-    /// Degrees padded around a picture, so its edge is never sampled at the outline.
-    nonisolated private static let pictureMargin = 0.5
-    /// Points taken along each edge of a granule, which bows toward the pole between corners.
-    nonisolated private static let edgeSteps = 16
-
-    private struct Answer {
-        var task: Task<Bool, Never>
-        var asked = Date()
-    }
 
     private struct DayListing {
         var task: Task<[Granule]?, Never>
         var asked: Date
     }
 
-    private var pixelAnswers: [String: Answer] = [:]
+    private var pixelAnswers: [String: Task<Bool, Never>] = [:]
     private var days: [String: DayListing] = [:]
     private var dayOrder: [String] = []
 
@@ -100,6 +85,7 @@ actor GranuleService {
         return GranuleCatalogue.cmrGranules(data, collections: query.collections)
     }
 
+    /// The Data Store's granules for `query`, every page; nil where a page fails.
     private func dataStoreGranules(_ query: GranuleQuery) async -> [Granule]? {
         guard let url = URL(string: GranuleCatalogue.dataStoreUrl(query)), let data = await Self.fetch(url),
             let first = GranuleCatalogue.dataStorePage(data)
@@ -161,6 +147,8 @@ actor GranuleService {
         return GranuleCatalogue.overpasses(granules.sorted { $0.start < $1.start })
     }
 
+    /// The layer's day granules of the UTC day starting at `day`, kept; a day that may still
+    /// grow is asked again once `growingDayTTL` has passed.
     private func granulesOfDay(_ layer: SatelliteDetails.GranuleLayer, day: Double, now: Double) async -> [Granule]? {
         let key = "\(layer.token) \(day)"
         if let listing = days[key], !(day + Self.day >= now - Self.growingDay && Date().timeIntervalSince(listing.asked) >= Self.growingDayTTL) {
@@ -217,7 +205,7 @@ actor GranuleService {
         }
         let key = "\(pictures.provider):\(pictures.layer)/\(granule.key)"
         if let answer = pixelAnswers[key] {
-            return await answer.task.value
+            return await answer.value
         }
         let task = Task<Bool, Never> {
             if case .granule = pictures.frame, layer.provider == .gibs {
@@ -225,7 +213,7 @@ actor GranuleService {
             }
             return await Self.cutHasGranule(pictures, granule)
         }
-        pixelAnswers[key] = Answer(task: task)
+        pixelAnswers[key] = task
         let has = await task.value
         if !has {
             forget(key, after: Self.recheck)
@@ -233,6 +221,7 @@ actor GranuleService {
         return has
     }
 
+    /// Drops the pixel answer kept under `key` after `delay` seconds.
     private func forget(_ key: String, after delay: TimeInterval) {
         Task {
             try? await Task.sleep(for: .seconds(delay))
@@ -281,7 +270,7 @@ actor GranuleService {
             return nil
         }
         let preview = SatelliteDetails.ImageryPreview(
-            provider: pictures.provider == .gibs ? .gibs : .eumetview, layer: pictures.layer, maxLevel: 9, format: .jpeg, isDaily: false)
+            provider: pictures.provider.tiles, layer: pictures.layer, maxLevel: 9, format: .jpeg, isDaily: false)
         guard let url = ImageryOverlay(layer: preview, frame: nil, bounds: nil).framesURL(), let data = await Self.fetch(url) else {
             return nil
         }
@@ -328,7 +317,7 @@ actor GranuleService {
         if daily || (stereographic && pictures.provider != .eumetview) {
             return .none
         }
-        let cut = stereographic ? Self.polarCut(granule) : Self.plateCarreeCut(extent)
+        let cut = stereographic ? PictureCut.polar(granule) : PictureCut.plateCarree(extent)
         let image: CGImage? =
             if cut.projection == nil, cut.bounds.east > 180, pictures.provider == .gibs {
                 await Self.joinedPicture(pictures, start: granule.start, cut: cut)
@@ -345,65 +334,9 @@ actor GranuleService {
         return .picture(GranulePicture(image: clear, bounds: cut.bounds, projection: cut.projection))
     }
 
-    /// Where a granule's picture is cut from its frame, and its pixels.
-    nonisolated struct Cut {
-        /// Degrees, or for a polar picture metres from the pole.
-        var bounds: SatelliteDetails.PreviewBounds
-        var width: Int
-        var height: Int
-        var projection: PolarProjection?
-    }
-
-    nonisolated private static func kept(_ wanted: Double) -> Double {
-        min(keptWidth, max(keptMinWidth, wanted.rounded()))
-    }
-
-    /// A granule's plate carrée picture: a box across the antimeridian runs past 180° east.
-    nonisolated static func plateCarreeCut(_ extent: SatelliteDetails.PreviewBounds) -> Cut {
-        let west = extent.west < -180 ? extent.west + 360 : extent.west
-        let bounds = SatelliteDetails.PreviewBounds(
-            west: max(-180, west - pictureMargin), south: max(-90, extent.south - pictureMargin),
-            east: min(360, west + extent.east - extent.west + pictureMargin), north: min(90, extent.north + pictureMargin))
-        let width = kept((bounds.east - bounds.west) * keptPixelsPerDegree)
-        let height = min(width, max(1, (width * (bounds.north - bounds.south) / (bounds.east - bounds.west)).rounded()))
-        return Cut(bounds: bounds, width: Int(width), height: Int(height), projection: nil)
-    }
-
-    /// A granule's polar stereographic picture about its nearer pole.
-    nonisolated static func polarCut(_ granule: Granule) -> Cut {
-        let projection: PolarProjection = granule.centre.latitude < 0 ? .antarctic : .arctic
-        let points = edgePoints(granule).map(projection.project)
-        let xs = points.map(\.x)
-        let ys = points.map(\.y)
-        let bounds = SatelliteDetails.PreviewBounds(
-            west: (xs.min() ?? 0) - polarMargin, south: (ys.min() ?? 0) - polarMargin, east: (xs.max() ?? 0) + polarMargin,
-            north: (ys.max() ?? 0) + polarMargin)
-        let across = max(bounds.east - bounds.west, bounds.north - bounds.south)
-        let longer = kept(across / keptPolarPixel)
-        let pixels = { (metres: Double) in Int(max(1, (longer * metres / across).rounded())) }
-        return Cut(bounds: bounds, width: pixels(bounds.east - bounds.west), height: pixels(bounds.north - bounds.south), projection: projection)
-    }
-
-    /// Points along a granule's edges, which bow toward the pole between its corners.
-    nonisolated static func edgePoints(_ granule: Granule) -> [GroundPoint] {
-        let corners = granule.outline.map { point -> SIMD3<Double> in
-            let latitude = point.latitude * .pi / 180
-            let longitude = point.longitude * .pi / 180
-            return SIMD3(cos(latitude) * cos(longitude), cos(latitude) * sin(longitude), sin(latitude))
-        }
-        return corners.indices.flatMap { index in
-            let corner = corners[index]
-            let next = corners[(index + 1) % corners.count]
-            return (0..<edgeSteps).map { step in
-                let along = simd_normalize(corner + (next - corner) * Double(step) / Double(edgeSteps))
-                return GroundPoint(latitude: asin(along.z) * 180 / .pi, longitude: atan2(along.y, along.x) * 180 / .pi)
-            }
-        }
-    }
-
     /// The picture of a box that runs past 180° east, from its two sides: GIBS's WMS draws
     /// nothing for a box across the antimeridian.
-    nonisolated private static func joinedPicture(_ pictures: SatelliteDetails.GranulePictures, start: Double, cut: Cut) async -> CGImage? {
+    nonisolated private static func joinedPicture(_ pictures: SatelliteDetails.GranulePictures, start: Double, cut: PictureCut) async -> CGImage? {
         let bounds = cut.bounds
         let westWidth = max(1, Int((Double(cut.width) * (180 - bounds.west) / (bounds.east - bounds.west)).rounded()))
         var westBounds = bounds
@@ -449,6 +382,7 @@ actor GranuleService {
         return nil
     }
 
+    /// `picture(_:tries:)` for an optional URL.
     nonisolated private static func picture(_ url: URL?) async -> CGImage? {
         guard let url else {
             return nil
@@ -487,6 +421,7 @@ actor GranuleService {
         return pixels
     }
 
+    /// The first image in `data`, of any format Image I/O reads.
     nonisolated private static func decode(_ data: Data) -> CGImage? {
         CGImageSourceCreateWithData(data as CFData, nil).flatMap { CGImageSourceCreateImageAtIndex($0, 0, nil) }
     }

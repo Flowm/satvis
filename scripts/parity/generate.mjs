@@ -1060,6 +1060,9 @@ try {
   const granuleDay = await runner.import("/src/modules/util/granuleDay.ts");
   const polar = await runner.import("/src/modules/util/polarStereographic.ts");
   const granulePictures = await runner.import("/src/modules/granulePictures.ts");
+  const { eumetViewCredit } = await runner.import("/src/modules/EumetViewImagery.ts");
+  const { GIBS_CREDIT } = await runner.import("/src/modules/GibsImagery.ts");
+  const granuleLayers = await runner.import("/src/modules/GranuleLayers.ts");
   const overpassReplay = await runner.import("/src/modules/overpassReplay.ts");
   const passImagery = await runner.import("/src/modules/passImagery.ts");
   const MINUTE_MS = 60 * 1000;
@@ -1088,13 +1091,7 @@ try {
     { ...cmrEntry("2026-11-20T09:54:00Z", "DAY"), polygons: undefined },
     null,
   ].map((entry) => ({ entry, granule: cmrGranules.parseGranule(entry) ?? null }));
-  const splitGeometry = JSON.parse(
-    fs
-      .readFileSync(path.join(repoRoot, "src/modules/util/eumetsatGranules.test.ts"), "utf8")
-      .match(/const SPLIT = (\{[\s\S]*?\n\});/)[1]
-      .replace(/(\w+):/g, '"$1":')
-      .replace(/,(\s*[\]}])/g, "$1"),
-  );
+  const { SPLIT: splitGeometry } = await runner.import("/src/modules/util/eumetsatGranules.fixtures.ts");
   const dataStoreFeature = (start, geometry, end = new Date(Date.parse(start) + 3 * MINUTE_MS).toISOString()) => ({
     type: "Feature",
     geometry,
@@ -1248,6 +1245,9 @@ try {
       extent: cmrGranules.granuleExtent(granule),
       centre: overpassReplay.granuleCentre(granule),
       probe: granulePictures.probeBounds(granule),
+      // The native app keeps every picture.
+      plateCarree: granuleLayers.plateCarreeCut(cmrGranules.granuleExtent(granule), true),
+      polar: granuleLayers.polarCut(granule),
     })),
     overpasses: cmrGranules
       .groupOverpasses(sampleGranules)
@@ -1268,6 +1268,15 @@ try {
     replayPlaces: { steps, places: replayPlaces },
     leadMs: overpassReplay.REPLAY_LEAD_MS,
     afterOverpassMs: overpassReplay.AFTER_OVERPASS_MS,
+    // As GranuleLayers.ts credits a fill's picture.
+    pictureCredits: [
+      { provider: "gibs", layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule" },
+      { provider: "eumetview", layer: "copernicus:olci_l1_rgb_fulres" },
+      { provider: "eumetview", layer: "eps:metop_avhrr_rgb" },
+      { provider: "eumetview", layer: "msg_fes:rgb_naturalcolor" },
+      { provider: "eumetview", layer: "mtg_fd:rgb_truecolour" },
+      { provider: "eumetview", layer: "other:layer" },
+    ].map((pictures) => ({ ...pictures, year: 2026, credit: pictures.provider === "gibs" ? GIBS_CREDIT : eumetViewCredit(pictures.layer, 2026) })),
   };
   const passImageryCases = [
     [true, true, undefined],
@@ -1280,6 +1289,44 @@ try {
     const layer = { token: "gibs:L", provider: "gibs", layer: "L", granules: ["C1-X"], ...(pictured && { pictures: { provider: "gibs", layer: "L", frame: "granule" } }) };
     const entry = { pair: "p", satellite: "S", station: "T", layer, overpass: { start: 0, end: 1, granules: [] }, day };
     return { day, pictured, pixels: pixels ?? null, imagery: passImagery.passImagery(entry, pixels) };
+  });
+  // A satellite S over stations T and U, and X over T, in minutes from 2026-11-20T00:00Z.
+  const tableT0 = Date.parse("2026-11-20T00:00:00Z");
+  const minutes = (value) => tableT0 + value * MINUTE_MS;
+  const tablePasses = [
+    ["S", "T", 0, 10],
+    ["S", "T", 100, 110],
+    ["S", "T", 300, 310],
+    ["S", "U", 0, 10],
+  ].map(([name, groundStationName, start, end]) => ({ name, groundStationName, start: minutes(start), end: minutes(end) }));
+  const tableRecorded = [
+    ["S", "T", 1, 9, true],
+    ["S", "T", 101, 108, true],
+    ["S", "T", 99, 105, true],
+    ["S", "T", -200, -190, false],
+    ["S", "T", -100, -90, true],
+    ["S", "T", 500, 510, true],
+    ["S", "U", 2, 8, true],
+    ["X", "T", -50, -40, true],
+    ["X", "T", -50, -40, true],
+  ].map(([satellite, station, start, end, day], index) => ({
+    pair: `${satellite}|${station}|${index}`,
+    satellite,
+    station,
+    layer: { token: "gibs:L", provider: "gibs", layer: "L", granules: ["C1-X"] },
+    overpass: { start: minutes(start), end: minutes(end), granules: [] },
+    day,
+  }));
+  const passTableCases = [false, true].map((showPast) => {
+    const rows = tablePasses.map((pass, index) => ({ key: `pass-${index}`, startMs: pass.start }));
+    const table = passImagery.passTable(rows, tablePasses, tableRecorded, { nowMs: minutes(200), showPast, subject: "station" });
+    return {
+      showPast,
+      rows: table.map((row) => ({
+        pass: row.key.startsWith("pass-") ? Number(row.key.slice(5)) : null,
+        recorded: row.recorded === undefined ? null : tableRecorded.indexOf(row.recorded),
+      })),
+    };
   });
   const formatCases = {
     agesInWords: [0, 59 * 60_000, 3_600_000, 2 * 3_600_000, 23 * 3_600_000 + 59 * 60_000, 24 * 3_600_000, 50 * 3_600_000].map((ago) => ({
@@ -1316,6 +1363,7 @@ try {
     imagery,
     granules,
     passImagery: passImageryCases,
+    passTable: { passes: tablePasses, recorded: tableRecorded, nowMs: minutes(200), cases: passTableCases },
     imageryFormats: formatCases,
   };
   fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);

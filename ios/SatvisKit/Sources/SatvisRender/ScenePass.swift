@@ -62,7 +62,7 @@ struct ScenePass {
     let stations: [StationMarker]
     let links: [StationLink]
     let components: SatelliteComponents
-    /// The ground track fans (`GranuleOverlay.fans`).
+    /// The ground track fans (`GranuleFills.fans`).
     let fans: (buffer: MTLBuffer?, count: Int)
     let cameraMode: CameraMode
     /// Whether the camera's picture is behind the scene, which then leaves the sky

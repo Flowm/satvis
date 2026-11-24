@@ -27,6 +27,19 @@ import Testing
         }
     }
 
+    // A granule picture on screen owes its provider, in the clock's year, once even
+    // where a tiled layer of the same provider owes it too.
+    @Test func creditsTheGranulePicturesOnScreen() {
+        let olci = SatelliteDetails.GranulePictures(provider: .eumetview, layer: "copernicus:olci_l1_rgb_fulres", frame: .after(0))
+        let viirs = SatelliteDetails.GranulePictures(provider: .gibs, layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule", frame: .granule)
+        // 2025-12-31T23:59:59Z.
+        let pictures = [Credit.picture(olci, at: 1_767_225_599_000), Credit.picture(viirs, at: 1_767_225_599_000)]
+        #expect(
+            Credit.map(baseLayer: .naturalEarth, terrain: false, instrumentImagery: [.gibs], pictures: pictures).map(\.text) == [
+                "Imagery courtesy Natural Earth", "NASA Global Imagery Browse Services for EOSDIS", "Contains modified Copernicus Sentinel data 2025 processed by EUMETSAT",
+            ])
+    }
+
     @Test func linksEveryMapCreditToItsSource() {
         for layer in BaseLayer.allCases {
             for credit in Credit.map(baseLayer: layer, terrain: true) {

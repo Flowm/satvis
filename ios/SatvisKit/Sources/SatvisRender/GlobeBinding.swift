@@ -32,7 +32,7 @@ protocol Globe: AnyObject {
     func stopTracking(animated: Bool)
     func flyHome(animated: Bool)
     func setProjection(_ projection: GlobeProjection, animated: Bool)
-    func startBroadcast(satellite: String, station: GroundPoint, animated: Bool) -> Bool
+    func startBroadcast(satellite: String, station: GroundPoint, fallback: CameraView, animated: Bool)
     func stopBroadcast()
     func currentView() -> CameraView?
     func fly(to view: CameraView, animated: Bool)
@@ -280,15 +280,13 @@ public final class GlobeBinding {
 
     /// The broadcast camera of an overpass replay (`GlobeRenderer.startBroadcast`):
     /// held beyond `station` on its side of the ground track, 1,800 km up, turning
-    /// each frame to keep the satellite with this id in view. False where it cannot
-    /// start now, as before the renderer has arrived; the app then flies over the
-    /// station instead.
-    public func startBroadcast(satellite: String, station: GroundPoint, animated: Bool) -> Bool {
-        guard globe?.startBroadcast(satellite: satellite, station: station, animated: animated) == true else {
-            return false
-        }
-        camera = nil
-        return true
+    /// each frame to keep the satellite with this id in view. Where it cannot start,
+    /// the camera looks straight down on the station from `fallbackHeight` metres,
+    /// as a renderer arriving later starts.
+    public func startBroadcast(satellite: String, station: GroundPoint, fallbackHeight: Double, animated: Bool) {
+        let fallback = CameraView.over(latitude: station.latitude, longitude: station.longitude, height: fallbackHeight)
+        camera = .view(fallback)
+        globe?.startBroadcast(satellite: satellite, station: station, fallback: fallback, animated: animated)
     }
 
     /// Ends the broadcast (`GlobeRenderer.stopBroadcast`).

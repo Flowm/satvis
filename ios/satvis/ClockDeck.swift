@@ -1,4 +1,5 @@
 import SatvisCore
+import SatvisRender
 import SwiftUI
 
 /// The bottom controls, as the web app's clock deck: a control row over a scale
@@ -284,7 +285,7 @@ private struct TimelineScale: View {
                     let right = min(size.width, (span.end - centre) / Self.msPerPoint + size.width / 2)
                     context.fill(
                         Path(roundedRect: CGRect(x: left, y: 0, width: max(2, right - left), height: 4), cornerRadius: 2),
-                        with: .color(Color(red: 1, green: 0xD5 / 255, blue: 0x4A / 255).opacity(0.8)))
+                        with: .color(Color(red: granuleYellow.x, green: granuleYellow.y, blue: granuleYellow.z).opacity(0.8)))
                 }
                 var at = ((centre - half) / Self.minor).rounded(.down) * Self.minor
                 while at <= centre + half {

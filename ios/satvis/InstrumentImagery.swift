@@ -64,6 +64,13 @@ final class InstrumentImagery {
     /// How soon a service that could not list its frames is asked again.
     private static let retry: TimeInterval = 60
 
+    /// The providers of the drawn layers the map credits for their tiles: not a granule
+    /// layer's, whose pictures are credited while they show.
+    var tiledProviders: [SatelliteDetails.ImageryPreview.Provider] {
+        let granules = Set(granuleLayers.map(\.layer.token))
+        return tokens.filter { !granules.contains($0) }.compactMap { SatelliteDetails.ImageryPreview.Provider(rawValue: String($0.prefix { $0 != ":" })) }
+    }
+
     /// Whether the layer `token` names is drawn.
     func isShown(_ token: String) -> Bool {
         tokens.contains(token)

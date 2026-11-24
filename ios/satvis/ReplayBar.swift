@@ -15,6 +15,7 @@ struct ReplayBar: View {
         }
     }
 
+    /// The bar over `active`, its steps either side of `place`.
     private func bar(_ active: OverpassReplayModel.Active, place: OverpassReplay.Place<RecordedOverpass>) -> some View {
         let title = "Replaying the granules \(active.on.satellite)'s \(active.on.instrument) sensed over \(active.station)"
         return HStack(spacing: 8) {
@@ -75,11 +76,12 @@ struct ReplayBar: View {
             on: { $0.layer.token == active.on.layer.token && $0.station == active.station })
     }
 
-    /// The step's help: the overpass it goes to, or that there is none.
+    /// A step button's help.
     private func stepTitle(_ to: RecordedOverpass?, _ which: String) -> String {
         to.map { "\(which) overpass: \($0.satellite) over \($0.station), \($0.overpass.minuteLabel) UTC" } ?? "No \(which.lowercased()) overpass listed"
     }
 
+    /// A round icon button of the bar, lit while `isOn`.
     private func button(_ label: String, symbol: String, isOn: Bool = false, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)

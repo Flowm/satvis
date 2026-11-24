@@ -270,6 +270,23 @@ import Testing
             let extent: Bounds
             let centre: Point
             let probe: Bounds
+            let plateCarree: Cut
+            let polar: Cut
+        }
+
+        struct Cut: Decodable {
+            let bounds: Bounds
+            let width: Int
+            let height: Int
+            let srs: String?
+
+            /// Whether `cut` is this, its bounds within `metres`.
+            func matches(_ cut: PictureCut, within tolerance: Double) -> Bool {
+                let ours = [cut.bounds.west, cut.bounds.south, cut.bounds.east, cut.bounds.north]
+                let theirs = [bounds.west, bounds.south, bounds.east, bounds.north]
+                return zip(ours, theirs).allSatisfy { abs($0 - $1) <= tolerance } && cut.width == width && cut.height == height
+                    && cut.projection?.srs == srs
+            }
         }
 
         struct OverpassCase: Decodable {
@@ -365,6 +382,14 @@ import Testing
         let replayPlaces: Places
         let leadMs: Double
         let afterOverpassMs: Double
+        let pictureCredits: [PictureCredit]
+    }
+
+    struct PictureCredit: Decodable {
+        let provider: String
+        let layer: String
+        let year: Int
+        let credit: String
     }
 
     @Test func readsTheCataloguesAnswersAsTheWebAppDoes() throws {
@@ -395,6 +420,8 @@ import Testing
             #expect(Bounds.of(granule.extent) == sample.extent)
             #expect(abs(granule.centre.latitude - sample.centre.latitude) < 1e-9 && abs(granule.centre.longitude - sample.centre.longitude) < 1e-9, "\(sample.key)")
             #expect(Bounds.of(GranuleCatalogue.probeBounds(granule)) == sample.probe, "\(sample.key)")
+            #expect(sample.plateCarree.matches(PictureCut.plateCarree(granule.extent), within: 1e-9), "\(sample.key)")
+            #expect(sample.polar.matches(PictureCut.polar(granule), within: 1e-3), "\(sample.key)")
         }
         let overpasses = GranuleCatalogue.overpasses(granules.samples.map(\.granule.swift))
         #expect(
@@ -431,6 +458,15 @@ import Testing
         }
     }
 
+    @Test func creditsGranulePicturesAsTheWebAppDoes() throws {
+        let granules = try Parity.section("granules", as: Granules.self)
+        #expect(!granules.pictureCredits.isEmpty)
+        for item in granules.pictureCredits {
+            let pictures = try SatelliteDetails.GranulePictures(provider: #require(.init(rawValue: item.provider)), layer: item.layer, frame: .granule)
+            #expect(pictures.credit(year: item.year) == item.credit)
+        }
+    }
+
     @Test func placesTheClockAmongReplaysAsTheWebAppDoes() throws {
         let granules = try Parity.section("granules", as: Granules.self)
         #expect(OverpassReplay.leadMs == granules.leadMs)
@@ -457,6 +493,71 @@ import Testing
             let granule = Granule(start: 0, end: 1, isDay: item.day, outline: [])
             let entry = RecordedOverpass(pair: "p", satellite: "S", station: "T", layer: layer, overpass: Overpass(start: 0, end: 1, granules: [granule]))
             #expect(entry.imagery(pixels: item.pixels).rawValue == item.imagery)
+        }
+    }
+
+    struct PassTable: Decodable {
+        struct Times: Decodable {
+            let name: String
+            let groundStationName: String
+            let start: Double
+            let end: Double
+        }
+
+        struct Recorded: Decodable {
+            struct Times: Decodable {
+                let start: Double
+                let end: Double
+            }
+
+            let pair: String
+            let satellite: String
+            let station: String
+            let overpass: Times
+            let day: Bool
+        }
+
+        struct Row: Decodable, Equatable {
+            let pass: Int?
+            let recorded: Int?
+        }
+
+        struct Case: Decodable {
+            let showPast: Bool
+            let rows: [Row]
+        }
+
+        let passes: [Times]
+        let recorded: [Recorded]
+        let nowMs: Double
+        let cases: [Case]
+    }
+
+    @Test func listsThePassesTableAsTheWebAppDoes() throws {
+        let fixture = try Parity.section("passTable", as: PassTable.self)
+        let station = UUID()
+        let passes = fixture.passes.map {
+            Pass(
+                satellite: $0.name, satelliteName: $0.name, station: $0.groundStationName, stationID: station, start: $0.start, end: $0.end,
+                measure: .swath(minDistance: 0, minDistanceTime: $0.start, swathWidth: 0))
+        }
+        let layer = SatelliteDetails.GranuleLayer(token: "gibs:L", provider: .gibs, layer: "L", granules: ["C1-X"], pictures: nil)
+        let recorded = fixture.recorded.map { item in
+            RecordedOverpass(
+                pair: item.pair, satellite: item.satellite, station: item.station, layer: layer,
+                overpass: Overpass(
+                    start: item.overpass.start, end: item.overpass.end,
+                    granules: [Granule(start: item.overpass.start, end: item.overpass.end, isDay: item.day, outline: [])]))
+        }
+        for item in fixture.cases {
+            let table = PassTableRow.table(passes, recorded: recorded, now: fixture.nowMs, past: item.showPast)
+            let rows = table.map { row -> PassTable.Row in
+                switch row {
+                case .pass(let pass, let entry): PassTable.Row(pass: passes.firstIndex(of: pass), recorded: entry.flatMap(recorded.firstIndex(of:)))
+                case .recorded(let entry): PassTable.Row(pass: nil, recorded: recorded.firstIndex(of: entry))
+                }
+            }
+            #expect(rows == item.rows, "past \(item.showPast)")
         }
     }
 

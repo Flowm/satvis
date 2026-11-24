@@ -72,6 +72,8 @@ final class Session {
     let instrumentImagery = InstrumentImagery()
     /// The drawn granule layers' granules behind the clock (ADR 0023).
     @ObservationIgnored let granuleImagery = GranuleImagery()
+    /// What the granule pictures on screen owe.
+    private var granuleCredits: [Credit] = []
     /// The overpass replay on, kept in links as `replay` (ADR 0023).
     @ObservationIgnored private(set) lazy var replay = OverpassReplayModel(session: self)
     /// Where the camera was when the replay on started, which its end goes back to.
@@ -104,9 +106,8 @@ final class Session {
     var mapCredits: [Credit] {
         Credit.map(
             baseLayer: baseLayer, terrain: terrain,
-            instrumentImagery: instrumentImagery.tokens.compactMap { SatelliteDetails.ImageryPreview.Provider(rawValue: String($0.prefix { $0 != ":" })) }
-                + instrumentImagery.granuleLayers.compactMap { ($0.layer.pictures?.provider.rawValue).flatMap(SatelliteDetails.ImageryPreview.Provider.init) },
-            mosaic: instrumentImagery.mosaic.credit)
+            instrumentImagery: instrumentImagery.tiledProviders,
+            mosaic: instrumentImagery.mosaic.credit, pictures: granuleCredits)
     }
 
     /// The site's privacy policy, which covers the app.
@@ -285,7 +286,13 @@ final class Session {
             Task {
                 await granuleImagery.follow(
                     now: { self.clock.now() }, isDrawn: { id in self.catalog.activeEntries.contains { $0.id == id } },
-                    apply: { self.globe.setGranules($0, fans: $1) })
+                    apply: { granules, fans, pictures in
+                        self.globe.setGranules(granules, fans: fans)
+                        let credits = pictures.map { Credit.picture($0, at: self.clock.now()) }
+                        if credits != self.granuleCredits {
+                            self.granuleCredits = credits
+                        }
+                    })
             },
             Task { await countViews() },
         ]
@@ -677,7 +684,7 @@ final class Session {
     /// the other, unless reduced motion cuts.
     private func setProjection(_ projection: GlobeProjection, animated: Bool) {
         self.projection = projection
-        globe.setProjection(projection, animated: animated && !Platform.reducesMotion)
+        globe.setProjection(projection, animated: animated && !GlobeRenderer.reducesMotion)
     }
 
     /// The globe button (`Focus.goHome`).
@@ -812,16 +819,15 @@ final class Session {
         aimReplay(satellite: plan.satellite, centre: plan.centre, camera: camera)
     }
 
-    /// Points the camera at a replay as `camera` says, at the clock as it is: from beyond
-    /// the station, else straight down on it from 5,000 km; or tracking the satellite,
-    /// which chases its swath while its layer is on. The sky view keeps its camera.
+    /// Points the camera at a replay as `camera` says, at the clock as it is. Tracking the
+    /// satellite chases its swath while its layer is on; the sky view keeps its camera.
     func aimReplay(satellite: String, centre: GroundPoint, camera: ReplayCamera) {
         globe.stopBroadcast()
         guard observer == nil else {
             return
         }
-        let motion = !Platform.reducesMotion
-        let id = catalog.catalog.entries.values.first { $0.name == satellite }?.id
+        let motion = !GlobeRenderer.reducesMotion
+        let id = catalog.loadedEntry(named: satellite)?.id
         switch camera {
         case .tracking:
             if let id, tracked != .satellite(id) {
@@ -831,7 +837,9 @@ final class Session {
             if tracked != nil {
                 perform(focus.stopTracking(animated: false))
             }
-            if camera == .nadir || id.map({ globe.startBroadcast(satellite: $0, station: centre, animated: motion) }) != true {
+            if camera == .broadcast, let id {
+                globe.startBroadcast(satellite: id, station: centre, fallbackHeight: Self.replayHeight, animated: motion)
+            } else {
                 globe.flyOver(latitude: centre.latitude, longitude: centre.longitude, height: Self.replayHeight, animated: motion)
             }
         }
@@ -862,7 +870,7 @@ final class Session {
             perform(focus.stopTracking(animated: false))
         }
         if let view {
-            globe.fly(to: view, animated: !Platform.reducesMotion)
+            globe.fly(to: view, animated: !GlobeRenderer.reducesMotion)
         }
     }
 
@@ -872,7 +880,7 @@ final class Session {
         if catalog.tracked != focus.trackedSatellite {
             catalog.setTracked(focus.trackedSatellite)
         }
-        let motion = !Platform.reducesMotion
+        let motion = !GlobeRenderer.reducesMotion
         for command in commands {
             switch command {
             case .track(let target, let animated):

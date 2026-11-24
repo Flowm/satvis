@@ -407,7 +407,6 @@ struct ContentView: View {
                     BenchmarkPanel(session: session)
                         .padding(.horizontal, 16)
                 }
-                // Over the clock while a replay is on.
                 ReplayBar(session: session)
                     .shown(chrome.showsUI)
                 // Flush with the bottom edge, as on the web.

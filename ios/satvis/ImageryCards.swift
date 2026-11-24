@@ -14,13 +14,9 @@ enum ImageryPreviewSource: Hashable {
     case mosaic(SatelliteDetails.PreviewBounds)
 }
 
-/// The Imagery tab, the web app's ImageryGallery (ADR 0024): a card a layer, titled by its
-/// type, with a picture of its latest frame and how fresh it is, a switch that shows it on
-/// the globe where the globe can draw it, and the rest behind its info button, in as many
-/// columns as fit cards 220 pt wide, as the web app's grid; a layer that ended after those
-/// that have not. A row of cards is a row of the list, so that a card can be scrolled to. A
-/// granule layer's card can also track the satellite, and sends the clock to its newest
-/// pass where it is past it.
+/// The Imagery tab, the web app's ImageryGallery (ADR 0024): a card a layer, in as many
+/// columns as fit cards 220 pt wide, as the web app's grid. A row of cards is a row of the
+/// list, so that a card can be scrolled to.
 struct ImageryCards: View {
     let layers: [ImageryLayer]
     /// A picture a layer, as `previews` builds them.
@@ -163,13 +159,7 @@ private struct ImageryCard: View {
                 about(imagery)
             }
             if isShown {
-                TimelineView(.periodic(from: .now, by: 1)) { _ in
-                    if latest.isPastNewest(imagery.key, time: session.clock.now()), let newest = latest.latest[imagery.key]?.pictured {
-                        PassNotice(newest: newest.start) { latest.goToNewest(imagery.key, clock: session.clock) }
-                            .padding(.horizontal, 10)
-                            .padding(.bottom, 10)
-                    }
-                }
+                PassNotice(latest: latest, key: imagery.key, clock: session.clock, insets: EdgeInsets(top: 0, leading: 10, bottom: 10, trailing: 10))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -201,6 +191,7 @@ private struct ImageryCard: View {
         return imagery.preview.map { $0.isDaily ? "Yesterday" : "Latest" }
     }
 
+    /// The card's foot: Show for a layer the globe draws, and its buttons.
     private func actions(_ imagery: SatelliteDetails.Imagery, token: String?, isShown: Bool) -> some View {
         HStack(spacing: 0) {
             if let token {
@@ -251,6 +242,7 @@ private struct ImageryCard: View {
         .padding(.vertical, 2)
     }
 
+    /// A button of the card's foot, an icon a tap target wide, tinted while `isOn`.
     private func cardButton(_ label: String, symbol: String, isOn: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
@@ -262,8 +254,7 @@ private struct ImageryCard: View {
         .accessibilityLabel(label)
     }
 
-    /// What the info button opens: when it updates, how far back it goes, and where it
-    /// comes from.
+    /// What the info button opens.
     private func about(_ imagery: SatelliteDetails.Imagery) -> some View {
         Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 2) {
             if let updates = imagery.words.updates {
@@ -307,7 +298,7 @@ private struct ImageryCard: View {
     }
 }
 
-/// A card title's icon close beside its text, in the secondary colour.
+/// A card title's icon close beside its text.
 private struct CardTitleLabelStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -332,20 +323,35 @@ extension SatelliteDetails.ImageryType {
 }
 
 /// A passes layer that is on, with the clock past its newest pass (ADR 0024): how old that
-/// is, and a way there.
+/// is, and a way there. Nothing while the clock is not past it.
 struct PassNotice: View {
-    /// The start of the newest pass with pixels, the one Go goes to, epoch milliseconds.
-    let newest: Double
-    let go: () -> Void
+    let latest: LatestPasses
+    /// The layer's key in `latest`.
+    let key: String
+    let clock: ViewerClock
+    var insets = EdgeInsets()
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            if latest.isPastNewest(key, time: clock.now()), let newest = latest.latest[key]?.pictured {
+                notice(newest: newest.start)
+                    .padding(insets)
+            }
+        }
+    }
+
+    /// How old the newest pass with pixels is, starting at `newest` epoch milliseconds,
+    /// and Go, which goes there.
+    private func notice(newest: Double) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "clock.badge.exclamationmark")
             Text("Newest pass \(Formats.timeAgoInWords(newest, now: Date.now.timeIntervalSince1970 * 1000))")
                 .lineLimit(1)
                 .truncationMode(.tail)
             Spacer(minLength: 0)
-            Button(action: go) {
+            Button {
+                latest.goToNewest(key, clock: clock)
+            } label: {
                 Label("Go", systemImage: "backward.end.fill")
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 8)
@@ -368,9 +374,8 @@ struct PassNotice: View {
     }
 }
 
-/// A layer's picture, 16:9 on black, how fresh it is on its corner; "No preview" where
-/// there is none or the provider refused it, "Outlines only" for a granule layer without
-/// pictures.
+/// A layer's picture, how fresh it is on its corner, and a placeholder where there is none
+/// or the provider refused it.
 private struct ImageryPicture: View {
     let label: String
     let source: ImageryPreviewSource?
@@ -382,8 +387,7 @@ private struct ImageryPicture: View {
     let outlinesOnly: Bool
     /// Showing the placeholder, which the picture's accessibility value says.
     @State private var isMissing = false
-    /// The picture once had, for its source, or nil where it could not be: a provider's
-    /// asked for up to three times, as GIBS's WMS answers some requests with an error page.
+    /// The picture once had, for its source, or nil where it could not be.
     @State private var made: (source: ImageryPreviewSource, image: CGImage?)?
 
     var body: some View {

@@ -42,8 +42,6 @@ private final class RecordingGlobe: Globe {
             }
         }
     }
-    /// What `startBroadcast` answers.
-    var broadcasts = true
     func setImagery(_ layer: BaseLayer, site: URL) { calls.append("imagery \(layer.rawValue)") }
     func setInstrumentImagery(_ overlays: [ImageryOverlay]) {
         if !overlays.isEmpty {
@@ -71,9 +69,8 @@ private final class RecordingGlobe: Globe {
     func stopTracking(animated: Bool) { calls.append("stopTracking \(animated)") }
     func flyHome(animated: Bool) { calls.append("flyHome \(animated)") }
     func setProjection(_ projection: GlobeProjection, animated: Bool) { calls.append("projection \(projection.rawValue) \(animated)") }
-    func startBroadcast(satellite: String, station: GroundPoint, animated: Bool) -> Bool {
-        calls.append("startBroadcast \(satellite) \(animated)")
-        return broadcasts
+    func startBroadcast(satellite: String, station: GroundPoint, fallback: CameraView, animated: Bool) {
+        calls.append("startBroadcast \(satellite) \(Int((fallback.globe.latitude * 180 / .pi).rounded())) \(animated)")
     }
     func stopBroadcast() { calls.append("stopBroadcast") }
     func currentView() -> CameraView? { .over(latitude: 1, longitude: 2, height: 3_000_000) }
@@ -211,12 +208,15 @@ private final class RecordingGlobe: Globe {
     }
 
     // A replay's camera: the view flown to is where a later renderer starts, a
-    // broadcast only starts on a renderer, and taking it over lets go of what was
-    // tracked.
+    // broadcast only starts on a renderer, one asked for before it starts over the
+    // station, and taking it over lets go of what was tracked.
     @Test func replaysTheViewFlownTo() async throws {
         let binding = GlobeBinding()
         #expect(binding.currentView() == nil)
-        #expect(!binding.startBroadcast(satellite: "43013", station: GroundPoint(latitude: 48, longitude: 11), animated: true))
+        binding.startBroadcast(satellite: "43013", station: GroundPoint(latitude: 30, longitude: 11), fallbackHeight: 5_000_000, animated: true)
+        let early = RecordingGlobe()
+        binding.attach(globe: early)
+        #expect(early.calls.contains("fly 30 false"))
         binding.flyOver(latitude: 48, longitude: 11, height: 5_000_000, animated: true)
         let first = RecordingGlobe()
         binding.attach(globe: first)
@@ -224,13 +224,14 @@ private final class RecordingGlobe: Globe {
 
         binding.track("25544", animated: false)
         first.calls = []
-        #expect(binding.startBroadcast(satellite: "43013", station: GroundPoint(latitude: 48, longitude: 11), animated: true))
+        binding.startBroadcast(satellite: "43013", station: GroundPoint(latitude: 48, longitude: 11), fallbackHeight: 5_000_000, animated: true)
         binding.stopBroadcast()
-        #expect(first.calls == ["startBroadcast 43013 true", "stopBroadcast"])
+        #expect(first.calls == ["startBroadcast 43013 48 true", "stopBroadcast"])
         let view = try #require(binding.currentView())
         let second = RecordingGlobe()
         binding.attach(globe: second)
-        #expect(!second.calls.contains { $0.hasPrefix("track") || $0.hasPrefix("fly") })
+        #expect(!second.calls.contains { $0.hasPrefix("track") })
+        #expect(second.calls.contains("fly 48 false"))
 
         binding.fly(to: view, animated: true)
         #expect(second.calls.last == "fly 1 true")

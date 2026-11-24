@@ -5,11 +5,7 @@ import SatvisCore
 import simd
 
 // Granules replayed behind the clock (ADR 0023), as the web app's GranuleLayers.ts draws
-// them: where the satellite that sensed one is drawn, it fills in behind the scan line of
-// the ground track fan, and once passed shows its outline, and its picture where it keeps
-// one. The globe's and the map's tile fragments draw them (Shaders/Granules.msl), each
-// granule's outline laid out in the gnomonic projection about its middle, where its
-// edges, great circles, are straight.
+// them. The globe's and the map's tile fragments draw them (Shaders/Granules.msl).
 
 /// A granule's picture, cut from its provider's frame to its outline.
 public struct GranulePicture: @unchecked Sendable, Equatable {
@@ -34,8 +30,7 @@ public struct GranulePicture: @unchecked Sendable, Equatable {
 
 /// One granule on the globe.
 public struct GranuleDrawing: Sendable, Equatable {
-    /// Whether its provider has its pixels: not known yet, known and pictured, or known
-    /// to have none, which greys it.
+    /// Whether its provider has its pixels; `missing` greys it.
     public enum State: Sendable { case waiting, pictured, missing }
 
     /// Stable across calls: the granule's key and its layer's.
@@ -97,10 +92,9 @@ struct FanInstance {
     var portKm: Float
 }
 
-/// A granule's outline in the gnomonic projection about its middle, from the Earth's
-/// centre onto the plane tangent there: great circles project to straight lines, so
-/// its edges are straight, and a granule across the antimeridian or round a pole has
-/// no seam.
+/// A granule's outline in the gnomonic projection about its middle, where great circles
+/// are straight: so are its edges, and a granule across the antimeridian or round a pole
+/// has no seam.
 struct GnomonicOutline {
     /// Radians the cap round the outline is widened by, for an outline drawn as wide
     /// as 64 km of ground: two pixels of the whole globe on a phone.
@@ -220,7 +214,7 @@ struct FanAxes {
         return (0...steps).map { step in
             let angle = -portAngle + (starboardAngle + portAngle) * Double(step) / Double(steps)
             let direction = cos(angle) * down + sin(angle) * starboard
-            return position + direction * min(Self.distanceToGround(from: position, along: direction) ?? reach, reach)
+            return position + direction * min(distanceToEllipsoid(from: position, along: direction) ?? reach, reach)
         }
     }
 
@@ -230,8 +224,7 @@ struct FanAxes {
         return zip(line, line.dropFirst()).map { Self.triangleDistance(camera, position, $0, $1) }.min() ?? simd.distance(camera, position)
     }
 
-    /// Metres from `p` to the triangle `a`, `b`, `c`: Ericson's closest point on a
-    /// triangle, by the region of the plane it falls in.
+    /// Metres from `p` to the triangle `a`, `b`, `c`, by Ericson's closest point on a triangle.
     static func triangleDistance(_ p: SIMD3<Double>, _ a: SIMD3<Double>, _ b: SIMD3<Double>, _ c: SIMD3<Double>) -> Double {
         let (ab, ac, ap) = (b - a, c - a, p - a)
         let (d1, d2) = (dot(ab, ap), dot(ac, ap))
@@ -281,19 +274,6 @@ struct FanAxes {
         let orbitRadius = earthRadius + altitude
         return 1.2 * (earthRadius * earthRadius + orbitRadius * orbitRadius - 2 * earthRadius * orbitRadius * cos(central)).squareRoot()
     }
-
-    /// Metres from `origin` along the unit `direction` to the ellipsoid; nil where it misses.
-    static func distanceToGround(from origin: SIMD3<Double>, along direction: SIMD3<Double>) -> Double? {
-        let o = origin / ellipsoidRadii
-        let d = direction / ellipsoidRadii
-        let (a, b, c) = (dot(d, d), 2 * dot(d, o), dot(o, o) - 1)
-        let det = b * b - 4 * a * c
-        guard det >= 0 else {
-            return nil
-        }
-        let near = (-b - det.squareRoot()) / (2 * a)
-        return near > 0 ? near : nil
-    }
 }
 
 /// The plane of the ground track fan through the satellite, which a granule is sensed
@@ -312,26 +292,24 @@ struct ScanPlane: Equatable {
         ahead = axes.ahead
     }
 
-    /// Whether `point` lies behind it, swept already.
+    /// Whether `point` is swept already.
     func isBehind(_ point: SIMD3<Double>) -> Bool {
         dot(point - self.point, ahead) < 0
     }
 }
 
-/// Where a granule stands at an instant: not begun, being swept by its satellite's
-/// scan line, or passed.
+/// Where a granule stands at an instant.
 enum GranuleStage: Equatable {
     case before
     case sweeping(ScanPlane)
     case passed
 
-    /// How far past its end a granule may still be swept, in milliseconds: an element
-    /// set 30 days old places NOAA-20 up to 17 s off its granules, and past it the
-    /// scan plane, through the Earth, turns back toward it (`SENSING_SLACK_MS`).
-    static let slack = 120_000.0
+    /// How far past its end a granule may still be swept, in milliseconds: past it the
+    /// scan plane, through the Earth, turns back toward it.
+    static let slack = OverpassReplay.sensingSlackMs
 
-    /// Where `granule` stands at `time` (epoch milliseconds), its satellite's scan
-    /// plane then `plane`, nil where it is not drawn: without one, passed once begun.
+    /// At `time` (epoch milliseconds), its satellite's scan plane then `plane`, nil
+    /// where that is not drawn: without one, passed once begun.
     init(start: Double, end: Double, corners: [SIMD3<Double>], time: Double, plane: ScanPlane?) {
         guard let plane, time <= end + Self.slack else {
             self = time >= start ? .passed : .before
@@ -341,8 +319,7 @@ enum GranuleStage: Equatable {
     }
 }
 
-/// What one frame draws of the granules: their shapes, corners and pictures for the
-/// tile fragments, and the caps that say which tiles they reach.
+/// What one frame draws of the granules, for the tile fragments.
 @MainActor
 struct GranuleFrame {
     /// The most granules one tile draws, the newest.
@@ -373,10 +350,12 @@ struct GranuleFrame {
     }
 }
 
-/// The granules on the globe, and the ground track fans: what is set, the pictures'
-/// textures, and each frame's shapes.
+/// The web app's `#ffd54a`, 0 to 1, for the granules and the timeline's sensed spans.
+public let granuleYellow = SIMD3<Double>(0xff, 0xd5, 0x4a) / 255
+
+/// The granules on the globe, their pictures' textures, and the ground track fans.
 @MainActor
-final class GranuleOverlay {
+final class GranuleFills {
     /// The most granules drawn, the newest: a 50-minute trail of HLS scenes is 60.
     static let capacity = 256
     /// Mirrors `granulePictureSlots` in Shaders/Granules.msl: the newest pictures
@@ -384,9 +363,9 @@ final class GranuleOverlay {
     static let pictureSlots = 64
 
     /// The web app's colours: the outline, and the fill before its picture or without one.
-    static let outlineColor = SIMD4<Float>(0xff, 0xd5, 0x4a, 0.9 * 255) / 255
+    static let outlineColor = SIMD4<Float>(SIMD3<Float>(granuleYellow), 0.9)
     static let missingOutlineColor = SIMD4<Float>(0x9e, 0x9e, 0x9e, 0.7 * 255) / 255
-    static let tint = SIMD4<Float>(0xff, 0xd5, 0x4a, 0.35 * 255) / 255
+    static let tint = SIMD4<Float>(SIMD3<Float>(granuleYellow), 0.35)
     static let missingTint = SIMD4<Float>(0x9e, 0x9e, 0x9e, 0.35 * 255) / 255
 
     private struct Entry {
@@ -426,7 +405,7 @@ final class GranuleOverlay {
         for entry in entries {
             previous[entry.drawing.id] = entry
         }
-        let sorted = granules.enumerated().sorted { ($0.element.start, $0.offset) < ($1.element.start, $1.offset) }.map(\.element).suffix(Self.capacity)
+        let sorted = stableSorted(granules) { $0.start < $1.start }.suffix(Self.capacity)
         var next: [Entry] = []
         var points: [SIMD2<Float>] = []
         for drawing in sorted {
@@ -529,7 +508,6 @@ final class GranuleOverlay {
         let staged = entries.map { entry in
             (entry, GranuleStage(start: entry.drawing.start, end: entry.drawing.end, corners: entry.outline.ground, time: time, plane: plane(entry.drawing.satellite)))
         }
-        // The newest pictures drawn get the slots.
         var slots: [ObjectIdentifier: Int32] = [:]
         var textures: [MTLTexture] = []
         for (entry, stage) in staged.reversed() where stage != .before && slots.count < Self.pictureSlots {

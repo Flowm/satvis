@@ -173,6 +173,7 @@ import simd
             BroadcastCamera(satellite: "s", station: GroundPoint(latitude: 10, longitude: 5), swathKm: 3000, now: Self.time, position: Self.eastbound))
         var rig = Self.rig()
         rig.enterSky(SkyCamera(latitude: 10, longitude: 5), animated: false, uptime: 1)
+        #expect(!rig.canBroadcast)
         let fromTheSky = rig.startBroadcast(camera, animated: false, uptime: 1)
         #expect(!fromTheSky)
 
@@ -183,6 +184,7 @@ import simd
         rig.setProjection(.twoD, animated: false)
         #expect(!rig.isBroadcasting)
         rig.showProjection()
+        #expect(!rig.canBroadcast)
         let onTheMap = rig.startBroadcast(camera, animated: false, uptime: 2)
         #expect(!onTheMap)
     }
@@ -220,5 +222,15 @@ import simd
         #expect(!rig.isBroadcasting)
         let back = try #require(Self.frame(&rig, at: 2))
         #expect(back == home)
+    }
+
+    // A broadcast waiting for its satellite gives up after five seconds, as the
+    // web app's never does.
+    @Test func pendingBroadcastLapsesAfterFiveSeconds() {
+        let pending = PendingBroadcast(
+            satellite: "s", station: GroundPoint(latitude: 10, longitude: 5), fallback: .over(latitude: 10, longitude: 5, height: 5_000_000),
+            animated: true, start: 100)
+        #expect(!pending.hasLapsed(at: 105))
+        #expect(pending.hasLapsed(at: 105.1))
     }
 }

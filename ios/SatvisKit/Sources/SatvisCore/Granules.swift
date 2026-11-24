@@ -44,7 +44,7 @@ public struct Granule: Sendable, Hashable {
     /// across the antimeridian has an `east` past 180 or a `west` before -180.
     public var extent: SatelliteDetails.PreviewBounds {
         let first = outline.first?.longitude ?? 0
-        let longitudes = outline.map { $0.longitude + 360 * jsRound((first - $0.longitude) / 360) }
+        let longitudes = outline.map { unwrapped($0.longitude, near: first) }
         let latitudes = outline.map(\.latitude)
         return SatelliteDetails.PreviewBounds(
             west: longitudes.min() ?? .infinity, south: latitudes.min() ?? .infinity, east: longitudes.max() ?? -.infinity, north: latitudes.max() ?? -.infinity)
@@ -54,13 +54,20 @@ public struct Granule: Sendable, Hashable {
     public var centre: GroundPoint {
         let corners = outline.dropLast()
         let first = corners.first?.longitude ?? 0
-        // Each longitude within 180° of the first, so a granule across the antimeridian is
-        // not averaged to the far side.
-        let unwrap = { (longitude: Double) in longitude + 360 * jsRound((first - longitude) / 360) }
         let latitude = corners.reduce(0) { $0 + $1.latitude } / Double(corners.count)
-        let longitude = corners.reduce(0) { $0 + unwrap($1.longitude) } / Double(corners.count)
-        return GroundPoint(latitude: latitude, longitude: jsRemainder(jsRemainder(longitude + 180, 360) + 360, 360) - 180)
+        let longitude = corners.reduce(0) { $0 + unwrapped($1.longitude, near: first) } / Double(corners.count)
+        return GroundPoint(latitude: latitude, longitude: wrapped(longitude))
     }
+}
+
+/// `longitude` within 180° of `reference`, in degrees.
+func unwrapped(_ longitude: Double, near reference: Double) -> Double {
+    longitude + 360 * jsRound((reference - longitude) / 360)
+}
+
+/// `longitude` in [-180, 180), in degrees.
+func wrapped(_ longitude: Double) -> Double {
+    jsRemainder(jsRemainder(longitude + 180, 360) + 360, 360) - 180
 }
 
 /// Consecutive granules: one overpass of the satellite.
@@ -147,8 +154,7 @@ public enum GranuleCatalogue {
         return "\(cmr)?\(SatelliteDetails.formEncoded(params))"
     }
 
-    /// One page of `query`'s granules from the Data Store, oldest first, or newest first
-    /// for `newest`.
+    /// One page of `query`'s granules from the Data Store, oldest first, or newest first for `newest`.
     public static func dataStoreUrl(_ query: GranuleQuery, page: Int = 0) -> String {
         var params = [("format", "json"), ("pi", query.collections.first ?? "")]
         if let platform = query.platform {
@@ -167,9 +173,8 @@ public enum GranuleCatalogue {
 
     /// An instant as `toISOString` writes it: "2026-11-20T11:42:00.000Z".
     static func isoInstant(_ ms: Double) -> String {
-        let utc = civilDate(epochMilliseconds: ms)
-        let millisecond = String(utc.millisecond).leftPadded(to: 3)
-        return "\(utc.year)-\(two(utc.month))-\(two(utc.day))T\(two(utc.hour)):\(two(utc.minute)):\(two(utc.second)).\(millisecond)Z"
+        let millisecond = String(civilDate(epochMilliseconds: ms).millisecond).leftPadded(to: 3)
+        return "\(SatelliteDetails.isoSecond(epochMilliseconds: ms).dropLast()).\(millisecond)Z"
     }
 
     /// The granules of CMR's JSON answer, sorted by start; of a start several
@@ -313,8 +318,7 @@ public enum GranuleCatalogue {
         return ring + [ring[0]]
     }
 
-    /// One ring of a granule's parts, joined at the antimeridian, or where they do not
-    /// join the largest part.
+    /// `joinAtAntimeridian`'s ring, or where the parts do not join the largest.
     static func outerRing(_ parts: [[[Double]]]) -> [[Double]]? {
         joinAtAntimeridian(parts) ?? stableSorted(parts) { $0.count > $1.count }.first
     }
@@ -374,7 +378,7 @@ public enum GranuleCatalogue {
 
     // MARK: Day or night
 
-    /// Days since J2000.0 (2000-01-01T12:00Z), in milliseconds since 1970.
+    /// J2000.0, 2000-01-01T12:00Z, in milliseconds since 1970.
     private static let j2000 = 946_728_000_000.0
 
     /// The sun's elevation in degrees at `point` and `time` (epoch milliseconds), by the
@@ -413,11 +417,83 @@ public enum GranuleCatalogue {
     /// WMS draws nothing across it.
     public static func probeBounds(_ granule: Granule) -> SatelliteDetails.PreviewBounds {
         let extent = granule.extent
-        let longitude = jsRemainder(jsRemainder((extent.west + extent.east) / 2 + 180, 360) + 360, 360) - 180
+        let longitude = wrapped((extent.west + extent.east) / 2)
         let latitude = (extent.south + extent.north) / 2
         let half = min(probeHalfWidth, (extent.east - extent.west) / 4, (extent.north - extent.south) / 4)
         let centre = min(180 - half, max(-180 + half, longitude))
         return SatelliteDetails.PreviewBounds(west: centre - half, south: latitude - half, east: centre + half, north: latitude + half)
+    }
+}
+
+/// Where a kept granule picture is cut from its frame, and its pixels: the web app's
+/// `PictureCut` (`GranuleLayers.ts`).
+public struct PictureCut: Sendable, Hashable {
+    /// Degrees, or for a polar picture metres from the pole.
+    public var bounds: SatelliteDetails.PreviewBounds
+    public var width: Int
+    public var height: Int
+    public var projection: PolarProjection?
+
+    /// Pixels across a kept picture at most, at least, and a degree of it at most.
+    static let keptWidth = 1024.0
+    static let keptMinWidth = 256.0
+    static let keptPixelsPerDegree = 256.0
+    /// Metres padded around a polar picture, and a kept polar pixel's metres at least.
+    static let polarMargin = 50_000.0
+    static let keptPolarPixel = 430.0
+    /// Degrees padded around a picture, so its edge is never sampled at the outline.
+    static let pictureMargin = 0.5
+    /// Points taken along each edge of a granule.
+    static let edgeSteps = 16
+
+    /// Pixels across a picture kept for `wanted`, within what is kept.
+    private static func kept(_ wanted: Double) -> Double {
+        min(keptWidth, max(keptMinWidth, jsRound(wanted)))
+    }
+
+    /// A granule's plate carrée picture: a box across the antimeridian runs past 180° east.
+    public static func plateCarree(_ extent: SatelliteDetails.PreviewBounds) -> PictureCut {
+        let west = extent.west < -180 ? extent.west + 360 : extent.west
+        let bounds = SatelliteDetails.PreviewBounds(
+            west: max(-180, west - pictureMargin), south: max(-90, extent.south - pictureMargin),
+            east: min(360, west + extent.east - extent.west + pictureMargin), north: min(90, extent.north + pictureMargin))
+        let width = kept((bounds.east - bounds.west) * keptPixelsPerDegree)
+        let height = min(width, max(1, jsRound(width * (bounds.north - bounds.south) / (bounds.east - bounds.west))))
+        return PictureCut(bounds: bounds, width: Int(width), height: Int(height), projection: nil)
+    }
+
+    /// A granule's polar stereographic picture about its nearer pole.
+    public static func polar(_ granule: Granule) -> PictureCut {
+        let projection: PolarProjection = granule.centre.latitude < 0 ? .antarctic : .arctic
+        let points = edgePoints(granule).map(projection.project)
+        let xs = points.map(\.x)
+        let ys = points.map(\.y)
+        let bounds = SatelliteDetails.PreviewBounds(
+            west: (xs.min() ?? 0) - polarMargin, south: (ys.min() ?? 0) - polarMargin, east: (xs.max() ?? 0) + polarMargin,
+            north: (ys.max() ?? 0) + polarMargin)
+        let across = max(bounds.east - bounds.west, bounds.north - bounds.south)
+        let longer = kept(across / keptPolarPixel)
+        let pixels = { (metres: Double) in Int(max(1, jsRound(longer * metres / across))) }
+        return PictureCut(bounds: bounds, width: pixels(bounds.east - bounds.west), height: pixels(bounds.north - bounds.south), projection: projection)
+    }
+
+    /// Points along a granule's edges, which bow toward the pole between its corners.
+    static func edgePoints(_ granule: Granule) -> [GroundPoint] {
+        let corners = granule.outline.map { point -> (x: Double, y: Double, z: Double) in
+            let latitude = point.latitude * .pi / 180
+            let longitude = point.longitude * .pi / 180
+            return (cos(latitude) * cos(longitude), cos(latitude) * sin(longitude), sin(latitude))
+        }
+        return corners.indices.flatMap { index in
+            let corner = corners[index]
+            let next = corners[(index + 1) % corners.count]
+            return (0..<edgeSteps).map { step in
+                let t = Double(step) / Double(edgeSteps)
+                let (x, y, z) = (corner.x + (next.x - corner.x) * t, corner.y + (next.y - corner.y) * t, corner.z + (next.z - corner.z) * t)
+                let length = (x * x + y * y + z * z).squareRoot()
+                return GroundPoint(latitude: asin(z / length) * 180 / .pi, longitude: atan2(y, x) * 180 / .pi)
+            }
+        }
     }
 }
 
@@ -473,7 +549,7 @@ func jsRemainder(_ a: Double, _ b: Double) -> Double {
 }
 
 /// Sorted as `Array.prototype.sort` sorts, keeping equal elements in order.
-func stableSorted<T>(_ items: [T], by less: (T, T) -> Bool) -> [T] {
+public func stableSorted<T>(_ items: [T], by less: (T, T) -> Bool) -> [T] {
     items.enumerated().sorted { less($0.element, $1.element) || (!less($1.element, $0.element) && $0.offset < $1.offset) }.map(\.element)
 }
 

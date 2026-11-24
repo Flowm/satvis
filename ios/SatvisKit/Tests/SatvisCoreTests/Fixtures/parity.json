@@ -16140,6 +16140,31 @@
           "south": 25.75,
           "east": 49.200000000000045,
           "north": 27.75
+        },
+        "plateCarree": {
+          "bounds": {
+            "west": 29.7,
+            "south": 13.7,
+            "east": 66.7,
+            "north": 39.8
+          },
+          "width": 1024,
+          "height": 722,
+          "pole": 0,
+          "polarScale": 0
+        },
+        "polar": {
+          "bounds": {
+            "west": 3249359.2471160153,
+            "south": -7618054.423238708,
+            "east": 8228384.80966227,
+            "north": -2547895.4332022704
+          },
+          "width": 1006,
+          "height": 1024,
+          "srs": "EPSG:3995",
+          "pole": 1,
+          "polarScale": 12367396.218459869
         }
       },
       {
@@ -16186,6 +16211,31 @@
           "south": 46.2,
           "east": 46.25,
           "north": 48.2
+        },
+        "plateCarree": {
+          "bounds": {
+            "west": 19.6,
+            "south": 33.8,
+            "east": 70.9,
+            "north": 60.6
+          },
+          "width": 1024,
+          "height": 535,
+          "pole": 0,
+          "polarScale": 0
+        },
+        "polar": {
+          "bounds": {
+            "west": 1400433.8469207024,
+            "south": -5718866.769554702,
+            "east": 5329620.657891841,
+            "north": -1064209.5624236385
+          },
+          "width": 864,
+          "height": 1024,
+          "srs": "EPSG:3995",
+          "pole": 1,
+          "polarScale": 12367396.218459869
         }
       },
       {
@@ -16232,6 +16282,31 @@
           "south": 65.35,
           "east": 56.10000000000002,
           "north": 67.35
+        },
+        "plateCarree": {
+          "bounds": {
+            "west": -10.7,
+            "south": 52,
+            "east": 120.9,
+            "north": 80.7
+          },
+          "width": 1024,
+          "height": 223,
+          "pole": 0,
+          "polarScale": 0
+        },
+        "polar": {
+          "bounds": {
+            "west": -432669.5029486065,
+            "south": -4013496.7677232507,
+            "east": 3179063.9749562955,
+            "north": 590086.0484504738
+          },
+          "width": 803,
+          "height": 1024,
+          "srs": "EPSG:3995",
+          "pole": 1,
+          "polarScale": 12367396.218459869
         }
       },
       {
@@ -16278,6 +16353,31 @@
           "south": -1,
           "east": -177.5,
           "north": 1
+        },
+        "plateCarree": {
+          "bounds": {
+            "west": 174.5,
+            "south": -12.5,
+            "east": 188.5,
+            "north": 12.5
+          },
+          "width": 1024,
+          "height": 1024,
+          "pole": 0,
+          "polarScale": 0
+        },
+        "polar": {
+          "bounds": {
+            "west": -1496319.218703568,
+            "south": 9972760.88973251,
+            "east": 1333086.2940315087,
+            "north": 15243182.849912066
+          },
+          "width": 550,
+          "height": 1024,
+          "srs": "EPSG:3995",
+          "pole": 1,
+          "polarScale": 12367396.218459869
         }
       },
       {
@@ -16324,6 +16424,31 @@
           "south": 1.85,
           "east": 11.300000000000045,
           "north": 2.5500000000000003
+        },
+        "plateCarree": {
+          "bounds": {
+            "west": 9.75,
+            "south": 1,
+            "east": 12.149999999999999,
+            "north": 3.4
+          },
+          "width": 614,
+          "height": 614,
+          "pole": 0,
+          "polarScale": 0
+        },
+        "polar": {
+          "bounds": {
+            "west": 2042746.358493306,
+            "south": -11907587.500295656,
+            "east": 2483267.7387858042,
+            "north": -11468453.94987913
+          },
+          "width": 1024,
+          "height": 1021,
+          "srs": "EPSG:3995",
+          "pole": 1,
+          "polarScale": 12367396.218459869
         }
       }
     ],
@@ -16889,7 +17014,45 @@
       ]
     },
     "leadMs": 300000,
-    "afterOverpassMs": 600000
+    "afterOverpassMs": 600000,
+    "pictureCredits": [
+      {
+        "provider": "gibs",
+        "layer": "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule",
+        "year": 2026,
+        "credit": "NASA Global Imagery Browse Services for EOSDIS"
+      },
+      {
+        "provider": "eumetview",
+        "layer": "copernicus:olci_l1_rgb_fulres",
+        "year": 2026,
+        "credit": "Contains modified Copernicus Sentinel data 2026 processed by EUMETSAT"
+      },
+      {
+        "provider": "eumetview",
+        "layer": "eps:metop_avhrr_rgb",
+        "year": 2026,
+        "credit": "Contains modified EUMETSAT Metop data 2026"
+      },
+      {
+        "provider": "eumetview",
+        "layer": "msg_fes:rgb_naturalcolor",
+        "year": 2026,
+        "credit": "Contains modified EUMETSAT Meteosat data 2026"
+      },
+      {
+        "provider": "eumetview",
+        "layer": "mtg_fd:rgb_truecolour",
+        "year": 2026,
+        "credit": "Contains modified EUMETSAT Meteosat data 2026"
+      },
+      {
+        "provider": "eumetview",
+        "layer": "other:layer",
+        "year": 2026,
+        "credit": "EUMETSAT"
+      }
+    ]
   },
   "passImagery": [
     {
@@ -16942,6 +17105,264 @@
       "imagery": "night"
     }
   ],
+  "passTable": {
+    "passes": [
+      {
+        "name": "S",
+        "groundStationName": "T",
+        "start": 1795132800000,
+        "end": 1795133400000
+      },
+      {
+        "name": "S",
+        "groundStationName": "T",
+        "start": 1795138800000,
+        "end": 1795139400000
+      },
+      {
+        "name": "S",
+        "groundStationName": "T",
+        "start": 1795150800000,
+        "end": 1795151400000
+      },
+      {
+        "name": "S",
+        "groundStationName": "U",
+        "start": 1795132800000,
+        "end": 1795133400000
+      }
+    ],
+    "recorded": [
+      {
+        "pair": "S|T|0",
+        "satellite": "S",
+        "station": "T",
+        "layer": {
+          "token": "gibs:L",
+          "provider": "gibs",
+          "layer": "L",
+          "granules": [
+            "C1-X"
+          ]
+        },
+        "overpass": {
+          "start": 1795132860000,
+          "end": 1795133340000,
+          "granules": []
+        },
+        "day": true
+      },
+      {
+        "pair": "S|T|1",
+        "satellite": "S",
+        "station": "T",
+        "layer": {
+          "token": "gibs:L",
+          "provider": "gibs",
+          "layer": "L",
+          "granules": [
+            "C1-X"
+          ]
+        },
+        "overpass": {
+          "start": 1795138860000,
+          "end": 1795139280000,
+          "granules": []
+        },
+        "day": true
+      },
+      {
+        "pair": "S|T|2",
+        "satellite": "S",
+        "station": "T",
+        "layer": {
+          "token": "gibs:L",
+          "provider": "gibs",
+          "layer": "L",
+          "granules": [
+            "C1-X"
+          ]
+        },
+        "overpass": {
+          "start": 1795138740000,
+          "end": 1795139100000,
+          "granules": []
+        },
+        "day": true
+      },
+      {
+        "pair": "S|T|3",
+        "satellite": "S",
+        "station": "T",
+        "layer": {
+          "token": "gibs:L",
+          "provider": "gibs",
+          "layer": "L",
+          "granules": [
+            "C1-X"
+          ]
+        },
+        "overpass": {
+          "start": 1795120800000,
+          "end": 1795121400000,
+          "granules": []
+        },
+        "day": false
+      },
+      {
+        "pair": "S|T|4",
+        "satellite": "S",
+        "station": "T",
+        "layer": {
+          "token": "gibs:L",
+          "provider": "gibs",
+          "layer": "L",
+          "granules": [
+            "C1-X"
+          ]
+        },
+        "overpass": {
+          "start": 1795126800000,
+          "end": 1795127400000,
+          "granules": []
+        },
+        "day": true
+      },
+      {
+        "pair": "S|T|5",
+        "satellite": "S",
+        "station": "T",
+        "layer": {
+          "token": "gibs:L",
+          "provider": "gibs",
+          "layer": "L",
+          "granules": [
+            "C1-X"
+          ]
+        },
+        "overpass": {
+          "start": 1795162800000,
+          "end": 1795163400000,
+          "granules": []
+        },
+        "day": true
+      },
+      {
+        "pair": "S|U|6",
+        "satellite": "S",
+        "station": "U",
+        "layer": {
+          "token": "gibs:L",
+          "provider": "gibs",
+          "layer": "L",
+          "granules": [
+            "C1-X"
+          ]
+        },
+        "overpass": {
+          "start": 1795132920000,
+          "end": 1795133280000,
+          "granules": []
+        },
+        "day": true
+      },
+      {
+        "pair": "X|T|7",
+        "satellite": "X",
+        "station": "T",
+        "layer": {
+          "token": "gibs:L",
+          "provider": "gibs",
+          "layer": "L",
+          "granules": [
+            "C1-X"
+          ]
+        },
+        "overpass": {
+          "start": 1795129800000,
+          "end": 1795130400000,
+          "granules": []
+        },
+        "day": true
+      },
+      {
+        "pair": "X|T|8",
+        "satellite": "X",
+        "station": "T",
+        "layer": {
+          "token": "gibs:L",
+          "provider": "gibs",
+          "layer": "L",
+          "granules": [
+            "C1-X"
+          ]
+        },
+        "overpass": {
+          "start": 1795129800000,
+          "end": 1795130400000,
+          "granules": []
+        },
+        "day": true
+      }
+    ],
+    "nowMs": 1795144800000,
+    "cases": [
+      {
+        "showPast": false,
+        "rows": [
+          {
+            "pass": 0,
+            "recorded": 0
+          },
+          {
+            "pass": 1,
+            "recorded": 1
+          },
+          {
+            "pass": 2,
+            "recorded": null
+          },
+          {
+            "pass": 3,
+            "recorded": 6
+          }
+        ]
+      },
+      {
+        "showPast": true,
+        "rows": [
+          {
+            "pass": null,
+            "recorded": 4
+          },
+          {
+            "pass": null,
+            "recorded": 7
+          },
+          {
+            "pass": null,
+            "recorded": 8
+          },
+          {
+            "pass": 0,
+            "recorded": 0
+          },
+          {
+            "pass": 3,
+            "recorded": 6
+          },
+          {
+            "pass": 1,
+            "recorded": 1
+          },
+          {
+            "pass": 2,
+            "recorded": null
+          }
+        ]
+      }
+    ]
+  },
   "imageryFormats": {
     "agesInWords": [
       {

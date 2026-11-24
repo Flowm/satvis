@@ -18,9 +18,13 @@ public enum OverpassReplay {
     /// How far back a station's overpasses are listed. GIBS keeps 90 days; a month is what
     /// a list can show.
     public static let stationDays = 30.0
+    /// How far from a granule's times the satellite drawn may sense it, and past its end
+    /// a granule may still be swept: today's element set places NOAA 20 up to 17 s off
+    /// its granules of 30 days ago (`SENSING_SLACK_MS`).
+    public static let sensingSlackMs = 2 * minute
     /// How far apart a predicted pass and a recorded overpass may lie and still be one:
-    /// as the fill's slack, for today's elements on old granules.
-    static let matchSlackMs = 2 * minute
+    /// as the sensing slack, for today's elements on old granules.
+    static let matchSlackMs = sensingSlackMs
 
     /// What a replay sets: the clock, its speed, and the satellite and station the camera
     /// watches.
@@ -162,20 +166,69 @@ public enum PassImagery: String, Sendable, Hashable {
 
 extension Overpass {
     /// `MM-DD HH:mm:ss` UTC, as a pass's start is labelled.
-    public var startLabel: String {
-        let utc = civilDate(epochMilliseconds: start)
-        return "\(two(utc.month))-\(two(utc.day)) \(two(utc.hour)):\(two(utc.minute)):\(two(utc.second))"
-    }
+    public var startLabel: String { dayTimeLabel(start) }
 
     /// `HH:mm:ss` UTC.
-    public var endLabel: String {
-        let utc = civilDate(epochMilliseconds: end)
-        return "\(two(utc.hour)):\(two(utc.minute)):\(two(utc.second))"
-    }
+    public var endLabel: String { timeLabel(end) }
 
     /// `MM-DD HH:mm` UTC, the replay bar's and Last imaged's.
     public var minuteLabel: String {
         let utc = civilDate(epochMilliseconds: start)
         return "\(two(utc.month))-\(two(utc.day)) \(two(utc.hour)):\(two(utc.minute))"
+    }
+}
+
+/// A row of the Passes table: a predicted pass with the overpass recorded in it, or a
+/// recorded overpass by day the predictor no longer has. The web app's `passTable`.
+public enum PassTableRow: Sendable, Hashable, Identifiable {
+    case pass(Pass, recorded: RecordedOverpass?)
+    case recorded(RecordedOverpass)
+
+    public var id: String {
+        switch self {
+        case .pass(let pass, _): "\(pass.satellite)|\(pass.stationID)|\(pass.start)"
+        case .recorded(let entry): "recorded-\(entry.id)"
+        }
+    }
+
+    public var start: Double {
+        switch self {
+        case .pass(let pass, _): pass.start
+        case .recorded(let entry): entry.overpass.start
+        }
+    }
+
+    public var recorded: RecordedOverpass? {
+        switch self {
+        case .pass(_, let recorded): recorded
+        case .recorded(let entry): entry
+        }
+    }
+
+    /// Each pass with what was recorded in it, and with `past` the recorded overpasses by
+    /// day before `now` that no pass is, as the predictor looks back a day and the
+    /// catalogue a month. By start.
+    public static func table(_ passes: [Pass], recorded: [RecordedOverpass], now: Double, past: Bool) -> [PassTableRow] {
+        let match = { (pass: Pass, among: [RecordedOverpass]) in
+            RecordedOverpass.matching(satellite: pass.satelliteName, station: pass.station, start: pass.start, end: pass.end, in: among)
+        }
+        var used = Set<String>()
+        var table = passes.map { pass -> PassTableRow in
+            let found = match(pass, recorded)
+            if let found {
+                used.insert(found.id)
+            }
+            return .pass(pass, recorded: found)
+        }
+        guard past else {
+            return table
+        }
+        for entry in recorded where !used.contains(entry.id) && entry.isDay && entry.overpass.start <= now {
+            // One a pass overlaps is that pass, even where the pass took a closer one.
+            if !passes.contains(where: { match($0, [entry]) != nil }) {
+                table.append(.recorded(entry))
+            }
+        }
+        return stableSorted(table) { $0.start < $1.start }
     }
 }

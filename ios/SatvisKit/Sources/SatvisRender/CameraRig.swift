@@ -52,8 +52,7 @@ struct CameraRig {
     private var homeFlight: (from: OrbitCamera, to: OrbitCamera, start: Double)?
     /// The flight into tracking or out of it, while one is under way.
     private var poseFlight: PoseFlight?
-    /// The broadcast camera of an overpass replay, while it holds the free camera's
-    /// view (ADR 0023).
+    /// The broadcast camera, while it holds the free camera's view (ADR 0023).
     private var broadcast: BroadcastCamera?
     /// What is tracked and may be framed close up on its 3D model: once the
     /// satellite is drawn, as a link tracks one before it is, and its model has
@@ -327,12 +326,14 @@ struct CameraRig {
 
     /// Whether the broadcast camera holds the view.
     var isBroadcasting: Bool { broadcast != nil }
+    /// Whether a broadcast could take the view.
+    var canBroadcast: Bool { cameraMode != .sky && skyFlight == nil && projection == .threeD && drawnProjection == .threeD }
 
     /// Hands the view to `camera`, letting go of what is followed; `animated`
     /// swings it in from the last pose. False, leaving the camera as it was, in the
     /// sky view, on the way to or from it, or on the map.
     mutating func startBroadcast(_ camera: BroadcastCamera, animated: Bool, uptime: Double) -> Bool {
-        guard cameraMode != .sky, skyFlight == nil, projection == .threeD, drawnProjection == .threeD else {
+        guard canBroadcast else {
             return false
         }
         endBroadcast()

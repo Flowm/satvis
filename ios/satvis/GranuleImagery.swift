@@ -28,30 +28,31 @@ final class GranuleImagery {
         var task: Task<Void, Never>?
     }
 
-    /// How long a granule stays behind the clock: about the daylit half of a 101-minute
-    /// polar orbit. Milliseconds.
+    /// How long a granule stays behind the clock, in milliseconds: about the daylit half of a 101-minute polar orbit.
     static let trailMs = 50 * 60_000.0
-    /// How far from a granule's times the satellite drawn may sense it: today's element set
-    /// places NOAA 20 up to 17 s off its granules of 30 days ago.
-    static let sensingSlackMs = 2 * 60_000.0
+    /// An hour, in milliseconds.
     private static let hourMs = 3_600_000.0
-    /// How far before and after the clock's hour the granules are listed at once.
+    /// How far before the clock's hour the granules are listed at once.
     private static let listBeforeMs = 2 * hourMs
+    /// How far after the clock's hour the granules are listed at once.
     private static let listAfterMs = 2 * hourMs
-    /// How soon a list that may still grow is asked again; CMR lists a granule hours after
-    /// it is sensed.
+    /// Seconds before a list that may still grow is asked again; CMR lists a granule hours
+    /// after it is sensed.
     private static let refresh: TimeInterval = 10 * 60
+    /// How far back from now a list may still grow, in milliseconds.
     private static let fillingMs = 4 * hourMs
-    /// How soon a list the catalogue did not answer is asked again.
+    /// Seconds before a list the catalogue did not answer is asked again.
     private static let retry: TimeInterval = 60
-    /// How often a picture the provider did not send is asked for, and how far apart.
+    /// How often a picture the provider did not send is asked for.
     private static let pictureAttempts = 5
+    /// How long apart.
     private static let pictureRetry: Duration = .seconds(20)
 
     private var layers: [DrawnGranuleLayer] = []
     private var shown: [String: Shown] = [:]
     private var drawn: [GranuleDrawing] = []
     private var fans: Set<String> = []
+    private var pictured: [SatelliteDetails.GranulePictures] = []
 
     /// The layers to show, in drawn order.
     func set(_ layers: [DrawnGranuleLayer]) {
@@ -65,29 +66,37 @@ final class GranuleImagery {
         }
     }
 
-    /// Keeps `apply` handed the granules at the clock's time and the satellites whose fan
-    /// they hold, four times a second, until cancelled. `isDrawn` says whether a catalog
-    /// entry's satellite is on the globe, which fills the granules in behind it.
+    /// Keeps `apply` handed the granules at the clock's time, the satellites whose fan
+    /// they hold and the pictures of the layers that show one, four times a second, until
+    /// cancelled. `isDrawn` says whether a catalog entry's satellite is on the globe, which
+    /// fills the granules in behind it.
     func follow(
         now: @escaping @MainActor () -> Double, isDrawn: @escaping @MainActor (String) -> Bool,
-        apply: @escaping @MainActor ([GranuleDrawing], Set<String>) -> Void
+        apply: @escaping @MainActor ([GranuleDrawing], Set<String>, [SatelliteDetails.GranulePictures]) -> Void
     ) async {
         while !Task.isCancelled {
             let time = now()
             var drawings: [GranuleDrawing] = []
             var holding = Set<String>()
+            var showing: [SatelliteDetails.GranulePictures] = []
             for drawnLayer in layers {
                 let layer = drawnLayer.layer
                 let satellite = drawnLayer.owner.flatMap { isDrawn($0) ? $0 : nil }
                 if let satellite {
                     holding.insert(satellite)
                 }
-                drawings += tick(layer, satellite: satellite, at: time)
+                let ticked = tick(layer, satellite: satellite, at: time)
+                // As the web app credits pictures: once the scan line has reached one.
+                if let pictures = layer.pictures, ticked.contains(where: { $0.picture != nil && $0.start <= time }) {
+                    showing.append(pictures)
+                }
+                drawings += ticked
             }
-            if drawings != drawn || holding != fans {
+            if drawings != drawn || holding != fans || showing != pictured {
                 drawn = drawings
                 fans = holding
-                apply(drawings, holding)
+                pictured = showing
+                apply(drawings, holding, showing)
             }
             try? await Task.sleep(for: .milliseconds(250))
         }
@@ -107,7 +116,7 @@ final class GranuleImagery {
         guard let listing = state.listing else {
             return []
         }
-        let early = satellite == nil ? 0 : Self.sensingSlackMs
+        let early = satellite == nil ? 0 : OverpassReplay.sensingSlackMs
         let trail = listing.granules.filter { $0.isDay && $0.start <= time + early && $0.start > time - Self.trailMs }
         let wanted = Set(trail.map(\.key))
         for (key, entry) in state.granules where !wanted.contains(key) {
@@ -159,7 +168,7 @@ final class GranuleImagery {
         }
     }
 
-    /// Asks for the granules from two hours before the clock's hour to two after.
+    /// Asks for the granules around the clock's hour.
     private func list(_ layer: SatelliteDetails.GranuleLayer, _ state: Shown, around time: Double) {
         let hour = (time / Self.hourMs).rounded(.down) * Self.hourMs
         let start = hour - Self.listBeforeMs

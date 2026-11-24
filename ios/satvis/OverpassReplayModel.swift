@@ -8,6 +8,7 @@ enum ReplayCamera: String, CaseIterable, Identifiable {
 
     var id: Self { self }
 
+    /// Its name on the replay bar.
     var label: String {
         switch self {
         case .nadir: "Nadir"
@@ -25,6 +26,7 @@ enum ReplayCamera: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Its SF Symbol.
     var symbol: String {
         switch self {
         case .nadir: "scope"
@@ -84,6 +86,11 @@ final class OverpassReplayModel {
     }
 
     private var point: GroundPoint? {
+        point(of: station)
+    }
+
+    /// Where the station with this label stands.
+    private func point(of station: String) -> GroundPoint? {
         session.passes.stations.first { $0.displayName == station }.map { GroundPoint(latitude: $0.latitude, longitude: $0.longitude) }
     }
 
@@ -144,9 +151,9 @@ final class OverpassReplayModel {
     /// the timeline shades: the clock outside them shows nothing new.
     private(set) var sensed: [Overpass] = []
 
-    /// How often the spans are listed afresh as the clock moves: a quarter of the day.
+    /// Clock milliseconds between listings of the spans afresh.
     private static let sensedBucketMs = 6 * 3_600_000.0
-    /// How soon spans the catalogue did not answer for are asked again.
+    /// Seconds before spans the catalogue did not answer for are asked again.
     private static let sensedRetry: TimeInterval = 60
 
     /// Keeps `sensed` listed around the clock, until cancelled.
@@ -196,14 +203,13 @@ final class OverpassReplayModel {
         if !station.isEmpty, let before = layerOn?.layer.token, before != to.layer.token {
             session.instrumentImagery.show(before, false)
         }
-        if let entry = session.catalog.catalog.entries.values.first(where: { $0.name == to.satellite }) {
+        if let entry = session.catalog.loadedEntry(named: to.satellite) {
             session.catalog.activate(entry)
         }
         session.instrumentImagery.show(to.layer.token, true)
         station = to.station
-        if let station = session.passes.stations.first(where: { $0.displayName == to.station }) {
-            var plan = OverpassReplay.stationReplay(
-                start: to.overpass.start, station: GroundPoint(latitude: station.latitude, longitude: station.longitude), satellite: to.satellite)
+        if let point = point(of: to.station) {
+            var plan = OverpassReplay.stationReplay(start: to.overpass.start, station: point, satellite: to.satellite)
             plan.multiplier = multiplier
             session.replay(plan, camera: camera)
         }
@@ -228,20 +234,23 @@ final class OverpassReplayModel {
         session.endReplayCamera(returnView: returnView)
     }
 
-    /// Replays a pass over its station: a pass recorded by day also shows its granules, and
-    /// the replay bar steps through the table's other recorded overpasses; any other pass
+    /// Replays an overpass recorded by day with its granules, the replay bar stepping
+    /// through the table's others, `all`.
+    func replay(_ entry: RecordedOverpass, among all: [RecordedOverpass]) {
+        start(entry, steps: RecordedOverpass.replaySteps(all, started: entry))
+    }
+
+    /// Replays a pass over its station: one recorded by day as `replay(_:among:)`; any other
     /// stops the replay, whose granules are of another pass.
-    func replay(start: Double, station stationName: String, satellite: String, recorded entry: RecordedOverpass?, all: [RecordedOverpass]) {
+    func replay(_ pass: Pass, recorded entry: RecordedOverpass?, among all: [RecordedOverpass]) {
         if let entry, entry.isDay {
-            self.start(entry, steps: RecordedOverpass.replaySteps(all, started: entry))
+            replay(entry, among: all)
             return
         }
-        guard let station = session.passes.stations.first(where: { $0.displayName == stationName }) else {
+        guard let point = point(of: pass.station) else {
             return
         }
         stop(returnView: false)
-        session.replay(
-            OverpassReplay.stationReplay(start: start, station: GroundPoint(latitude: station.latitude, longitude: station.longitude), satellite: satellite),
-            camera: camera)
+        session.replay(OverpassReplay.stationReplay(start: pass.start, station: point, satellite: pass.satelliteName), camera: camera)
     }
 }

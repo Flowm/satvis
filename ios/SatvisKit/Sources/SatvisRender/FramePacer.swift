@@ -39,14 +39,14 @@ struct FramePacer {
         return true
     }
 
-    /// The instants around `time` within which none of `links` starts or ends,
-    /// while they are `shown`; a link moves no faster than its satellite, which
-    /// the pacing bounds. Worked out once a frame drawn: checked at every vsync,
-    /// 2,455 links took a quarter of an iPad mini's main thread.
     /// The swath a scan line is paced by where its satellite has none: wider than any
     /// instrument's, VIIRS's 3,000 km.
     static let widestSwath = SwathExtents(starboardKm: 1600, portKm: 1600)
 
+    /// The instants around `time` within which none of `links` starts or ends,
+    /// while they are `shown`; a link moves no faster than its satellite, which
+    /// the pacing bounds. Worked out once a frame drawn: checked at every vsync,
+    /// 2,455 links took a quarter of an iPad mini's main thread.
     static func linkSpan(_ links: [StationLink], shown: Bool, around time: Double) -> Range<Double> {
         guard shown else {
             return -Double.infinity..<Double.infinity

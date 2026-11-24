@@ -63,9 +63,8 @@ public enum Formats {
         return "\(weekdays[parts.weekday! - 1])\(dayFirst ? " \(day) \(month)" : ", \(month) \(day)")"
     }
 
-    /// "19 Jun 2026" or "Jun 19, 2026": a day as ISO 8601 gives it, in the region's
-    /// order of day and month, as the web app's `formatDate`. Text that is no date comes
-    /// back as it is.
+    /// "19 Jun 2026" or "Jun 19, 2026", of an ISO 8601 day in the region's order of day and
+    /// month: the web app's `formatDate`. Text that is no date comes back as it is.
     public static func date(_ iso: String) -> String {
         let digits = iso.prefix(10).split(separator: "-").compactMap { Int($0) }
         guard digits.count == 3, (1...12).contains(digits[1]) else {

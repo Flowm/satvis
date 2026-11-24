@@ -379,8 +379,6 @@ extension View {
     }
 }
 
-/// A panel's Track, or Stop tracking while it is followed: the camera flies there,
-/// or back. None in the sky view, which follows nothing: the web app hides Track there.
 /// Replays the newest overpass the panel's Passes table records by day, with its granules.
 private struct ReplayLatestButton: View {
     let session: Session
@@ -389,14 +387,15 @@ private struct ReplayLatestButton: View {
     var body: some View {
         if session.observer == nil, let latest = recorded.latest {
             Button("Replay the last imaged overpass", systemImage: "clock.arrow.circlepath") {
-                session.replay.replay(
-                    start: latest.overpass.start, station: latest.station, satellite: latest.satellite, recorded: latest, all: recorded.recorded)
+                session.replay.replay(latest, among: recorded.recorded)
             }
             .help("Replay the last imaged overpass: \(latest.satellite) over \(latest.station)")
         }
     }
 }
 
+/// A panel's Track, or Stop tracking while it is followed: the camera flies there,
+/// or back. None in the sky view, which follows nothing: the web app hides Track there.
 private struct TrackButton: View {
     let session: Session
     let target: Selection
@@ -473,6 +472,11 @@ struct StationPanel: View {
     /// What the active satellites' granule layers recorded over it.
     @State private var recorded = RecordedOverpasses()
 
+    /// The active satellites' granule layers over this station.
+    private var recordedPairs: [RecordedOverpasses.Pair] {
+        RecordedOverpasses.pairs(satellites: session.catalog.activeEntries, stations: [station])
+    }
+
     private static let tabs: [InfoTab] = [.passes, .location]
 
     var body: some View {
@@ -501,18 +505,18 @@ struct StationPanel: View {
             }
             .panelList()
             .alertNotice(session.alerts)
-            .task(id: RecordedOverpasses.pairs(satellites: session.catalog.activeEntries, stations: [station]).map(\.key)) {
-                await recorded.follow(RecordedOverpasses.pairs(satellites: session.catalog.activeEntries, stations: [station]))
+            .task(id: recordedPairs.map(\.key)) {
+                await recorded.follow(recordedPairs)
             }
-            // A replay the globe menu asked for, once this table has listed what it records.
-            .onChange(of: session.replay.latestRequest == station.id && recorded.isSettled, initial: true) { _, ready in
+            // A replay the globe menu asked for, once this table has listed what this
+            // station records: the panel's state outlives a change of station.
+            .onChange(of: session.replay.latestRequest == station.id && recorded.isSettled(for: recordedPairs), initial: true) { _, ready in
                 guard ready else {
                     return
                 }
                 session.replay.latestRequest = nil
                 if let latest = recorded.latest {
-                    session.replay.replay(
-                        start: latest.overpass.start, station: latest.station, satellite: latest.satellite, recorded: latest, all: recorded.recorded)
+                    session.replay.replay(latest, among: recorded.recorded)
                 } else {
                     session.show("Nothing to replay: no overpass by day recorded in the last 30 days.")
                 }

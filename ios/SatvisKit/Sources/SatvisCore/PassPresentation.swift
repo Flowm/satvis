@@ -65,16 +65,10 @@ extension Pass {
     }
 
     /// `MM-DD HH:mm:ss` UTC.
-    public var startLabel: String {
-        let utc = civilDate(epochMilliseconds: start)
-        return "\(two(utc.month))-\(two(utc.day)) \(two(utc.hour)):\(two(utc.minute)):\(two(utc.second))"
-    }
+    public var startLabel: String { dayTimeLabel(start) }
 
     /// `HH:mm:ss` UTC.
-    public var endLabel: String {
-        let utc = civilDate(epochMilliseconds: end)
-        return "\(two(utc.hour)):\(two(utc.minute)):\(two(utc.second))"
-    }
+    public var endLabel: String { timeLabel(end) }
 
     /// How long until it starts, at the precision it is read at: "3 h 27 m",
     /// "42 s", "ongoing", "ended".
@@ -199,4 +193,16 @@ public struct PassTimelineLayout: Sendable {
 /// At least two digits, zero-padded.
 func two(_ value: Int) -> String {
     value < 10 ? "0\(value)" : "\(value)"
+}
+
+/// `MM-DD HH:mm:ss` UTC, of epoch milliseconds.
+func dayTimeLabel(_ ms: Double) -> String {
+    let utc = civilDate(epochMilliseconds: ms)
+    return "\(two(utc.month))-\(two(utc.day)) \(timeLabel(ms))"
+}
+
+/// `HH:mm:ss` UTC, of epoch milliseconds.
+func timeLabel(_ ms: Double) -> String {
+    let utc = civilDate(epochMilliseconds: ms)
+    return "\(two(utc.hour)):\(two(utc.minute)):\(two(utc.second))"
 }

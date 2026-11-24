@@ -374,7 +374,7 @@ async function loadPicture(drawn: GranuleLayer, pictures: GranulePictures, granu
 }
 
 /** Where a granule's picture is cut from its frame, in what projection, and its pixels. */
-interface PictureCut {
+export interface PictureCut {
   /** Degrees, or for a polar picture metres from the pole. */
   bounds: PreviewBounds;
   /** Pixels. */
@@ -394,7 +394,7 @@ function keptWidth(wanted: number): number {
 }
 
 /** A granule's plate carrée picture: its extent, and a kept one's pixels by its size. */
-function plateCarreeCut(extent: PreviewBounds, kept: boolean): PictureCut {
+export function plateCarreeCut(extent: PreviewBounds, kept: boolean): PictureCut {
   // A box across the antimeridian runs past 180° east, which the shader samples by adding a
   // turn to the longitudes west of it.
   const west = extent.west < -180 ? extent.west + 360 : extent.west;
@@ -410,7 +410,7 @@ function plateCarreeCut(extent: PreviewBounds, kept: boolean): PictureCut {
 }
 
 /** A granule's polar stereographic picture, about its nearer pole: its box there, and a kept picture's pixels. */
-function polarCut(granule: Granule): PictureCut {
+export function polarCut(granule: Granule): PictureCut {
   const projection = granuleCentre(granule).latitude < 0 ? ANTARCTIC : ARCTIC;
   const points = edgePoints(granule).map((point) => toPolar(projection, point));
   const xs = points.map(({ x }) => x);

@@ -56,7 +56,6 @@ struct GlobeMenu: View {
                 Divider()
                 item("Look up from here", image: .lucideTelescope) { session.lookUp(from: place) }
             case .station(let id):
-                // Its panel replays the newest overpass imaged by day there, once its Passes table has listed them.
                 item("Replay latest overpass", systemImage: "clock.arrow.circlepath") {
                     session.replay.latestRequest = id
                     tab = .passes

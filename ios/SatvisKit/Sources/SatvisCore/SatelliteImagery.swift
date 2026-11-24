@@ -76,6 +76,14 @@ extension SatelliteDetails {
     public struct GranulePictures: Sendable, Hashable {
         public enum Provider: String, Sendable {
             case gibs, eumetview
+
+            /// The same provider, as one of tiles.
+            public var tiles: ImageryPreview.Provider {
+                switch self {
+                case .gibs: .gibs
+                case .eumetview: .eumetview
+                }
+            }
         }
 
         /// A frame a granule, named by its start (GIBS's granule layers); a frame a UTC
@@ -96,6 +104,28 @@ extension SatelliteDetails {
             self.layer = layer
             self.frame = frame
         }
+
+        /// GIBS's credit, as the web app words it.
+        public static let gibsCredit = "NASA Global Imagery Browse Services for EOSDIS"
+
+        /// What a picture of these from `year` owes, as the web app's granule layers credit
+        /// it: GIBS, or the satellite series EUMETSAT's data policy and the Copernicus legal
+        /// notice ask for (`eumetViewCredit`).
+        public func credit(year: Int) -> String {
+            switch provider {
+            case .gibs: Self.gibsCredit
+            case .eumetview:
+                if layer.hasPrefix("copernicus:") {
+                    "Contains modified Copernicus Sentinel data \(year) processed by EUMETSAT"
+                } else if layer.hasPrefix("eps:") {
+                    "Contains modified EUMETSAT Metop data \(year)"
+                } else if layer.hasPrefix("msg_") || layer.hasPrefix("mtg_") {
+                    "Contains modified EUMETSAT Meteosat data \(year)"
+                } else {
+                    "EUMETSAT"
+                }
+            }
+        }
     }
 
     /// A layer the globe draws granule by granule (ADR 0023): a GIBS layer of a granule a
@@ -104,6 +134,14 @@ extension SatelliteDetails {
     public struct GranuleLayer: Sendable, Hashable {
         public enum Provider: String, Sendable {
             case gibs, eumetview, cmr
+
+            /// The provider of a layer whose own pictures these are.
+            init(_ pictures: GranulePictures.Provider) {
+                switch pictures {
+                case .gibs: self = .gibs
+                case .eumetview: self = .eumetview
+                }
+            }
         }
 
         /// `provider:layer`, which names it in a link.
@@ -249,7 +287,7 @@ extension SatelliteDetails {
         if let pictures, pictures.frame != .granule {
             // Cut from another layer's frames: its frame of the newest granule.
             preview = ImageryPreview(
-                provider: pictures.provider == .gibs ? .gibs : .eumetview, layer: pictures.layer, maxLevel: 0, format: .jpeg, isDaily: pictures.frame == .day, end: nil,
+                provider: pictures.provider.tiles, layer: pictures.layer, maxLevel: 0, format: .jpeg, isDaily: pictures.frame == .day, end: nil,
                 pictures: pictures)
         }
         return (
@@ -288,7 +326,6 @@ extension SatelliteDetails {
             return nil
         }
         let tiles = ImageryPreview(provider: drawing, layer: layer, maxLevel: Int(maxLevel), format: format, isDaily: isDaily, end: end)
-        // A GIBS granule layer has a frame a granule; a EUMETView one says when its frame of a granule is stamped.
         let own: GranulePictures? =
             switch drawing {
             case .gibs: GranulePictures(provider: .gibs, layer: layer, frame: .granule)
@@ -300,7 +337,7 @@ extension SatelliteDetails {
             return (tiles.token, tiles, nil)
         }
         let granules = GranuleLayer(
-            token: tiles.token, provider: drawing == .gibs ? .gibs : .eumetview, layer: layer, granules: collections, platform: platform, pictures: own,
+            token: tiles.token, provider: .init(own.provider), layer: layer, granules: collections, platform: platform, pictures: own,
             maxLevel: Int(maxLevel), format: format)
         return (tiles.token, tiles, granules)
     }
@@ -547,9 +584,8 @@ extension SatelliteDetails {
             guard var row = rows[key] else {
                 continue
             }
-            // Stable, as the web's `Array.prototype.sort`.
             let rank = { (cell: ImageryRow.Cell) in ImageryType.order.firstIndex(of: cell.listing.type) ?? 0 }
-            row.cells = row.cells.enumerated().sorted { (rank($0.element), $0.offset) < (rank($1.element), $1.offset) }.map(\.element)
+            row.cells = stableSorted(row.cells) { rank($0) < rank($1) }
             for index in row.cells.indices {
                 let listing = row.cells[index].listing
                 guard let instrument = listing.instrument else {

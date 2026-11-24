@@ -552,15 +552,15 @@ struct MapPanel: View {
 
 /// The Map panel's satellite imagery, the web app's MapImageryLayers (ADR 0021, 0024): the
 /// layers the loaded records carry that have not stopped, in groups by orbit, one group
-/// open at a time, a row a satellite or composite and a button a layer, named by its type.
-/// The list is read off the records, so the panel's first showing loads every group, as
-/// the satellite browser does.
+/// open at a time. The list is read off the records, so the panel's first showing loads
+/// every group, as the satellite browser does.
 private struct SatelliteImagerySection: View {
     let catalog: CatalogModel
     let imagery: InstrumentImagery
     let clock: ViewerClock
     let onShow: (CatalogEntry) -> Void
-    @State private var isLoading = false
+    /// Whether `loadAll` has returned, loaded or not.
+    @State private var loaded = false
     /// The info panel's tab, the Imagery tab once a row's button is pressed.
     @AppStorage("infoPanelTab") private var tab = InfoTab.orbit
 
@@ -569,12 +569,11 @@ private struct SatelliteImagerySection: View {
         // list does not go through every record again.
         SatelliteImageryList(
             listings: SatelliteDetails.imageryListings(catalog.catalog.entries.values.map(\.record)), imagery: imagery, clock: clock,
-            isLoading: isLoading, onShow: show
+            isLoading: !loaded && !catalog.isAllLoaded, onShow: show
         )
         .task {
-            isLoading = true
             await catalog.loadAll()
-            isLoading = false
+            loaded = true
         }
     }
 
@@ -606,6 +605,8 @@ private struct SatelliteImageryList: View {
     typealias Listing = SatelliteDetails.ImageryListing
 
     var body: some View {
+        // The groups wait for every group, so that no header or row moves as the rest arrive.
+        let listings = isLoading ? [] : listings
         let listed = Set(listings.map(\.token))
         let groups = Listing.Group.allCases.compactMap { key -> (key: Listing.Group, rows: [SatelliteDetails.ImageryRow], shown: Int)? in
             let layers = listings.filter { $0.group == key }
@@ -681,10 +682,8 @@ private struct SatelliteImageryList: View {
         }
     }
 
-    /// A satellite or composite, "METEOSAT-12", not "METEOSAT-12 (MTG-I1)", which opens its
-    /// Imagery tab or a menu of its satellites, and a button a layer, named by its type; a
-    /// satellite's second layer of a type only while it is on. A passes layer on with the
-    /// clock past its newest pass has the notice under them.
+    /// A satellite or composite, "METEOSAT-12", not "METEOSAT-12 (MTG-I1)", and a button a
+    /// layer; a satellite's second layer of a type only while it is on.
     private func row(_ row: SatelliteDetails.ImageryRow, open: Listing.Group?) -> some View {
         let isOn = row.cells.contains { imagery.isShown($0.listing.token) }
         return VStack(alignment: .leading, spacing: 4) {
@@ -695,11 +694,7 @@ private struct SatelliteImageryList: View {
                 }
             }
             ForEach(row.cells.filter { $0.listing.type == .passes && imagery.isShown($0.listing.token) }, id: \.listing.key) { cell in
-                TimelineView(.periodic(from: .now, by: 1)) { _ in
-                    if latest.isPastNewest(cell.listing.token, time: clock.now()), let newest = latest.latest[cell.listing.token]?.pictured {
-                        PassNotice(newest: newest.start) { latest.goToNewest(cell.listing.token, clock: clock) }
-                    }
-                }
+                PassNotice(latest: latest, key: cell.listing.token, clock: clock)
             }
         }
         .foregroundStyle(isOn ? Color.panelInk : .primary)
@@ -740,6 +735,7 @@ private struct SatelliteImageryList: View {
         }
     }
 
+    /// A row's button for one layer, named by its type, which shows or hides it.
     private func typeButton(_ row: SatelliteDetails.ImageryRow, _ cell: SatelliteDetails.ImageryRow.Cell, open: Listing.Group?) -> some View {
         let layer = cell.listing
         let isShown = imagery.isShown(layer.token)

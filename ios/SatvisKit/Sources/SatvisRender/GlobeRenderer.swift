@@ -115,8 +115,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
 
     /// The satellites whose own granule layer is on: tracking one chases its swath
-    /// (ADR 0023). The tracked satellite is tracked again, into the chase or out of
-    /// it, when it joins or leaves them.
+    /// (ADR 0023).
     var chasing: Set<String> = [] {
         didSet {
             if case .tracking(let id) = cameraMode, chasing.contains(id) != chasesTracked {
@@ -126,10 +125,12 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     }
     /// Whether what is tracked was tracked into the chase.
     private var chasesTracked = false
+    /// A broadcast waiting for its satellite (`startBroadcast`).
+    private var pendingBroadcast: PendingBroadcast?
 
-    /// Whether the system asks for reduced motion, which cuts the flights the
-    /// renderer starts by itself.
-    static var reducesMotion: Bool {
+    /// Whether the user asked for less motion, which cuts the flights the renderer
+    /// starts by itself, and the app's.
+    public static var reducesMotion: Bool {
         #if canImport(UIKit)
             UIAccessibility.isReduceMotionEnabled
         #else
@@ -145,7 +146,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     private let pipelines: ScenePipelines
     private let overlay: GroundOverlay
     /// The granules replayed behind the clock, and the ground track fans.
-    private let granules: GranuleOverlay
+    private let granules: GranuleFills
     let surface: Surface
     private var imagery: MTLTexture?
     private var stars: MTLTexture?
@@ -278,7 +279,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
             throw RendererError.noDevice
         }
         self.overlay = overlay
-        granules = GranuleOverlay(device: device, queue: queue)
+        granules = GranuleFills(device: device, queue: queue)
         surface = try Surface(device: device, library: libraries.precise, site: URL(string: "https://satvis.space/")!)
         models = SatelliteModels(device: device)
         loop = FrameLoop(queue: queue, faults: faults)
@@ -394,6 +395,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// over the terrain, which the horizon and the eye's height need. `animated`
     /// flies there; without it, as reduced motion asks, the camera cuts.
     func enterSky(_ camera: SkyCamera, animated: Bool) {
+        pendingBroadcast = nil
         rig.enterSky(camera, animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
     }
 
@@ -451,6 +453,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// Follows what has this id. `animated` flies there from where the camera
     /// is, as the web app's Track button does; a link or a double tap cuts.
     func track(_ id: String, animated: Bool) {
+        pendingBroadcast = nil
         chasesTracked = chasing.contains(id)
         rig.track(id, animated: animated, uptime: ProcessInfo.processInfo.systemUptime, model: { self.trackedModel($0) })
     }
@@ -488,27 +491,56 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         return swath.starboardKm + swath.portKm
     }
 
-    /// Holds the camera beyond `station` from the ground track of the satellite
-    /// with this id, turning each frame to keep it in view (ADR 0023); `animated`
-    /// swings in from where the camera is. False where it cannot start now: the
-    /// satellite not drawn or with no place at the clock, the sky view, or the map.
-    /// Runs until `stopBroadcast`, a gesture, tracking, the sky view or a change
-    /// of projection.
-    func startBroadcast(satellite: String, station: GroundPoint, animated: Bool) -> Bool {
-        guard let drawn = points.satellite(satellite),
+    /// Holds the camera beyond `station` from the satellite's ground track, turning to
+    /// keep it in view (ADR 0023); `animated` swings in. Until the satellite is drawn with
+    /// a place at the clock the camera stays, for up to `PendingBroadcast.wait`, then
+    /// flies to `fallback`, as it does at once in the sky view or on the map. Runs until
+    /// `stopBroadcast`, a gesture, tracking, the sky view or a change of projection.
+    func startBroadcast(satellite: String, station: GroundPoint, fallback: CameraView, animated: Bool) {
+        let pending = PendingBroadcast(
+            satellite: satellite, station: station, fallback: fallback, animated: animated, start: ProcessInfo.processInfo.systemUptime)
+        pendingBroadcast = nil
+        guard rig.canBroadcast else {
+            fly(to: fallback, animated: animated)
+            return
+        }
+        if !beginBroadcast(pending) {
+            pendingBroadcast = pending
+            pacer.needsDraw = true
+        }
+    }
+
+    /// Starts `pending`'s broadcast if its satellite is drawn with a place at the clock.
+    private func beginBroadcast(_ pending: PendingBroadcast) -> Bool {
+        guard let drawn = points.satellite(pending.satellite),
             let camera = BroadcastCamera(
-                satellite: satellite, station: station, swathKm: Self.swathKm(drawn), now: clock(0),
-                position: { self.points.position(of: satellite, at: $0) })
+                satellite: pending.satellite, station: pending.station, swathKm: Self.swathKm(drawn), now: clock(0),
+                position: { self.points.position(of: pending.satellite, at: $0) })
         else {
             return false
         }
         pacer.needsDraw = true
-        return rig.startBroadcast(camera, animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
+        return rig.startBroadcast(camera, animated: pending.animated, uptime: ProcessInfo.processInfo.systemUptime)
+    }
+
+    /// Starts the waiting broadcast, or flies to its fallback once it has waited too long.
+    private func settlePendingBroadcast(uptime: Double) {
+        guard let pending = pendingBroadcast else {
+            return
+        }
+        if beginBroadcast(pending) {
+            pendingBroadcast = nil
+        } else if pending.hasLapsed(at: uptime) {
+            fly(to: pending.fallback, animated: pending.animated)
+        } else {
+            pacer.needsDraw = true
+        }
     }
 
     /// Ends the broadcast, flying to the free camera over where it looks, which can
-    /// only look straight down; nothing where none runs.
+    /// only look straight down; nothing where none runs. Drops one still waiting.
     func stopBroadcast() {
+        pendingBroadcast = nil
         guard rig.isBroadcasting else {
             return
         }
@@ -516,8 +548,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         pacer.needsDraw = true
     }
 
-    /// The view to fly back to with `fly(to:)` (`CameraRig.currentView`); nil
-    /// before the view has a size.
+    /// The view for `fly(to:)` (`CameraRig.currentView`); nil before the view has a size.
     func currentView() -> CameraView? {
         rig.currentView()
     }
@@ -526,6 +557,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// two seconds; without `animated`, as reduced motion asks, the camera cuts. Not
     /// in the sky view.
     func fly(to view: CameraView, animated: Bool) {
+        pendingBroadcast = nil
         rig.fly(to: view, animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
         pacer.needsDraw = true
     }
@@ -534,6 +566,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// flies there; without it, as reduced motion asks, the camera cuts. Not
     /// from the sky view, which `leaveSky` leaves first.
     func flyHome(animated: Bool) {
+        pendingBroadcast = nil
         rig.flyHome(animated: animated, uptime: ProcessInfo.processInfo.systemUptime)
     }
 
@@ -541,6 +574,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
     /// `animated` fades the one into the other; without it, as reduced motion
     /// asks, it cuts.
     func setProjection(_ projection: GlobeProjection, animated: Bool) {
+        pendingBroadcast = nil
         rig.setProjection(projection, animated: animated)
         pacer.needsDraw = true
     }
@@ -657,6 +691,7 @@ public final class GlobeRenderer: NSObject, MTKViewDelegate {
         let shown = loop.predict(view, at: started, refresh: 1 / Double(Self.displayMaximumFramesPerSecond))
         let now = clock(shown - ProcessInfo.processInfo.systemUptime)
         let size = SIMD2(Double(hdr.width), Double(hdr.height))
+        settlePendingBroadcast(uptime: shown)
         let pose = rig.pose(
             uptime: shown, time: now, model: { self.trackedModel($0) },
             target: { self.position(of: $0, at: $1) }, groundHeight: { self.surface.groundHeight($0) })

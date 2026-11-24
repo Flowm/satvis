@@ -79,6 +79,11 @@ public struct Catalog: Sendable {
     /// The tags each group was last added with, which its entries carry.
     private var groupTags: [String: Set<String>] = [:]
 
+    /// Whether the group with this name has been added.
+    public func hasGroup(_ name: String) -> Bool {
+        groupTags[name] != nil
+    }
+
     /// Adds a group's records, or newer element sets for satellites already known:
     /// two groups serving one satellite may lag each other, and the newer epoch
     /// wins. A group's records are the whole group: a satellite it no longer

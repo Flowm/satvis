@@ -2,21 +2,18 @@ import Foundation
 import SatvisCore
 import simd
 
-// Where the camera watches a satellite's swath from (ADR 0023): the chase that
-// tracking takes while the recorded swath is on, the broadcast camera of an overpass
-// replay, and the views a replay flies to and back from. The web app's
-// src/modules/ReplayCamera.ts.
+// Where the camera watches a satellite's swath from (ADR 0023): the chase, the broadcast
+// camera of an overpass replay, and the views a replay flies to and back from. The web
+// app's src/modules/ReplayCamera.ts.
 
-/// A view the camera can fly back to (`GlobeRenderer.currentView`): the free camera
-/// over the globe, and on the map the map's.
+/// A view the camera can fly back to (`GlobeRenderer.currentView`).
 public struct CameraView: Sendable, Equatable {
     /// The free camera over the globe; on the map, the one over the map's place.
     let globe: OrbitCamera
-    /// The free camera over the map, where the view was taken on it.
+    /// Set where the view was taken on the map.
     let map: MapCamera?
 
-    /// Straight down on a place, in degrees, north up, from `height` metres above
-    /// the ellipsoid.
+    /// Straight down on a place in degrees, north up, `height` metres above the ellipsoid.
     static func over(latitude: Double, longitude: Double, height: Double) -> CameraView {
         let ground = fixedPosition(latitude: latitude, longitude: longitude)
         let up = eastNorthUp(latitude: latitude * .pi / 180, longitude: longitude * .pi / 180).up
@@ -88,13 +85,9 @@ extension OrbitCamera {
     static func facing(_ pose: CameraPose) -> OrbitCamera {
         let eye = pose.position
         let direction = -pose.back
-        // In a frame where the ellipsoid is the unit sphere.
-        let (origin, scaled) = (eye / ellipsoidRadii, direction / ellipsoidRadii)
-        let (a, b, c) = (dot(scaled, scaled), 2 * dot(origin, scaled), dot(origin, origin) - 1)
-        let discriminant = b * b - 4 * a * c
-        let t = discriminant >= 0 ? (-b - discriminant.squareRoot()) / (2 * a) : -1
-        let place = geodeticPosition(t > 0 ? eye + t * direction : eye)
-        let altitude = t > 0 ? t : place.height
+        let t = distanceToEllipsoid(from: eye, along: direction)
+        let place = geodeticPosition(t.map { eye + $0 * direction } ?? eye)
+        let altitude = t ?? place.height
         let (east, north, _) = eastNorthUp(latitude: place.latitude, longitude: place.longitude)
         // Up the screen once looking straight down: its up, or where it looks level, ahead.
         let screenUp = pose.up - pose.back
@@ -108,7 +101,7 @@ extension OrbitCamera {
 /// turning each frame to keep the satellite in view as it passes, the web app's
 /// `BroadcastCamera`. It swings in from the pose it started from.
 struct BroadcastCamera {
-    /// What it follows: a satellite's id.
+    /// A satellite's id.
     let satellite: String
     /// Where it is held, in the fixed frame.
     let eye: SIMD3<Double>
@@ -124,7 +117,7 @@ struct BroadcastCamera {
     /// How far up from the ground under the satellite it aims, as a share of the
     /// satellite's height: the satellite and its fresh swath both in view.
     static let aimHeightShare = 0.15
-    /// Seconds the swing in takes, as every replay camera's: `PoseFlight.duration`.
+    /// Seconds, as every replay camera's swing.
     static let swingDuration = PoseFlight.duration
 
     /// Beyond `station` from the ground track of `satellite`, whose swath is
@@ -190,5 +183,26 @@ struct BroadcastCamera {
             }
         }
         return pose
+    }
+}
+
+/// A broadcast asked for before its satellite has a place at the clock: one a replay
+/// has just turned on is drawn a few frames later, and the samples of a time the clock
+/// has jumped to come after. The web app's `trackWhenReady`, which waits without end.
+struct PendingBroadcast {
+    let satellite: String
+    let station: GroundPoint
+    /// Where the camera flies once it has waited `wait` in vain.
+    let fallback: CameraView
+    let animated: Bool
+    /// The uptime it was asked for, in seconds.
+    let start: Double
+
+    /// Seconds it waits for the satellite.
+    static let wait = 5.0
+
+    /// Whether it has waited long enough at `uptime`.
+    func hasLapsed(at uptime: Double) -> Bool {
+        uptime - start > Self.wait
     }
 }

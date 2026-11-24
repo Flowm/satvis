@@ -63,7 +63,7 @@ struct PassesSections: View {
             }
             .opacity(settled ? 1 : 0.4)
             if let latest = recorded.latest {
-                LastImaged(entry: latest) { replayRecorded(latest) }
+                LastImaged(entry: latest) { replay.replay(latest, among: overpasses) }
             }
             HStack(spacing: 16) {
                 // Here even when the list is empty: swath mode over a station the
@@ -125,7 +125,7 @@ struct PassesSections: View {
                         pass: pass, now: now, subject: subjects.count > 1 ? subjectName(pass) : nil, isNext: pass == next, isPicked: pass.start == picked,
                         mark: mark
                     ) {
-                        replay.replay(start: pass.start, station: pass.station, satellite: pass.satelliteName, recorded: entry, all: overpasses)
+                        replay.replay(pass, recorded: entry, among: overpasses)
                     }
                     .task(id: entry?.id) {
                         if let entry {
@@ -134,7 +134,7 @@ struct PassesSections: View {
                     }
                 case .recorded(let entry):
                     RecordedRow(entry: entry, now: now, subject: subjects.count > 1 || isStation ? recordedName(entry) : nil, mark: mark) {
-                        replayRecorded(entry)
+                        replay.replay(entry, among: overpasses)
                     }
                     .task(id: entry.id) {
                         await recorded.ask(entry)
@@ -162,11 +162,6 @@ struct PassesSections: View {
             return (passes, self.passes.mode)
         }
         return held.subject == subjectID ? (held.passes, held.mode) : nil
-    }
-
-    /// Replays a recorded overpass as its row would.
-    private func replayRecorded(_ entry: RecordedOverpass) {
-        replay.replay(start: entry.overpass.start, station: entry.station, satellite: entry.satellite, recorded: entry, all: recorded.recorded)
     }
 
     private var isStation: Bool {

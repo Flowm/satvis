@@ -270,7 +270,10 @@ what a satellite records as it flies.
   the Data Store, with its replay bar, cameras, recorded passes and sensed spans. Its globe
   is a baked surface, so it fills granules in its globe shader from their outlines rather
   than as ground primitives, and keeps every granule's picture, at most 1,024 pixels
-  across, where the web app draws a passed GIBS granule from its tiles.
+  across, where the web app draws a passed GIBS granule from its tiles. As it keeps the
+  picture, it asks again for one that failed three times, up to five rounds 20 s apart:
+  GIBS's WMS answered about two requests in three with a MapServer error page on
+  2026-11-24, for minutes on end.
 - **The Map panel lists the layer under the LEO satellites**, as any other: shown from
   there it follows the clock as here, without the replay's clock and camera.
 

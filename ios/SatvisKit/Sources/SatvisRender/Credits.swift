@@ -16,7 +16,10 @@ public struct Credit: Hashable, Sendable {
     /// every base map, the base map, and the terrain where it is on, with the
     /// sources its `layer.json` credits. `mosaic` is the attribution the geostationary
     /// mosaic's drawn frame asks for, a line a satellite, while it is drawn.
-    public static func map(baseLayer: BaseLayer, terrain: Bool, instrumentImagery: [SatelliteDetails.ImageryPreview.Provider] = [], mosaic: [String] = []) -> [Credit] {
+    /// `pictures` are what the granule pictures on screen owe (`picture(_:at:)`).
+    public static func map(
+        baseLayer: BaseLayer, terrain: Bool, instrumentImagery: [SatelliteDetails.ImageryPreview.Provider] = [], mosaic: [String] = [], pictures: [Credit] = []
+    ) -> [Credit] {
         var credits = [Credit("Imagery courtesy Natural Earth", link: "https://www.naturalearthdata.com")]
         if baseLayer == .versaTiles {
             credits.append(Credit("VersaTiles sources", link: "https://versatiles.org/sources/"))
@@ -26,10 +29,13 @@ public struct Credit: Hashable, Sendable {
         }
         // The base map's or the instrument imagery's, once, as the web app's layers credit them.
         if baseLayer == .blackMarble || instrumentImagery.contains(.gibs) {
-            credits.append(Credit("NASA Global Imagery Browse Services for EOSDIS", link: "https://earthdata.nasa.gov/gibs"))
+            credits.append(.gibs)
         }
         if instrumentImagery.contains(.eumetview) {
-            credits.append(Credit("EUMETSAT", link: "https://view.eumetsat.int"))
+            credits.append(Credit("EUMETSAT", link: Self.eumetViewLink))
+        }
+        for credit in pictures where !credits.contains(credit) {
+            credits.append(credit)
         }
         if terrain {
             credits += [
@@ -42,6 +48,20 @@ public struct Credit: Hashable, Sendable {
         }
         return credits
     }
+
+    /// What a granule picture of `pictures` owes with the clock at `time`, in UTC
+    /// milliseconds (`GranulePictures.credit`).
+    public static func picture(_ pictures: SatelliteDetails.GranulePictures, at time: Double) -> Credit {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .gmt
+        let year = calendar.component(.year, from: Date(timeIntervalSince1970: time / 1000))
+        return pictures.provider == .gibs ? .gibs : Credit(pictures.credit(year: year), link: eumetViewLink)
+    }
+
+    /// GIBS's, which its base map and its layers owe.
+    static let gibs = Credit(SatelliteDetails.GranulePictures.gibsCredit, link: "https://earthdata.nasa.gov/gibs")
+    /// EUMETView, where its layers come from.
+    private static let eumetViewLink = "https://view.eumetsat.int"
 
     /// The one source whose terms want its name in sight of the map, not only in a
     /// list behind it: the OpenStreetMap Foundation's attribution guidelines, for

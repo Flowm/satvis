@@ -27,18 +27,20 @@ final class RecordedOverpasses {
     private var pixels: [String: [Bool]] = [:]
     @ObservationIgnored private var askedPixels: Set<String> = []
 
-    /// Every pair's overpasses once listed, shared by every table: a panel opened again
-    /// asks nothing.
-    private static var listed: [String: [RecordedOverpass]] = [:]
+    /// Every pair's overpasses as last listed, and when, shared by every table: a panel
+    /// opened again within `relist` asks nothing.
+    private static var listed: [String: (time: Date, entries: [RecordedOverpass])] = [:]
+    /// Seconds a listing is kept: CMR lists a granule hours after it is sensed.
+    private static let relist: TimeInterval = 600
 
     /// Every overpass listed, of every pair asked about.
     var recorded: [RecordedOverpass] {
         asked.flatMap { byPair[$0] ?? [] }
     }
 
-    /// Every pair asked about has answered, or failed to.
-    var isSettled: Bool {
-        asked.allSatisfy { byPair[$0] != nil }
+    /// Whether `follow` is on these pairs, and every one has answered or failed to.
+    func isSettled(for pairs: [Pair]) -> Bool {
+        asked == pairs.map(\.key) && asked.allSatisfy { byPair[$0] != nil }
     }
 
     /// The newest overpass recorded by day, which the header button and Last imaged replay.
@@ -57,26 +59,37 @@ final class RecordedOverpasses {
         }
     }
 
-    /// Lists each pair's overpasses, those not listed before, until cancelled.
+    /// Lists each pair's overpasses, those not listed within `relist`, and again each
+    /// `relist`, until cancelled.
     func follow(_ pairs: [Pair]) async {
         asked = pairs.map(\.key)
-        byPair = Dictionary(uniqueKeysWithValues: pairs.compactMap { pair in Self.listed[pair.key].map { (pair.key, $0) } })
-        let now = Date().timeIntervalSince1970 * 1000
-        await withTaskGroup(of: (Pair, [Overpass]?).self) { group in
-            for pair in pairs where Self.listed[pair.key] == nil {
-                group.addTask { (pair, await GranuleService.shared.stationOverpasses(pair.layer, point: pair.point, now: now)) }
-            }
-            for await (pair, overpasses) in group where !Task.isCancelled {
-                // Not kept when it failed, so it is asked again; none for now, so the rest settle.
-                let entries = (overpasses ?? []).map {
-                    RecordedOverpass(pair: pair.key, satellite: pair.satellite, station: pair.station, layer: pair.layer, overpass: $0)
+        byPair = Dictionary(uniqueKeysWithValues: pairs.compactMap { pair in Self.fresh(pair).map { (pair.key, $0) } })
+        while !Task.isCancelled {
+            let now = Date().timeIntervalSince1970 * 1000
+            await withTaskGroup(of: (Pair, [Overpass]?).self) { group in
+                for pair in pairs where Self.fresh(pair) == nil {
+                    group.addTask { (pair, await GranuleService.shared.stationOverpasses(pair.layer, point: pair.point, now: now)) }
                 }
-                if overpasses != nil {
-                    Self.listed[pair.key] = entries
+                for await (pair, overpasses) in group where !Task.isCancelled {
+                    // Not kept when it failed, so it is asked again; none for now, so the rest settle.
+                    let entries = (overpasses ?? []).map {
+                        RecordedOverpass(pair: pair.key, satellite: pair.satellite, station: pair.station, layer: pair.layer, overpass: $0)
+                    }
+                    if overpasses != nil {
+                        Self.listed[pair.key] = (Date(), entries)
+                    }
+                    if overpasses != nil || byPair[pair.key] == nil {
+                        byPair[pair.key] = entries
+                    }
                 }
-                byPair[pair.key] = entries
             }
+            try? await Task.sleep(for: .seconds(Self.relist))
         }
+    }
+
+    /// The pair's overpasses, if listed within `relist`.
+    private static func fresh(_ pair: Pair) -> [RecordedOverpass]? {
+        listed[pair.key].flatMap { Date().timeIntervalSince($0.time) < relist ? $0.entries : nil }
     }
 
     /// What the overpass shows, once `ask` has had its pictures' answer.
@@ -100,60 +113,5 @@ final class RecordedOverpasses {
             }
         }
         pixels[entry.id] = answers
-    }
-}
-
-/// A row of the Passes table: a predicted pass with the overpass recorded in it, or a
-/// recorded overpass by day the predictor no longer has. The web app's `passTable`.
-enum PassTableRow: Identifiable {
-    case pass(Pass, recorded: RecordedOverpass?)
-    case recorded(RecordedOverpass)
-
-    var id: String {
-        switch self {
-        case .pass(let pass, _): "\(pass.satellite)|\(pass.stationID)|\(pass.start)"
-        case .recorded(let entry): "recorded-\(entry.id)"
-        }
-    }
-
-    var start: Double {
-        switch self {
-        case .pass(let pass, _): pass.start
-        case .recorded(let entry): entry.overpass.start
-        }
-    }
-
-    var recorded: RecordedOverpass? {
-        switch self {
-        case .pass(_, let recorded): recorded
-        case .recorded(let entry): entry
-        }
-    }
-
-    /// Each pass with what was recorded in it, and with `past` the recorded overpasses by
-    /// day before `now` that no pass is, as the predictor looks back a day and the
-    /// catalogue a month. By start.
-    static func table(_ passes: [Pass], recorded: [RecordedOverpass], now: Double, past: Bool) -> [PassTableRow] {
-        let match = { (pass: Pass, among: [RecordedOverpass]) in
-            RecordedOverpass.matching(satellite: pass.satelliteName, station: pass.station, start: pass.start, end: pass.end, in: among)
-        }
-        var used = Set<String>()
-        var table = passes.map { pass -> PassTableRow in
-            let found = match(pass, recorded)
-            if let found {
-                used.insert(found.id)
-            }
-            return .pass(pass, recorded: found)
-        }
-        guard past else {
-            return table
-        }
-        for entry in recorded where !used.contains(entry.id) && entry.isDay && entry.overpass.start <= now {
-            // One a pass overlaps is that pass, even where the pass took a closer one.
-            if !passes.contains(where: { match($0, [entry]) != nil }) {
-                table.append(.recorded(entry))
-            }
-        }
-        return table.enumerated().sorted { $0.element.start < $1.element.start || ($0.element.start == $1.element.start && $0.offset < $1.offset) }.map(\.element)
     }
 }

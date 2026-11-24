@@ -107,48 +107,48 @@ import simd
         let plane = try #require(ScanPlane(position: Self.northbound.position, next: Self.northbound.next))
         let drawing = GranuleDrawing(id: "a", satellite: "NOAA 20", start: 0, end: 360_000, outline: Self.box, state: .waiting)
         let noSlot: (ObjectIdentifier) -> Int32? = { _ in nil }
-        #expect(GranuleOverlay.shape(drawing, outline: outline, cornerStart: 0, stage: .before, slot: noSlot) == nil)
+        #expect(GranuleFills.shape(drawing, outline: outline, cornerStart: 0, stage: .before, slot: noSlot) == nil)
 
-        let sweeping = try #require(GranuleOverlay.shape(drawing, outline: outline, cornerStart: 3, stage: .sweeping(plane), slot: noSlot))
+        let sweeping = try #require(GranuleFills.shape(drawing, outline: outline, cornerStart: 3, stage: .sweeping(plane), slot: noSlot))
         #expect(sweeping.scan.z > 0.99)
         #expect(abs(sweeping.scan.w) < 1e5)
-        #expect(sweeping.tint == GranuleOverlay.tint)
+        #expect(sweeping.tint == GranuleFills.tint)
         #expect(sweeping.outline.w == 0)
         #expect(sweeping.picture == -1)
         #expect((sweeping.cornerStart, sweeping.cornerCount) == (3, 4))
 
-        let passed = try #require(GranuleOverlay.shape(drawing, outline: outline, cornerStart: 0, stage: .passed, slot: noSlot))
+        let passed = try #require(GranuleFills.shape(drawing, outline: outline, cornerStart: 0, stage: .passed, slot: noSlot))
         #expect(passed.scan == SIMD4())
-        #expect(passed.outline == GranuleOverlay.outlineColor)
-        #expect(passed.tint == GranuleOverlay.tint)
+        #expect(passed.outline == GranuleFills.outlineColor)
+        #expect(passed.tint == GranuleFills.tint)
 
         var missing = drawing
         missing.state = .missing
-        let grey = try #require(GranuleOverlay.shape(missing, outline: outline, cornerStart: 0, stage: .passed, slot: noSlot))
-        #expect(grey.outline == GranuleOverlay.missingOutlineColor)
-        #expect(grey.tint == GranuleOverlay.missingTint)
+        let grey = try #require(GranuleFills.shape(missing, outline: outline, cornerStart: 0, stage: .passed, slot: noSlot))
+        #expect(grey.outline == GranuleFills.missingOutlineColor)
+        #expect(grey.tint == GranuleFills.missingTint)
 
         var replaced = drawing
         replaced.keepsFill = false
-        let outlineOnly = try #require(GranuleOverlay.shape(replaced, outline: outline, cornerStart: 0, stage: .passed, slot: noSlot))
+        let outlineOnly = try #require(GranuleFills.shape(replaced, outline: outline, cornerStart: 0, stage: .passed, slot: noSlot))
         #expect(outlineOnly.tint.w == 0)
         #expect(outlineOnly.picture == -1)
-        #expect(try #require(GranuleOverlay.shape(replaced, outline: outline, cornerStart: 0, stage: .sweeping(plane), slot: noSlot)).tint.w > 0)
+        #expect(try #require(GranuleFills.shape(replaced, outline: outline, cornerStart: 0, stage: .sweeping(plane), slot: noSlot)).tint.w > 0)
 
         let image = try #require(Self.image(red: 1, green: 0, blue: 0))
         var pictured = drawing
         pictured.state = .pictured
         pictured.picture = GranulePicture(image: image, bounds: SatelliteDetails.PreviewBounds(west: -6, south: -6, east: 6, north: 6))
-        let picture = try #require(GranuleOverlay.shape(pictured, outline: outline, cornerStart: 0, stage: .passed, slot: { _ in 2 }))
+        let picture = try #require(GranuleFills.shape(pictured, outline: outline, cornerStart: 0, stage: .passed, slot: { _ in 2 }))
         #expect(picture.picture == 2)
         #expect(picture.tint.w == 0)
         #expect(abs(picture.bounds.z - Float(6 * Double.pi / 180)) < 1e-6)
         // Until its texture is made, the tint.
-        #expect(try #require(GranuleOverlay.shape(pictured, outline: outline, cornerStart: 0, stage: .passed, slot: noSlot)).tint == GranuleOverlay.tint)
+        #expect(try #require(GranuleFills.shape(pictured, outline: outline, cornerStart: 0, stage: .passed, slot: noSlot)).tint == GranuleFills.tint)
 
         var polar = pictured
         polar.picture = GranulePicture(image: image, bounds: SatelliteDetails.PreviewBounds(west: -1e6, south: -1e6, east: 1e6, north: 1e6), projection: .arctic)
-        let stereographic = try #require(GranuleOverlay.shape(polar, outline: outline, cornerStart: 0, stage: .passed, slot: { _ in 0 }))
+        let stereographic = try #require(GranuleFills.shape(polar, outline: outline, cornerStart: 0, stage: .passed, slot: { _ in 0 }))
         #expect(stereographic.east.w == 1)
         #expect(abs(Double(stereographic.north.w) - PolarProjection.arctic.radiusScale) < 1)
         #expect(stereographic.bounds.z == 1e6)
@@ -176,7 +176,7 @@ import simd
     // before it begins without its satellite.
     @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func makesThePicturesOfTheGranulesDrawn() async throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
-        let overlay = GranuleOverlay(device: device, queue: try #require(device.makeCommandQueue()))
+        let overlay = GranuleFills(device: device, queue: try #require(device.makeCommandQueue()))
         let points = SatellitePoints()
         let image = try #require(Self.image(red: 0, green: 1, blue: 0))
         let picture = GranulePicture(image: image, bounds: SatelliteDetails.PreviewBounds(west: -6, south: -6, east: 6, north: 6))
@@ -215,7 +215,7 @@ import simd
             return match.flatMap { Int($0.output[1].substring ?? "") }
         }
         #expect(try constant("fanSegments") == ScenePass.fanSegments)
-        #expect(try constant("granulePictureSlots") == GranuleOverlay.pictureSlots)
+        #expect(try constant("granulePictureSlots") == GranuleFills.pictureSlots)
     }
 
     @Test(.enabled(if: MTLCreateSystemDefaultDevice() != nil)) func buildsTheGranuleAndFanPipelines() async throws {
@@ -285,7 +285,7 @@ import simd
             id: "a", satellite: "NOAA 20", start: 0, end: 1, outline: Self.box, state: .pictured,
             picture: GranulePicture(image: image, bounds: SatelliteDetails.PreviewBounds(west: -6, south: -6, east: 6, north: 6)))
         let corners = try #require(device.makeBuffer(copying: outline.corners.map(SIMD2<Float>.init)))
-        let pictures = try #require(device.makeBuffer(length: GranuleOverlay.pictureSlots * MemoryLayout<MTLResourceID>.stride, options: .storageModeShared))
+        let pictures = try #require(device.makeBuffer(length: GranuleFills.pictureSlots * MemoryLayout<MTLResourceID>.stride, options: .storageModeShared))
         pictures.contents().bindMemory(to: MTLResourceID.self, capacity: 1)[0] = red.gpuResourceID
 
         func draw(_ stage: GranuleStage) async throws -> (SIMD2<Int>) -> SIMD4<Float> {
@@ -297,7 +297,7 @@ import simd
             pass.colorAttachments[0].texture = texture
             pass.colorAttachments[0].loadAction = .clear
             pass.colorAttachments[0].storeAction = .store
-            let shape = try #require(GranuleOverlay.shape(drawing, outline: outline, cornerStart: 0, stage: stage, slot: { _ in 0 }))
+            let shape = try #require(GranuleFills.shape(drawing, outline: outline, cornerStart: 0, stage: stage, slot: { _ in 0 }))
             let shapes = try #require(device.makeBuffer(copying: [shape]))
             let commands = try #require(queue.makeCommandBuffer())
             let encoder = try #require(commands.makeRenderCommandEncoder(descriptor: pass))

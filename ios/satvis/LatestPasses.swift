@@ -15,7 +15,7 @@ final class LatestPasses {
     /// every 6 minutes.
     private static let refresh: Duration = .seconds(10 * 60)
 
-    /// Asks for each layer's newest passes, and again every ten minutes, until cancelled.
+    /// Asks for each layer's newest passes, and again each `refresh`, until cancelled.
     func follow(_ layers: [(key: String, layer: SatelliteDetails.GranuleLayer)]) async {
         latest = [:]
         guard !layers.isEmpty else {
