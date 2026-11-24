@@ -20,6 +20,8 @@ struct InfoPanel: View {
     @State private var cardsWidth = 0.0
     /// The newest pass of each of the satellite's granule layers.
     @State private var latestPasses = LatestPasses()
+    /// What its granule layers recorded over each station.
+    @State private var recorded = RecordedOverpasses()
 
     private var propagator: SGP4Propagator? { try? SGP4Propagator(entry.record.meanElements) }
 
@@ -52,7 +54,8 @@ struct InfoPanel: View {
                                 layers: imagery, previews: previews, columns: ImageryCards.columns(width: cardsWidth), session: session, satellite: entry.id,
                                 latest: latestPasses)
                         default:
-                            PassesSections(subject: .satellite(entry), clock: session.clock, passes: session.passes)
+                            PassesSections(
+                                subject: .satellite(entry), clock: session.clock, passes: session.passes, recorded: recorded, replay: session.replay)
                         }
                     }
                     .raisedRows()
@@ -90,6 +93,9 @@ struct InfoPanel: View {
             .task(id: entry.id) {
                 await latestPasses.follow(imagery.compactMap { layer in layer.imagery.granuleLayer.map { (layer.imagery.key, $0) } })
             }
+            .task(id: RecordedOverpasses.pairs(satellites: [entry], stations: session.passes.stations).map(\.key)) {
+                await recorded.follow(RecordedOverpasses.pairs(satellites: [entry], stations: session.passes.stations))
+            }
             // Synchronously, so that no frame shows the last satellite's state on this one.
             .onChange(of: entry.id, initial: true) {
                 unfoldedInstruments = []
@@ -102,6 +108,7 @@ struct InfoPanel: View {
                     title(propagator)
                 } actions: {
                     AlertButton(subject: .satellite(entry.id), satellites: [entry], passes: session.passes, alerts: session.alerts)
+                    ReplayLatestButton(session: session, recorded: recorded)
                     TrackButton(session: session, target: .satellite(entry.id))
                     Button("Close", systemImage: "xmark") { session.select(nil) }
                 }
@@ -119,6 +126,11 @@ struct InfoPanel: View {
                     // The spacer goes with Track, which the sky view lacks.
                     if session.observer == nil {
                         ToolbarSpacer(.fixed, placement: .primaryAction)
+                        if recorded.latest != nil {
+                            ToolbarItem(placement: .primaryAction) {
+                                ReplayLatestButton(session: session, recorded: recorded)
+                            }
+                        }
                         ToolbarItem(placement: .primaryAction) {
                             TrackButton(session: session, target: .satellite(entry.id))
                         }
@@ -369,6 +381,22 @@ extension View {
 
 /// A panel's Track, or Stop tracking while it is followed: the camera flies there,
 /// or back. None in the sky view, which follows nothing: the web app hides Track there.
+/// Replays the newest overpass the panel's Passes table records by day, with its granules.
+private struct ReplayLatestButton: View {
+    let session: Session
+    let recorded: RecordedOverpasses
+
+    var body: some View {
+        if session.observer == nil, let latest = recorded.latest {
+            Button("Replay the last imaged overpass", systemImage: "clock.arrow.circlepath") {
+                session.replay.replay(
+                    start: latest.overpass.start, station: latest.station, satellite: latest.satellite, recorded: latest, all: recorded.recorded)
+            }
+            .help("Replay the last imaged overpass: \(latest.satellite) over \(latest.station)")
+        }
+    }
+}
+
 private struct TrackButton: View {
     let session: Session
     let target: Selection
@@ -442,6 +470,8 @@ struct StationPanel: View {
     @AppStorage("infoPanelTab") private var tab = InfoTab.orbit
     @State private var renaming = false
     @State private var draftName = ""
+    /// What the active satellites' granule layers recorded over it.
+    @State private var recorded = RecordedOverpasses()
 
     private static let tabs: [InfoTab] = [.passes, .location]
 
@@ -458,7 +488,9 @@ struct StationPanel: View {
                             FactRow(label: "Longitude", value: "\(Formats.fixed(station.longitude, 2))°")
                         }
                     default:
-                        PassesSections(subject: .station(station, session.catalog.activeEntries), clock: session.clock, passes: session.passes)
+                        PassesSections(
+                            subject: .station(station, session.catalog.activeEntries), clock: session.clock, passes: session.passes, recorded: recorded,
+                            replay: session.replay)
                     }
                 }
                 .raisedRows()
@@ -469,10 +501,27 @@ struct StationPanel: View {
             }
             .panelList()
             .alertNotice(session.alerts)
+            .task(id: RecordedOverpasses.pairs(satellites: session.catalog.activeEntries, stations: [station]).map(\.key)) {
+                await recorded.follow(RecordedOverpasses.pairs(satellites: session.catalog.activeEntries, stations: [station]))
+            }
+            // A replay the globe menu asked for, once this table has listed what it records.
+            .onChange(of: session.replay.latestRequest == station.id && recorded.isSettled, initial: true) { _, ready in
+                guard ready else {
+                    return
+                }
+                session.replay.latestRequest = nil
+                if let latest = recorded.latest {
+                    session.replay.replay(
+                        start: latest.overpass.start, station: latest.station, satellite: latest.satellite, recorded: latest, all: recorded.recorded)
+                } else {
+                    session.show("Nothing to replay: no overpass by day recorded in the last 30 days.")
+                }
+            }
             #if os(macOS)
                 .cardHeader {
                     title
                 } actions: {
+                    ReplayLatestButton(session: session, recorded: recorded)
                     stationActions
                     skyActions
                     Button("Close", systemImage: "xmark") { session.select(nil) }
@@ -490,6 +539,7 @@ struct StationPanel: View {
                     }
                     ToolbarSpacer(.fixed, placement: .primaryAction)
                     ToolbarItemGroup(placement: .primaryAction) {
+                        ReplayLatestButton(session: session, recorded: recorded)
                         skyActions
                     }
                     ToolbarSpacer(.fixed, placement: .primaryAction)

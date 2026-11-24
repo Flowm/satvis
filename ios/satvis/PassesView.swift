@@ -26,13 +26,17 @@ extension PassSubject {
 }
 
 /// The web app's Passes tab: the next pass as a headline, the timeline strip for a
-/// satellite, the overpass mode, and the list. Tapping a pass moves the clock to
-/// its start.
+/// satellite, the newest overpass imaged, the overpass mode, and the list, with what a
+/// granule layer recorded of each pass (ADR 0023). Tapping a pass replays it.
 struct PassesSections: View {
     let subject: PassSubject
     let clock: ViewerClock
     let passes: PassModel
+    let recorded: RecordedOverpasses
+    let replay: OverpassReplayModel
     @AppStorage("showPastPasses") private var showsPast = false
+    /// Only the passes recorded with a granule layer by day.
+    @State private var onlyImaged = false
     @State private var now = ViewerClock.real()
     /// The pass picked off the strip, by start.
     @State private var picked: Double?
@@ -46,6 +50,8 @@ struct PassesSections: View {
         let subjects = Set(visible.map(subjectName))
         let top = top(all, settled: settled)
         let topVisible = top?.passes.visible(at: now, past: showsPast) ?? []
+        let overpasses = recorded.recorded
+        let table = PassTableRow.table(visible, recorded: overpasses, now: now, past: showsPast).filter { !onlyImaged || $0.recorded?.isDay == true }
         Section {
             Group {
                 if let top, !top.passes.isEmpty, let next = topVisible.first(where: { $0.end >= now }) {
@@ -56,6 +62,9 @@ struct PassesSections: View {
                 }
             }
             .opacity(settled ? 1 : 0.4)
+            if let latest = recorded.latest {
+                LastImaged(entry: latest) { replayRecorded(latest) }
+            }
             HStack(spacing: 16) {
                 // Here even when the list is empty: swath mode over a station the
                 // ground track misses lists nothing, and this is how to undo it.
@@ -73,6 +82,16 @@ struct PassesSections: View {
                 .panelSegmented()
                 Toggle("Past", isOn: $showsPast)
                     .fixedSize()
+                if !overpasses.isEmpty {
+                    Toggle("Imaged", isOn: $onlyImaged)
+                        .fixedSize()
+                }
+            }
+        }
+        // Imaged passes are past ones.
+        .onChange(of: onlyImaged) {
+            if onlyImaged {
+                showsPast = true
             }
         }
         .task(id: clock.clock) {
@@ -94,21 +113,36 @@ struct PassesSections: View {
             } else if all.isEmpty {
                 Text(passes.hasStations ? "No passes in the prediction window" : "No ground station set")
                     .foregroundStyle(.secondary)
-            } else if visible.isEmpty {
-                Text("No upcoming passes")
+            } else if table.isEmpty {
+                Text(onlyImaged ? "No imaged passes" : "No upcoming passes")
                     .foregroundStyle(.secondary)
             }
-            if !visible.isEmpty {
-                ForEach(visible, id: \.self) { pass in
+            ForEach(table) { row in
+                let mark = row.recorded.map { PassImageryMark(imagery: recorded.imagery(of: $0), replays: $0.isDay) }
+                switch row {
+                case .pass(let pass, let entry):
                     PassRow(
-                        pass: pass, now: now, subject: subjects.count > 1 ? subjectName(pass) : nil, isNext: pass == next, isPicked: pass.start == picked
+                        pass: pass, now: now, subject: subjects.count > 1 ? subjectName(pass) : nil, isNext: pass == next, isPicked: pass.start == picked,
+                        mark: mark
                     ) {
-                        clock.scrub(to: pass.start.rounded(.down))
+                        replay.replay(start: pass.start, station: pass.station, satellite: pass.satelliteName, recorded: entry, all: overpasses)
+                    }
+                    .task(id: entry?.id) {
+                        if let entry {
+                            await recorded.ask(entry)
+                        }
+                    }
+                case .recorded(let entry):
+                    RecordedRow(entry: entry, now: now, subject: subjects.count > 1 || isStation ? recordedName(entry) : nil, mark: mark) {
+                        replayRecorded(entry)
+                    }
+                    .task(id: entry.id) {
+                        await recorded.ask(entry)
                     }
                 }
             }
         } header: {
-            if !visible.isEmpty {
+            if !table.isEmpty {
                 Text(passes.mode == .swath ? "Start · end · off track · swath" : "Start · end · max elevation · azimuth at apex")
                     .font(.caption)
                     .textCase(nil)
@@ -128,6 +162,23 @@ struct PassesSections: View {
             return (passes, self.passes.mode)
         }
         return held.subject == subjectID ? (held.passes, held.mode) : nil
+    }
+
+    /// Replays a recorded overpass as its row would.
+    private func replayRecorded(_ entry: RecordedOverpass) {
+        replay.replay(start: entry.overpass.start, station: entry.station, satellite: entry.satellite, recorded: entry, all: recorded.recorded)
+    }
+
+    private var isStation: Bool {
+        if case .station = subject { true } else { false }
+    }
+
+    /// The other side of a recorded overpass from the panel's subject.
+    private func recordedName(_ entry: RecordedOverpass) -> String {
+        switch subject {
+        case .satellite: entry.station
+        case .station: entry.satellite
+        }
     }
 
     private var subjectID: String {
@@ -196,6 +247,8 @@ private struct PassRow: View {
     let subject: String?
     let isNext: Bool
     let isPicked: Bool
+    /// What a granule layer recorded of it, where one did.
+    let mark: PassImageryMark?
     let onTap: () -> Void
 
     var body: some View {
@@ -220,12 +273,114 @@ private struct PassRow: View {
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
+                if let mark {
+                    mark
+                }
             }
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .listRowBackground(isPicked ? Color.timelineHigh.opacity(0.2) : Color.panelRaised)
-        .accessibilityHint("Moves the clock to the start of the pass")
+        .accessibilityHint(mark?.replays == true ? "Replays the pass, with its granules" : "Replays the pass")
+    }
+}
+
+/// A recorded overpass by day the predictor no longer has, which looks back a day: no
+/// elevation or azimuth.
+private struct RecordedRow: View {
+    let entry: RecordedOverpass
+    let now: Double
+    let subject: String?
+    let mark: PassImageryMark?
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let subject {
+                        Text(subject)
+                            .lineLimit(1)
+                    }
+                    Text("\(entry.overpass.startLabel) – \(entry.overpass.endLabel)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(entry.overpass.end < now ? "ended" : "ongoing")
+                        .font(.subheadline.monospacedDigit())
+                    Text("– · –")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                if let mark {
+                    mark
+                }
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Replays the pass, with its granules")
+    }
+}
+
+/// A recorded pass's mark: an icon, its accessibility label the words.
+struct PassImageryMark: View {
+    let imagery: PassImagery
+    /// Recorded by day, so its row replays its granules.
+    let replays: Bool
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.footnote)
+            .foregroundStyle(color)
+            .frame(width: 22)
+            .accessibilityLabel(imagery.title)
+    }
+
+    private var symbol: String {
+        switch imagery {
+        case .asking: "ellipsis"
+        case .image, .part: "photo"
+        case .outline: "square.dashed"
+        case .night: "moon"
+        }
+    }
+
+    private var color: Color {
+        switch imagery {
+        case .image: .primary
+        case .part: .panelAmber
+        case .asking, .outline, .night: .secondary
+        }
+    }
+}
+
+/// The newest overpass a granule layer recorded by day, one press from its replay.
+private struct LastImaged: View {
+    let entry: RecordedOverpass
+    let onReplay: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "clock.arrow.circlepath")
+                .foregroundStyle(Color.panelAccent)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Last imaged")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("\(entry.satellite) over \(entry.station) · \(entry.overpass.minuteLabel) UTC")
+                    .font(.footnote)
+            }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 0)
+            Button("Replay", systemImage: "play.fill", action: onReplay)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .tint(Color.panelAccent)
+                .accessibilityHint("Replays it, with its granules")
+        }
     }
 }
 

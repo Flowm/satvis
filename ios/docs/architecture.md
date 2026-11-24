@@ -63,6 +63,10 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   granule from its WMTS tiles, every granule keeps its picture, at most 1,024
   pixels across. The words on its card and Map panel buttons (ADR 0024) come from
   `SatelliteDetails.imageryWords`, held to the web app by the parity fixtures.
+- An overpass replay (`OverpassReplayModel`, kept in links as `replay`) is the
+  layer on and a station: the replay bar steps through the overpasses the Passes
+  table recorded (`RecordedOverpasses`), and the timeline shades the layer's own
+  sensed overpasses a day either side of the clock.
 
 ## Rendering
 

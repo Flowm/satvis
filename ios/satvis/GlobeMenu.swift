@@ -39,6 +39,8 @@ struct GlobeMenu: View {
     /// A panel row's Lucide icon side, which the SF Symbol is centred in, so the
     /// names line up.
     @ScaledMetric(relativeTo: .body) private var iconSide = 20.0
+    /// The info panel's tab, the Passes tab once a replay of the latest overpass is asked for.
+    @AppStorage("infoPanelTab") private var tab = InfoTab.orbit
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -54,6 +56,13 @@ struct GlobeMenu: View {
                 Divider()
                 item("Look up from here", image: .lucideTelescope) { session.lookUp(from: place) }
             case .station(let id):
+                // Its panel replays the newest overpass imaged by day there, once its Passes table has listed them.
+                item("Replay latest overpass", systemImage: "clock.arrow.circlepath") {
+                    session.replay.latestRequest = id
+                    tab = .passes
+                    session.select(.station(id))
+                }
+                Divider()
                 item("Look up from here", image: .lucideTelescope) { session.enterSky(at: id) }
                 Divider()
                 item("Remove ground station", systemImage: "trash", role: .destructive) { session.removeStation(id) }

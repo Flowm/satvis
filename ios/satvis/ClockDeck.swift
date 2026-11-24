@@ -15,6 +15,8 @@ struct ClockDeck<Accessory: View>: View {
     let passes: PassModel
     /// The selected satellite, by catalog id.
     let satellite: String?
+    /// When the granule layer on has granules (ADR 0023).
+    let sensed: [Overpass]
     @ViewBuilder let accessory: Accessory
     @State private var isOpen = false
     @State private var onLadder = false
@@ -36,7 +38,7 @@ struct ClockDeck<Accessory: View>: View {
                     if onLadder {
                         Ladder(clock: clock)
                     } else {
-                        TimelineScale(clock: clock, passes: passes, satellite: satellite)
+                        TimelineScale(clock: clock, passes: passes, satellite: satellite, sensed: sensed)
                     }
                 }
                 .frame(height: Metrics.scaleHeight)
@@ -244,6 +246,7 @@ private struct TimelineScale: View {
     let clock: ViewerClock
     let passes: PassModel
     let satellite: String?
+    let sensed: [Overpass]
     @State private var dragStart: Double?
     @State private var flick: Task<Void, Never>?
 
@@ -272,6 +275,16 @@ private struct TimelineScale: View {
                     context.fill(Path(mark), with: .color(.timelineHigh.opacity(0.15)))
                     context.fill(Path(CGRect(x: mark.minX, y: 0, width: 1, height: size.height)), with: .color(.timelineHigh.opacity(0.4)))
                     context.fill(Path(CGRect(x: mark.maxX - 1, y: 0, width: 1, height: size.height)), with: .color(.timelineHigh.opacity(0.4)))
+                }
+                // Where the granule layer on has granules, in the granule fill's yellow: a band
+                // along the top, so the passes stay readable under it. Nearer live than about
+                // three hours, it has none yet.
+                for span in sensed where span.end >= centre - half && span.start <= centre + half {
+                    let left = max(0, (span.start - centre) / Self.msPerPoint + size.width / 2)
+                    let right = min(size.width, (span.end - centre) / Self.msPerPoint + size.width / 2)
+                    context.fill(
+                        Path(roundedRect: CGRect(x: left, y: 0, width: max(2, right - left), height: 4), cornerRadius: 2),
+                        with: .color(Color(red: 1, green: 0xD5 / 255, blue: 0x4A / 255).opacity(0.8)))
                 }
                 var at = ((centre - half) / Self.minor).rounded(.down) * Self.minor
                 while at <= centre + half {
