@@ -22,6 +22,11 @@ struct InfoPanel: View {
     @State private var latestPasses = LatestPasses()
     /// What its granule layers recorded over each station.
     @State private var recorded = RecordedOverpasses()
+    /// Compact on a phone, where the subtitle has a line of its own under the bar's
+    /// buttons: beside them it was cut to "#27424 · LEO (SSO)…".
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    private var subtitleApart: Bool { sizeClass == .compact }
 
     private var propagator: SGP4Propagator? { try? SGP4Propagator(entry.record.meanElements) }
 
@@ -65,6 +70,13 @@ struct InfoPanel: View {
                 // A tab opens at its top, as the web app's, whose tab bodies are of their own.
                 .id(shownTab)
                 .tabBar {
+                    if subtitleApart {
+                        subheading(propagator)
+                            .font(.panelNote)
+                            .lineLimit(1)
+                            .accessibilityHidden(true)
+                            .padding(.bottom, 10)
+                    }
                     // The web app's notice, amber as the deck's way back to rest.
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         if let propagator,
@@ -72,7 +84,7 @@ struct InfoPanel: View {
                                 epochMilliseconds: epochMilliseconds(julianDate: propagator.epochJulianDate), time: session.clock.now())
                         {
                             Label(notice, systemImage: "exclamationmark.triangle")
-                                .font(.footnote)
+                                .font(.panelNote)
                                 .foregroundStyle(Color.panelAmber)
                                 .accessibilityHint("Only the latest element set is kept, so positions far from its epoch drift by kilometres to thousands of kilometres.")
                                 .padding(.horizontal, 16)
@@ -148,12 +160,14 @@ struct InfoPanel: View {
     private func title(_ propagator: SGP4Propagator?) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(entry.name)
-                .font(.headline)
+                .font(.panelHeadline)
                 // The buttons leave the title less room than the system title had.
                 .minimumScaleFactor(0.8)
-            subheading(propagator)
+            if !subtitleApart {
+                subheading(propagator)
+            }
         }
-        .font(.footnote)
+        .font(.panelNote)
         .lineLimit(1)
         .leadingTitle()
         .accessibilityElement(children: .ignore)
@@ -214,7 +228,7 @@ struct InfoPanel: View {
                         Text("\(links.count) sites")
                             .foregroundStyle(.secondary)
                         Image(systemName: "chevron.up.chevron.down")
-                            .font(.footnote.weight(.semibold))
+                            .font(.panelNote.weight(.semibold))
                             .foregroundStyle(.tertiary)
                     }
                     .contentShape(.rect)
@@ -246,7 +260,7 @@ struct InfoPanel: View {
         } footer: {
             // CC BY 4.0 asks for the credit where the data is shown.
             Link(Credit.instruments.text, destination: Credit.instruments.link!)
-                .font(.footnote)
+                .font(.panelNote)
         }
     }
 
@@ -471,6 +485,7 @@ struct StationPanel: View {
     @State private var draftName = ""
     /// What the active satellites' granule layers recorded over it.
     @State private var recorded = RecordedOverpasses()
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     /// The active satellites' granule layers over this station.
     private var recordedPairs: [RecordedOverpasses.Pair] {
@@ -537,14 +552,32 @@ struct StationPanel: View {
                     ToolbarItem(placement: .title) {
                         title
                     }
-                    // By what they do: the station itself, where to look from, and away.
-                    ToolbarItemGroup(placement: .primaryAction) {
-                        stationActions
-                    }
-                    ToolbarSpacer(.fixed, placement: .primaryAction)
-                    ToolbarItemGroup(placement: .primaryAction) {
-                        ReplayLatestButton(session: session, recorded: recorded)
-                        skyActions
+                    if sizeClass == .compact {
+                        // A phone's bar fits the name beside three buttons: six left it none.
+                        ToolbarItemGroup(placement: .primaryAction) {
+                            if !session.passes.isVisiting(station.id) {
+                                alertButton
+                            }
+                            Menu("More", systemImage: "ellipsis") {
+                                if session.passes.isVisiting(station.id) {
+                                    saveButton
+                                } else {
+                                    renameButton
+                                }
+                                ReplayLatestButton(session: session, recorded: recorded)
+                                skyActions
+                            }
+                        }
+                    } else {
+                        // By what they do: the station itself, where to look from, and away.
+                        ToolbarItemGroup(placement: .primaryAction) {
+                            stationActions
+                        }
+                        ToolbarSpacer(.fixed, placement: .primaryAction)
+                        ToolbarItemGroup(placement: .primaryAction) {
+                            ReplayLatestButton(session: session, recorded: recorded)
+                            skyActions
+                        }
                     }
                     ToolbarSpacer(.fixed, placement: .primaryAction)
                     ToolbarItem(placement: .primaryAction) {
@@ -567,7 +600,7 @@ struct StationPanel: View {
     /// The station's name.
     private var title: some View {
         Text(station.displayName)
-            .font(.headline)
+            .font(.panelHeadline)
             .lineLimit(1)
             .leadingTitle()
     }
@@ -576,14 +609,26 @@ struct StationPanel: View {
     /// alerts and names are for the user's own, which persist.
     @ViewBuilder private var stationActions: some View {
         if session.passes.isVisiting(station.id) {
-            Button("Save station", systemImage: "plus.circle") { session.passes.save(station.id) }
+            saveButton
         } else {
-            Button("Rename", systemImage: "pencil") {
-                draftName = station.name ?? ""
-                renaming = true
-            }
-            AlertButton(subject: .station(station.id), satellites: session.catalog.activeEntries, passes: session.passes, alerts: session.alerts)
+            renameButton
+            alertButton
         }
+    }
+
+    private var saveButton: some View {
+        Button("Save station", systemImage: "plus.circle") { session.passes.save(station.id) }
+    }
+
+    private var renameButton: some View {
+        Button("Rename", systemImage: "pencil") {
+            draftName = station.name ?? ""
+            renaming = true
+        }
+    }
+
+    private var alertButton: some View {
+        AlertButton(subject: .station(station.id), satellites: session.catalog.activeEntries, passes: session.passes, alerts: session.alerts)
     }
 
     /// Where to look from.
@@ -659,7 +704,7 @@ private struct ElementSetSection: View {
             Section("Element set") {
                 FactRow(label: "Epoch", value: "\(epoch) UTC")
                 Text(lines)
-                    .font(.caption.monospaced())
+                    .font(.panelCaption.monospaced())
                     .textSelection(.enabled)
             }
         case .omm(let epoch, let rows):
@@ -667,7 +712,7 @@ private struct ElementSetSection: View {
                 FactRow(label: "Epoch", value: "\(epoch) UTC")
                 ForEach(rows, id: \.label) { row in
                     FactRow(label: row.label, value: row.value)
-                        .font(.caption.monospaced())
+                        .font(.panelCaption.monospaced())
                 }
             }
         }

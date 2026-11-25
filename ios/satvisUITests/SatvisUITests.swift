@@ -199,8 +199,14 @@ nonisolated class SatvisUITests: XCTestCase {
             XCTAssert(picture.exists, layer)
         }
         let about = app.buttons["About this layer"].firstMatch
-        for _ in 0..<3 where !about.isHittable {
-            app.collectionViews.firstMatch.swipeDown()
+        // Clear of the tab row, which the list scrolls under and which takes the tap, and of
+        // the screen's foot, by short drags: a swipe at the list's top drags the sheet.
+        let tabs = app.buttons["Imagery (3)"]
+        let list = app.collectionViews.firstMatch
+        for _ in 0..<6 where !about.isHittable || about.frame.minY < tabs.frame.maxY {
+            let under = about.frame.minY < tabs.frame.maxY
+            list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+                .press(forDuration: 0.1, thenDragTo: list.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: under ? 0.8 : 0.2)))
         }
         about.tap()
         XCTAssert(app.staticTexts["Every 10 min"].firstMatch.waitForExistence(timeout: 5))
@@ -486,11 +492,12 @@ nonisolated class SatvisUITests: XCTestCase {
         XCTAssert(add.exists)
         XCTAssert(panel.exists, "The hold closed the panel as a tap would")
         add.tap()
-        let sky = app.buttons["View the sky from here"]
-        XCTAssert(sky.waitForExistence(timeout: 5))
+        // The station's panel, which a station a user added has a bell in.
+        let bell = app.buttons["Notify for upcoming passes"]
+        XCTAssert(bell.waitForExistence(timeout: 5))
         // The station's own, not the panel's: a phone's sheet covers the pin.
         app.navigationBars.buttons["Close"].firstMatch.tap()
-        XCTAssert(sky.waitForNonExistence(timeout: 5))
+        XCTAssert(bell.waitForNonExistence(timeout: 5))
 
         spot.press(forDuration: 1)
         let remove = app.buttons["Remove ground station"]
@@ -526,7 +533,7 @@ nonisolated class SatvisUITests: XCTestCase {
             _ = add.waitForExistence(timeout: 5)
         }
         add.tap()
-        XCTAssert(app.buttons["View the sky from here"].waitForExistence(timeout: 5))
+        XCTAssert(app.buttons["Notify for upcoming passes"].waitForExistence(timeout: 5))
     }
 
     // My location stands where the device is, kept as "Geolocation", first in the
@@ -882,6 +889,14 @@ nonisolated class SatvisUITests: XCTestCase {
         let show = app.buttons["Show passes"].firstMatch
         XCTAssert(show.waitForExistence(timeout: 5))
         show.tap()
+        // In the bar, or on a phone in its More menu.
+        let more = app.navigationBars.buttons["More"]
+        XCTAssert(app.navigationBars["Munich"].waitForExistence(timeout: 10))
+        // Its name in the bar: a phone's buttons had left it no room.
+        XCTAssert(app.navigationBars["Munich"].staticTexts["Munich"].exists)
+        if more.exists {
+            more.tap()
+        }
         let sky = app.buttons["View the sky from here"]
         XCTAssert(sky.waitForExistence(timeout: 10))
         sky.tap()

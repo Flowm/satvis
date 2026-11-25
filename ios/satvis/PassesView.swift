@@ -42,6 +42,8 @@ struct PassesSections: View {
     @State private var picked: Double?
     /// The last settled passes, which `top` stands in while new ones are predicted.
     @State private var held = Held()
+    /// Regular on an iPad and a Mac, where the list is a table, as the web app's.
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         let (all, settled, progress) = subject.passes(in: passes, at: now)
@@ -52,6 +54,9 @@ struct PassesSections: View {
         let topVisible = top?.passes.visible(at: now, past: showsPast) ?? []
         let overpasses = recorded.recorded
         let table = PassTableRow.table(visible, recorded: overpasses, now: now, past: showsPast).filter { !onlyImaged || $0.recorded?.isDay == true }
+        // Columns under headings, as the web app's table, where there is room for them and
+        // no column of names: on an iPad and a Mac, for one satellite.
+        let columns = sizeClass == .regular && subjects.count <= 1 && !isStation ? PassColumns(mode: passes.mode, marks: !overpasses.isEmpty) : nil
         Section {
             Group {
                 if let top, !top.passes.isEmpty, let next = topVisible.first(where: { $0.end >= now }) {
@@ -65,7 +70,10 @@ struct PassesSections: View {
             if let latest = recorded.latest {
                 LastImaged(entry: latest) { replay.replay(latest, among: overpasses) }
             }
-            HStack(spacing: 16) {
+            // Its switches beside it where there is room, else on a row of their own: on a
+            // phone they squeezed it to "El… S…".
+            let controls = sizeClass == .regular ? AnyLayout(HStackLayout(spacing: 16)) : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            controls {
                 // Here even when the list is empty: swath mode over a station the
                 // ground track misses lists nothing, and this is how to undo it.
                 Picker(
@@ -80,11 +88,13 @@ struct PassesSections: View {
                     Text("Swath").tag(OverpassMode.swath)
                 }
                 .panelSegmented()
-                Toggle("Past", isOn: $showsPast)
-                    .fixedSize()
-                if !overpasses.isEmpty {
-                    Toggle("Imaged", isOn: $onlyImaged)
+                HStack(spacing: 16) {
+                    Toggle("Past", isOn: $showsPast)
                         .fixedSize()
+                    if !overpasses.isEmpty {
+                        Toggle("Imaged", isOn: $onlyImaged)
+                            .fixedSize()
+                    }
                 }
             }
         }
@@ -123,7 +133,7 @@ struct PassesSections: View {
                 case .pass(let pass, let entry):
                     PassRow(
                         pass: pass, now: now, subject: subjects.count > 1 ? subjectName(pass) : nil, isNext: pass == next, isPicked: pass.start == picked,
-                        mark: mark
+                        mark: mark, columns: columns
                     ) {
                         replay.replay(pass, recorded: entry, among: overpasses)
                     }
@@ -133,7 +143,7 @@ struct PassesSections: View {
                         }
                     }
                 case .recorded(let entry):
-                    RecordedRow(entry: entry, now: now, subject: subjects.count > 1 || isStation ? recordedName(entry) : nil, mark: mark) {
+                    RecordedRow(entry: entry, now: now, subject: subjects.count > 1 || isStation ? recordedName(entry) : nil, mark: mark, columns: columns) {
                         replay.replay(entry, among: overpasses)
                     }
                     .task(id: entry.id) {
@@ -142,9 +152,11 @@ struct PassesSections: View {
                 }
             }
         } header: {
-            if !table.isEmpty {
+            if let columns, !table.isEmpty {
+                columns.header
+            } else if !table.isEmpty {
                 Text(passes.mode == .swath ? "Start · end · off track · swath" : "Start · end · max elevation · azimuth at apex")
-                    .font(.caption)
+                    .font(.panelCaption)
                     .textCase(nil)
             }
         }
@@ -209,13 +221,13 @@ private struct Headline: View {
         let isOngoing = pass.start <= now
         VStack(alignment: .leading, spacing: 4) {
             Text("\(isOngoing ? "Overhead now" : "Next pass") · \(subject)")
-                .font(.caption)
+                .font(.panelCaption)
                 .foregroundStyle(isOngoing ? Color.panelGreen : .secondary)
             Text(pass.countdown(at: now))
                 .font(.title2.monospacedDigit().bold())
             // One line in either mode, or the picker under it moves on a change.
             Text(pass.summary)
-                .font(.caption)
+                .font(.panelCaption)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .foregroundStyle(.secondary)
@@ -244,39 +256,52 @@ private struct PassRow: View {
     let isPicked: Bool
     /// What a granule layer recorded of it, where one did.
     let mark: PassImageryMark?
+    /// The table's columns, where the list is one.
+    let columns: PassColumns?
     let onTap: () -> Void
 
     var body: some View {
-        let columns = pass.columns
+        let measures = pass.columns
         Button(action: onTap) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    if let subject {
-                        Text(subject)
-                            .lineLimit(1)
-                    }
-                    Text("\(pass.startLabel) – \(pass.endLabel)")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(pass.countdown(at: now))
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(isNext ? .green : .primary)
-                    Text("\(columns.primary) · \(columns.secondary)")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-                if let mark {
-                    mark
-                }
+            if let columns {
+                columns.row(
+                    into: Text(pass.countdown(at: now)).foregroundStyle(isNext ? .green : .primary), start: pass.startLabel, end: pass.endLabel,
+                    primary: measures.primary, secondary: measures.secondary, mark: mark)
+            } else {
+                twoLines(measures)
             }
-            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .listRowBackground(isPicked ? Color.timelineHigh.opacity(0.2) : Color.panelRaised)
         .accessibilityHint(mark?.replays == true ? "Replays the pass, with its granules" : "Replays the pass")
+    }
+
+    /// A phone's row: who and when, then how long until it and how it measures.
+    private func twoLines(_ columns: (primary: String, secondary: String)) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                if let subject {
+                    Text(subject)
+                        .lineLimit(1)
+                }
+                Text("\(pass.startLabel) – \(pass.endLabel)")
+                    .font(.panelCaption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(pass.countdown(at: now))
+                    .font(.panelLabel.monospacedDigit())
+                    .foregroundStyle(isNext ? .green : .primary)
+                Text("\(columns.primary) · \(columns.secondary)")
+                    .font(.panelCaption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            if let mark {
+                mark
+            }
+        }
+        .contentShape(.rect)
     }
 }
 
@@ -287,36 +312,106 @@ private struct RecordedRow: View {
     let now: Double
     let subject: String?
     let mark: PassImageryMark?
+    let columns: PassColumns?
     let onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    if let subject {
-                        Text(subject)
-                            .lineLimit(1)
-                    }
-                    Text("\(entry.overpass.startLabel) – \(entry.overpass.endLabel)")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(entry.overpass.end < now ? "ended" : "ongoing")
-                        .font(.subheadline.monospacedDigit())
-                    Text("– · –")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-                if let mark {
-                    mark
-                }
+            if let columns {
+                columns.row(
+                    into: Text(entry.overpass.end < now ? "ended" : "ongoing"), start: entry.overpass.startLabel, end: entry.overpass.endLabel,
+                    primary: "–", secondary: "–", mark: mark)
+            } else {
+                twoLines
             }
-            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .accessibilityHint("Replays the pass, with its granules")
+    }
+
+    /// A phone's row, as a pass's.
+    private var twoLines: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                if let subject {
+                    Text(subject)
+                        .lineLimit(1)
+                }
+                Text("\(entry.overpass.startLabel) – \(entry.overpass.endLabel)")
+                    .font(.panelCaption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(entry.overpass.end < now ? "ended" : "ongoing")
+                    .font(.panelLabel.monospacedDigit())
+                Text("– · –")
+                    .font(.panelCaption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            if let mark {
+                mark
+            }
+        }
+        .contentShape(.rect)
+    }
+}
+
+/// The web app's pass table: In, Start, End and the mode's two measures, and a column
+/// for what a granule layer recorded where any did.
+struct PassColumns {
+    let mode: OverpassMode
+    /// Whether there is a column for the recorded imagery.
+    let marks: Bool
+
+    /// The headings, as the web app's.
+    var header: some View {
+        row(
+            into: Text("In"), start: "Start", end: "End", primary: mode == .swath ? "Dist" : "El", secondary: mode == .swath ? "Swath" : "Az",
+            mark: nil, heading: true
+        )
+        .foregroundStyle(.secondary)
+        .textCase(nil)
+        .accessibilityHidden(true)
+    }
+
+    /// A row's cells, at the headings' widths.
+    func row(into: Text, start: String, end: String, primary: String, secondary: String, mark: PassImageryMark?, heading: Bool = false) -> some View {
+        PassColumnsRow(into: into, cells: [start, end, primary, secondary], mark: mark, marks: marks, heading: heading)
+    }
+}
+
+/// A row of `PassColumns`.
+private struct PassColumnsRow: View {
+    let into: Text
+    /// Start, end and the two measures.
+    let cells: [String]
+    let mark: PassImageryMark?
+    let marks: Bool
+    let heading: Bool
+    @ScaledMetric(relativeTo: .caption) private var scale = 1.0
+
+    var body: some View {
+        HStack(spacing: 6) {
+            into.frame(width: 64 * scale, alignment: .leading)
+            Text(cells[0]).frame(width: 100 * scale, alignment: .leading)
+            Text(cells[1]).frame(width: 60 * scale, alignment: .leading)
+            Spacer(minLength: 0)
+            Text(cells[2]).frame(width: 40 * scale, alignment: .trailing)
+            Text(cells[3]).frame(width: 60 * scale, alignment: .trailing)
+            if marks {
+                if heading {
+                    Image(systemName: "photo").frame(width: 22)
+                } else if let mark {
+                    mark
+                } else {
+                    Color.clear.frame(width: 22, height: 1)
+                }
+            }
+        }
+        .font(heading ? .panelCaption.weight(.semibold) : .panelCaption.monospacedDigit())
+        .lineLimit(1)
+        .contentShape(.rect)
     }
 }
 
@@ -328,7 +423,7 @@ struct PassImageryMark: View {
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.footnote)
+            .font(.panelNote)
             .foregroundStyle(color)
             .frame(width: 22)
             .accessibilityLabel(imagery.title)
@@ -363,17 +458,18 @@ private struct LastImaged: View {
                 .foregroundStyle(Color.panelAccent)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Last imaged")
-                    .font(.caption)
+                    .font(.panelCaption)
                     .foregroundStyle(.secondary)
                 Text("\(entry.satellite) over \(entry.station) · \(entry.overpass.minuteLabel) UTC")
-                    .font(.footnote)
+                    .font(.panelNote)
             }
             .accessibilityElement(children: .combine)
             Spacer(minLength: 0)
-            Button("Replay", systemImage: "play.fill", action: onReplay)
+            // Green, the colour of what is overhead and of a replay, as the web app's.
+            Button("Replay", systemImage: "play", action: onReplay)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
-                .tint(Color.panelAccent)
+                .tint(Color.panelGreen)
                 .accessibilityHint("Replays it, with its granules")
         }
     }
@@ -396,7 +492,7 @@ private struct TimelineStrip: View {
                 ZStack(alignment: .topLeading) {
                     ForEach(layout.ticks, id: \.label) { tick in
                         Text(tick.label)
-                            .font(.caption2)
+                            .font(.panelCaption2)
                             .foregroundStyle(.secondary)
                             .fixedSize()
                             .offset(x: tick.position * width + 3, y: 0)
@@ -440,7 +536,7 @@ private struct TimelineStrip: View {
                     Text("+\(layout.beyond) past \(layout.horizonLabel)")
                 }
             }
-            .font(.caption2)
+            .font(.panelCaption2)
             .foregroundStyle(.secondary)
         }
     }

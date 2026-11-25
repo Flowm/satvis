@@ -123,7 +123,7 @@ private struct InstrumentTable: View {
                     .padding(.leading, 10)
             }
         }
-        .font(.caption2)
+        .font(.panelCaption2)
         .foregroundStyle(.tertiary)
         .lineLimit(1)
         .padding(.bottom, 4)
@@ -134,7 +134,7 @@ private struct InstrumentTable: View {
     private func widest(_ label: Text, of resolutions: [String]) -> some View {
         ZStack(alignment: .trailing) {
             ForEach(resolutions, id: \.self) { resolution in
-                Text(resolution).font(.subheadline).monospacedDigit().hidden()
+                Text(resolution).font(.panelLabel).monospacedDigit().hidden()
             }
             label
         }
@@ -153,7 +153,7 @@ private struct InstrumentTable: View {
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
+                        .font(.panelCaption.weight(.semibold))
                         .foregroundStyle(.tertiary)
                         .rotationEffect(.degrees(isOpen ? 90 : 0))
                         .frame(width: 14)
@@ -211,7 +211,7 @@ private struct InstrumentTable: View {
                 .accessibilityHidden(true)
             }
         }
-        .font(.subheadline)
+        .font(.panelLabel)
     }
 }
 
@@ -225,7 +225,7 @@ private struct FoldedInstruments: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.caption2)
+                .font(.panelCaption2)
                 .foregroundStyle(.tertiary)
             FlowLayout {
                 ForEach(instruments, id: \.name) { instrument in
@@ -259,7 +259,7 @@ private struct FoldedInstruments: View {
                     RetiredTag()
                 }
             }
-            .font(.footnote)
+            .font(.panelNote)
             .padding(.horizontal, 9)
             .padding(.vertical, 3)
             .background(Color.white.opacity(isOpen ? 0.08 : 0), in: .capsule)
@@ -277,7 +277,7 @@ private struct RetiredTag: View {
     var body: some View {
         // Amber: the app colour for "away from rest", as on the status chip.
         Text("Retired")
-            .font(.caption)
+            .font(.panelCaption)
             .foregroundStyle(Color.panelAmber)
     }
 }
@@ -312,7 +312,7 @@ private struct InstrumentDetails: View {
                 .accessibilityElement(children: .combine)
             }
         }
-        .font(.footnote)
+        .font(.panelNote)
         .textSelection(.enabled)
     }
 }
@@ -346,7 +346,7 @@ private struct BandLegend: View {
                 }
             }
         }
-        .font(.caption2)
+        .font(.panelCaption2)
         .foregroundStyle(.tertiary)
         .accessibilityHidden(true)
     }

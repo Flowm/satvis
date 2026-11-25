@@ -18,12 +18,12 @@ struct ReplayBar: View {
     /// The bar over `active`, its steps either side of `place`.
     private func bar(_ active: OverpassReplayModel.Active, place: OverpassReplay.Place<RecordedOverpass>) -> some View {
         let title = "Replaying the granules \(active.on.satellite)'s \(active.on.instrument) sensed over \(active.station)"
-        return HStack(spacing: 8) {
+        let row = HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(active.on.satellite)
-                    .font(.footnote.weight(.semibold))
+                    .font(.panelNote.weight(.semibold))
                 Text(place.current.map { "\(active.station) · \($0.overpass.minuteLabel) UTC" } ?? active.station)
-                    .font(.caption)
+                    .font(.panelCaption)
                     .foregroundStyle(.secondary)
             }
             .lineLimit(1)
@@ -34,7 +34,7 @@ struct ReplayBar: View {
             HStack(spacing: 1) {
                 ForEach(ReplayCamera.allCases) { camera in
                     let isOn = session.replay.camera == camera
-                    button("\(camera.label) camera", symbol: camera.symbol, isOn: isOn, help: camera.title) {
+                    button("\(camera.label) camera", image: Image(camera.image), isOn: isOn, help: camera.title) {
                         session.replay.watch(from: camera)
                     }
                     .accessibilityAddTraits(isOn ? .isSelected : [])
@@ -43,23 +43,28 @@ struct ReplayBar: View {
             .padding(.horizontal, 4)
             .overlay(alignment: .leading) { Divider() }
             .overlay(alignment: .trailing) { Divider() }
-            button("Previous overpass", symbol: "chevron.left", help: stepTitle(place.previous, "Previous")) {
+            button("Previous overpass", image: Image(systemName: "chevron.left"), help: stepTitle(place.previous, "Previous")) {
                 place.previous.map(session.replay.step)
             }
             .disabled(place.previous == nil)
-            button("Next overpass", symbol: "chevron.right", help: stepTitle(place.next, "Next")) {
+            button("Next overpass", image: Image(systemName: "chevron.right"), help: stepTitle(place.next, "Next")) {
                 place.next.map(session.replay.step)
             }
             .disabled(place.next == nil)
-            button("Exit replay", symbol: "xmark", help: "Take the granules off and go back to now") {
+            button("Exit replay", image: Image(systemName: "xmark"), help: "Take the granules off and go back to now") {
                 session.replay.stop(returnView: true)
                 session.clock.goLive()
             }
         }
+        // As wide as its subtitle where the screen has room, else cut short.
+        return ViewThatFits(in: .horizontal) {
+            row.fixedSize(horizontal: true, vertical: false)
+            row
+        }
         .padding(.leading, 12)
         .padding(.trailing, 4)
         .padding(.vertical, 4)
-        .frame(minWidth: 260, maxWidth: 460)
+        .frame(minWidth: 260)
         .background(Color.panelSurface, in: .rect(cornerRadius: 14))
         .overlay {
             RoundedRectangle(cornerRadius: 14).strokeBorder(Color.white.opacity(0.08))
@@ -82,10 +87,13 @@ struct ReplayBar: View {
     }
 
     /// A round icon button of the bar, lit while `isOn`.
-    private func button(_ label: String, symbol: String, isOn: Bool = false, help: String, action: @escaping () -> Void) -> some View {
+    private func button(_ label: String, image: Image, isOn: Bool = false, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.footnote.weight(.semibold))
+            image
+                .resizable()
+                .scaledToFit()
+                .fontWeight(.semibold)
+                .frame(width: 15, height: 15)
                 .frame(width: 32, height: 32)
                 .background(isOn ? Color.white.opacity(0.18) : .clear, in: .circle)
                 .foregroundStyle(isOn ? Color.panelAccent : Color.panelInk)
@@ -94,5 +102,17 @@ struct ReplayBar: View {
         .buttonStyle(.plain)
         .accessibilityLabel(label)
         .help(help)
+    }
+}
+
+extension ReplayCamera {
+    /// Its icon, the web app's (src/modules/ReplayCamera.ts). An asset, which the compiler
+    /// checks: a symbol's name, "satellite", drew nothing.
+    var image: ImageResource {
+        switch self {
+        case .nadir: .lucideLocateFixed
+        case .tracking: .lucideSatellite
+        case .broadcast: .lucideVideo
+        }
     }
 }

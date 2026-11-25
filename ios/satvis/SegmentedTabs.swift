@@ -19,12 +19,12 @@ struct SegmentedTabs<Value: Hashable>: View {
                     track(scrolls: true)
                 }
                 .scrollIndicators(.hidden)
-                .clipShape(.capsule)
+                .clipShape(PanelMetrics.segmentShape)
                 .onAppear { scroller.scrollTo(selection) }
                 .onChange(of: selection) { withAnimation(.snappy) { scroller.scrollTo(selection) } }
             }
         }
-        .background(Color.panelRaised, in: .capsule)
+        .background(Color.panelRaised, in: PanelMetrics.segmentShape)
         .accessibilityElement(children: .contain)
     }
 
@@ -51,7 +51,7 @@ struct SegmentedTabs<Value: Hashable>: View {
                     CountBadge(count: count)
                 }
             }
-            .font(.subheadline.weight(isSelected ? .semibold : .medium))
+            .font(.panelLabel.weight(isSelected ? .semibold : .medium))
             .foregroundStyle(Color.panelInk)
             .lineLimit(1)
             // "Instruments" in a 375 pt phone's four tabs, which leave it about its own width.
@@ -62,10 +62,10 @@ struct SegmentedTabs<Value: Hashable>: View {
             .background {
                 if isSelected {
                     // One group a track: ViewThatFits builds both.
-                    Capsule().fill(Color.systemGray2).matchedGeometryEffect(id: "thumb\(scrolls)", in: thumb)
+                    PanelMetrics.segmentShape.fill(Color.systemGray2).matchedGeometryEffect(id: "thumb\(scrolls)", in: thumb)
                 }
             }
-            .contentShape(.capsule)
+            .contentShape(PanelMetrics.segmentShape)
         }
         .buttonStyle(.plain)
         // The picker's labels, which VoiceOver read and the UI tests find.
@@ -80,7 +80,7 @@ struct CountBadge: View {
 
     var body: some View {
         Text("\(count)")
-            .font(.caption2.weight(.semibold))
+            .font(.panelCaption2.weight(.semibold))
             .monospacedDigit()
             .padding(.horizontal, 6)
             .padding(.vertical, 1)

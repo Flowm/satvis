@@ -26,14 +26,6 @@ enum ReplayCamera: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Its SF Symbol.
-    var symbol: String {
-        switch self {
-        case .nadir: "scope"
-        case .tracking: "satellite"
-        case .broadcast: "video"
-        }
-    }
 }
 
 /// Overpass replay (ADR 0023): the satellite on, its granule layer on, the station in the

@@ -45,7 +45,7 @@ struct GlobeMenu: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(verbatim: menu.title)
-                .font(.subheadline.weight(.semibold))
+                .font(.panelLabel.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)

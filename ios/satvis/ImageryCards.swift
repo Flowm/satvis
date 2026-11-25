@@ -138,15 +138,22 @@ private struct ImageryCard: View {
                 source: preview, mosaic: drawn.mosaic, caption: caption, ended: imagery.words.ended,
                 outlinesOnly: imagery.granuleLayer.map { $0.pictures == nil } ?? false)
             VStack(alignment: .leading, spacing: 2) {
-                Label(imagery.type.title, systemImage: imagery.type.symbol)
-                    .labelStyle(CardTitleLabelStyle())
-                    .font(.subheadline.weight(.semibold))
+                Label {
+                    Text(imagery.type.title)
+                } icon: {
+                    Image(imagery.type.image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 14, height: 14)
+                }
+                .labelStyle(CardTitleLabelStyle())
+                .font(.panelLabel.weight(.semibold))
                 Text(imagery.words.picture)
-                    .font(.footnote)
+                    .font(.panelNote)
                 if let cropped = imagery.words.cropped {
                     Label(cropped, systemImage: "crop")
                         .labelStyle(CardTitleLabelStyle())
-                        .font(.caption)
+                        .font(.panelCaption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -206,7 +213,7 @@ private struct ImageryCard: View {
                 .toggleStyle(.switch)
                 .controlSize(.mini)
                 .fixedSize()
-                .font(.caption)
+                .font(.panelCaption)
                 .tint(Color.panelPrimary)
                 .padding(.leading, 10)
                 .accessibilityLabel("Show \(imagery.label) as a map layer")
@@ -238,7 +245,7 @@ private struct ImageryCard: View {
             }
             .padding(.trailing, 4)
         }
-        .font(.footnote)
+        .font(.panelNote)
         .padding(.vertical, 2)
     }
 
@@ -276,7 +283,7 @@ private struct ImageryCard: View {
                     Link(destination: href) {
                         HStack(spacing: 4) {
                             Text(viewer)
-                            Image(systemName: "arrow.up.right").font(.caption2.weight(.semibold))
+                            Image(systemName: "arrow.up.right").font(.panelCaption2.weight(.semibold))
                         }
                     }
                     .foregroundStyle(.secondary)
@@ -284,7 +291,7 @@ private struct ImageryCard: View {
                 }
             }
         }
-        .font(.caption)
+        .font(.panelCaption)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 10)
         .padding(.top, 6)
@@ -304,20 +311,6 @@ private struct CardTitleLabelStyle: LabelStyle {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             configuration.icon.foregroundStyle(.secondary)
             configuration.title
-        }
-    }
-}
-
-extension SatelliteDetails.ImageryType {
-    /// Its icon, the web app's Lucide one's nearest symbol.
-    var symbol: String {
-        switch self {
-        case .passes: "point.topleft.down.to.point.bottomright.curvepath"
-        case .daily: "calendar"
-        case .orbits: "square.3.layers.3d"
-        case .live: "globe.europe.africa"
-        case .mosaic: "globe"
-        case .scenes: "photo.on.rectangle"
         }
     }
 }
@@ -353,7 +346,7 @@ struct PassNotice: View {
                 latest.goToNewest(key, clock: clock)
             } label: {
                 Label("Go", systemImage: "backward.end.fill")
-                    .font(.caption.weight(.semibold))
+                    .font(.panelCaption.weight(.semibold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(Color.panelAccent.opacity(0.18), in: .capsule)
@@ -362,7 +355,7 @@ struct PassNotice: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Go to the newest pass")
         }
-        .font(.caption)
+        .font(.panelCaption)
         // Amber, as the clock deck's reset: away from live.
         .foregroundStyle(Color.panelAmber)
         .padding(.leading, 8)
@@ -443,7 +436,7 @@ private struct ImageryPicture: View {
             Image(systemName: outlinesOnly ? "square.dashed" : "photo")
             Text(outlinesOnly ? "Outlines only" : "No preview")
         }
-        .font(.caption)
+        .font(.panelCaption)
         .foregroundStyle(.tertiary)
         .onAppear { isMissing = true }
     }
@@ -451,7 +444,7 @@ private struct ImageryPicture: View {
     /// A label on a corner of the picture, legible on any of it.
     private func badge(_ text: String) -> some View {
         Text(text)
-            .font(.caption)
+            .font(.panelCaption)
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
             .background(.black.opacity(0.7), in: .capsule)

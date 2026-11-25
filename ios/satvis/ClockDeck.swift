@@ -119,14 +119,14 @@ struct ClockDeck<Accessory: View>: View {
                 if isOpen {
                     // Before the reset, so it holds still as the reset comes and goes.
                     chip(
-                        onLadder ? "Show timeline" : "Set playback speed", symbol: onLadder ? "clock" : "gauge.with.dots.needle.67percent",
+                        onLadder ? "Show timeline" : "Set playback speed", image: onLadder ? Image(systemName: "clock") : Image(.lucideGauge),
                         fill: .white.opacity(onLadder ? 0.18 : 0.08), tint: Color.panelInk
                     ) {
                         onLadder.toggle()
                     }
                     if resettable {
                         // The ladder follows the speed it puts back.
-                        chip("Back to now", symbol: "arrow.counterclockwise", fill: Color.panelAmber.opacity(0.12), tint: Color.panelAmber) {
+                        chip("Back to now", image: Image(systemName: "arrow.counterclockwise"), fill: Color.panelAmber.opacity(0.12), tint: Color.panelAmber) {
                             clock.goLive()
                         }
                     }
@@ -138,10 +138,15 @@ struct ClockDeck<Accessory: View>: View {
         .padding(.top, Metrics.rowHeight - Metrics.playBox)
     }
 
-    private func chip(_ title: String, symbol: String, fill: Color, tint: Color, action: @escaping () -> Void) -> some View {
+    /// A round button beside the clock; the speed's is the web app's Lucide gauge, as the
+    /// menu's Graphics.
+    private func chip(_ title: String, image: Image, fill: Color, tint: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 14, weight: .medium))
+            image
+                .resizable()
+                .scaledToFit()
+                .fontWeight(.medium)
+                .frame(width: 15, height: 15)
                 .foregroundStyle(tint)
                 .frame(width: Metrics.chipDisc, height: Metrics.chipDisc)
                 .background(fill, in: .circle)
