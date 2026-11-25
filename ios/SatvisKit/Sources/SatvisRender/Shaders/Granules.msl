@@ -338,8 +338,10 @@ fragment float4 fanFragment(FanOut in [[stage_in]]) {
     return float4(gammaCorrect(float3(139.0 / 255.0, 0.0, 0.0)), 0.25);
 }
 
-/// Where the fan meets the ground, two points wide, hidden beyond the horizon: the
-/// scan line a granule fills in behind.
+/// Where the fan meets the ground, three pixels wide, hidden beyond the horizon: the scan
+/// line a granule fills in behind. The web app's `intersectionWidth` of 2 lets 2 to 4
+/// drawing-buffer pixels of the sheet through, measured 3 on a phone; two points, six
+/// pixels there, stood out twice as thick.
 vertex RimOut fanLineVertex(uint vid [[vertex_id]], uint iid [[instance_id]], const device packed_float3 *samples [[buffer(0)]],
                             constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
                             const device PointFrame *frames [[buffer(3)]], const device FanInstance *fans [[buffer(4)]]) {
@@ -372,7 +374,7 @@ vertex RimOut fanLineVertex(uint vid [[vertex_id]], uint iid [[instance_id]], co
     float2 normal = float2(-direction.y, direction.x);
     float side = (corner == 0 || corner == 1 || corner == 3) ? -1.0 : 1.0;
     float4 clip = atB ? clipB : clipA;
-    clip.xy += normal * side * frame.pixelScale / toScreen * clip.w;
+    clip.xy += normal * side * 1.5 / toScreen * clip.w;
     out.position = clip;
     float3 surfaceNormal = point / (ellipsoidRadii * ellipsoidRadii);
     out.visible = dot(surfaceNormal, frame.cameraPosition - point) > 0.0 ? 1.0 : 0.0;
