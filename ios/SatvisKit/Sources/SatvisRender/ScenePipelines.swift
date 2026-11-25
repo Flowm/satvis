@@ -15,6 +15,12 @@ struct ScenePipelines {
     let skyAtmospherePipeline: MTLRenderPipelineState
     let skyRingPipeline: MTLRenderPipelineState
     let globePipeline: MTLRenderPipelineState
+    /// A globe tile with granules over it, and a map tile (Shaders/Granules.msl).
+    let globeGranulePipeline: MTLRenderPipelineState
+    let mapTileGranulePipeline: MTLRenderPipelineState
+    /// The ground track fan, and its line on the ground.
+    let fanPipeline: MTLRenderPipelineState
+    let fanLinePipeline: MTLRenderPipelineState
     /// The globe in depth alone, under the camera's picture.
     let groundDepthPipeline: MTLRenderPipelineState
     let pointPipeline: MTLRenderPipelineState
@@ -88,6 +94,10 @@ struct ScenePipelines {
         skyRingPipeline = try pipeline("skyRingVertex", "skyAtmosphereFragment", blend: true, fastVertex: true)
         globePipeline = try pipeline("globeVertex", "globeFragment", fastVertex: true)
         groundDepthPipeline = try pipeline("globeVertex", "globeFragment", writesColor: false, fastVertex: true)
+        globeGranulePipeline = try pipeline("globeGranuleVertex", "globeGranuleFragment", fastVertex: true)
+        mapTileGranulePipeline = try pipeline("mapGlobeVertex", "mapGlobeGranuleFragment", fastVertex: true)
+        fanPipeline = try pipeline("fanVertex", "fanFragment", blend: true)
+        fanLinePipeline = try pipeline("fanLineVertex", "fanLineFragment", blend: true)
         // Blended, for the sky view to dim what cannot be seen.
         pointPipeline = try pipeline("pointVertex", "pointFragment", blend: true)
         linePipeline = try pipeline("lineVertex", "lineFragment", blend: true)

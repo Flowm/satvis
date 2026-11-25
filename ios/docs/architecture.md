@@ -53,6 +53,20 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
   follows the clock through the STAC collection's Slots while the layer is drawn,
   and makes the Imagery tab's picture of it from the newest Slot's tiles
   (`MosaicFrame.preview`), as it has no WMS.
+- A granule layer (ADR 0023) has no tiles of its own: `GranuleService` in the app
+  target lists its granules from CMR or EUMETSAT's Data Store, asks whether its
+  pictures' provider has each one's pixels, and cuts each granule's picture from
+  a WMS frame, in plate carrée or polar stereographic, with black made clear.
+  `GranuleImagery` keeps the day granules of the 50 minutes behind the clock and
+  hands them to the renderer, which fills each in behind its satellite's scan
+  line and outlines it once passed. Unlike the web app, which draws a passed GIBS
+  granule from its WMTS tiles, every granule keeps its picture, at most 1,024
+  pixels across. The words on its card and Map panel buttons (ADR 0024) come from
+  `SatelliteDetails.imageryWords`, held to the web app by the parity fixtures.
+- An overpass replay (`OverpassReplayModel`, kept in links as `replay`) is the
+  layer on and a station: the replay bar steps through the overpasses the Passes
+  table recorded (`RecordedOverpasses`), and the timeline shades the layer's own
+  sensed overpasses a day either side of the clock.
 
 ## Rendering
 
@@ -372,8 +386,10 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
 
 - The Mac app is this target built for macOS (ADR 0017): the views are shared,
   laid out as an iPad's, since the Mac's window is given the regular size
-  classes. `Platform.swift` answers what UIKit and AppKit answer apart (reduced
-  motion, the clipboard, the share sheet, images, the device for the benchmark),
+  classes. `Platform.swift` answers what UIKit and AppKit answer apart (the
+  clipboard, the share sheet, images, the device for the benchmark), but reduced
+  motion, which `GlobeRenderer.reducesMotion` answers for the renderer's own
+  flights and the app's,
   and `satvis/macOS/` holds what only the Mac has, such as the stand-ins for the
   compass and camera (`SkyDevices.swift`), whose controls are not shown
   (`Platform.aimsByDevice`).

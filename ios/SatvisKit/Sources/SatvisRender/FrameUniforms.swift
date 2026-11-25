@@ -49,3 +49,18 @@ func encode(_ value: SIMD3<Double>) -> (high: SIMD3<Float>, low: SIMD3<Float>) {
 
 /// WGS84, in metres.
 let ellipsoidRadii = SIMD3<Double>(6378137.0, 6378137.0, 6356752.3142451793)
+
+/// Metres from `origin` along the unit `direction` to the ellipsoid; nil where it misses,
+/// or lies behind.
+func distanceToEllipsoid(from origin: SIMD3<Double>, along direction: SIMD3<Double>) -> Double? {
+    // In a frame where the ellipsoid is the unit sphere.
+    let o = origin / ellipsoidRadii
+    let d = direction / ellipsoidRadii
+    let (a, b, c) = (dot(d, d), 2 * dot(d, o), dot(o, o) - 1)
+    let discriminant = b * b - 4 * a * c
+    guard discriminant >= 0 else {
+        return nil
+    }
+    let near = (-b - discriminant.squareRoot()) / (2 * a)
+    return near > 0 ? near : nil
+}

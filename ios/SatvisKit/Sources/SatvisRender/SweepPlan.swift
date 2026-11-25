@@ -62,13 +62,17 @@ public enum SweepPlan {
         "clock": SweepSpec(satelliteCounts: satelliteCounts, componentSets: clockComponentSets, clockMultipliers: clockMultipliers),
     ]
 
+    /// The components swept: not the ground track fan, which only a granule layer's satellite
+    /// draws, as the web app's `SWEPT_COMPONENTS`.
+    static let sweptComponents = SatelliteComponents.named.map(\.0).filter { $0 != "Ground track fan" }
+
     /// Each set adds one component, so consecutive rows differ by its cost.
-    public static let cumulativeComponentSets: [[String]] = SatelliteComponents.named.map(\.0).reduce(into: [[]]) { sets, name in
+    public static let cumulativeComponentSets: [[String]] = sweptComponents.reduce(into: [[]]) { sets, name in
         sets.append(sets[sets.count - 1] + [name])
     }
 
     /// Point is the baseline, as a satellite exists even without one.
-    public static let isolatedComponentSets: [[String]] = [["Point"]] + SatelliteComponents.named.map(\.0).filter { $0 != "Point" }.map { ["Point", $0] }
+    public static let isolatedComponentSets: [[String]] = [["Point"]] + sweptComponents.filter { $0 != "Point" }.map { ["Point", $0] }
 
     /// Component sets outermost, so a cancelled sweep leaves whole series.
     public static func steps(_ spec: SweepSpec) -> [SweepStep] {

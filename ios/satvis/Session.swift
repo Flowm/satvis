@@ -70,6 +70,14 @@ final class Session {
     }
     /// The instrument imagery drawn over the base map (ADR 0020), kept in links as `imagery`.
     let instrumentImagery = InstrumentImagery()
+    /// The drawn granule layers' granules behind the clock (ADR 0023).
+    @ObservationIgnored let granuleImagery = GranuleImagery()
+    /// What the granule pictures on screen owe.
+    private var granuleCredits: [Credit] = []
+    /// The overpass replay on, kept in links as `replay` (ADR 0023).
+    @ObservationIgnored private(set) lazy var replay = OverpassReplayModel(session: self)
+    /// Where the camera was when the replay on started, which its end goes back to.
+    @ObservationIgnored private var viewBeforeReplay: CameraView?
     /// Whether the globe follows Re:Earth's terrain, kept in links as `terrain`:
     /// off by default, as on the web.
     var terrain = launchMap.terrain {
@@ -98,8 +106,8 @@ final class Session {
     var mapCredits: [Credit] {
         Credit.map(
             baseLayer: baseLayer, terrain: terrain,
-            instrumentImagery: instrumentImagery.tokens.compactMap { SatelliteDetails.ImageryPreview.Provider(rawValue: String($0.prefix { $0 != ":" })) },
-            mosaic: instrumentImagery.mosaic.credit)
+            instrumentImagery: instrumentImagery.tiledProviders,
+            mosaic: instrumentImagery.mosaic.credit, pictures: granuleCredits)
     }
 
     /// The site's privacy policy, which covers the app.
@@ -260,7 +268,7 @@ final class Session {
     /// Loads what there is to show and keeps it in step until cancelled.
     func run() async {
         starMapLoader.show(starMap)
-        let watchers = [
+        let watchers: [Task<Void, Never>] = [
             Task { await watchActive() },
             Task { await watchStations() },
             Task { await watchMode() },
@@ -270,8 +278,21 @@ final class Session {
             Task { await loadFeaturedPictures() },
             Task { await predictPasses() },
             Task { await watchInstrumentImagery() },
+            Task { await replay.watch() },
+            Task { await replay.watchSensed() },
             Task {
                 await instrumentImagery.follow(now: { self.clock.now() }) { self.globe.instrumentImagery = $0 }
+            },
+            Task {
+                await granuleImagery.follow(
+                    now: { self.clock.now() }, isDrawn: { id in self.catalog.activeEntries.contains { $0.id == id } },
+                    apply: { granules, fans, pictures in
+                        self.globe.setGranules(granules, fans: fans)
+                        let credits = pictures.map { Credit.picture($0, at: self.clock.now()) }
+                        if credits != self.granuleCredits {
+                            self.granuleCredits = credits
+                        }
+                    })
             },
             Task { await countViews() },
         ]
@@ -401,6 +422,7 @@ final class Session {
             overpassMode: passes.mode,
             layers: [baseLayer.rawValue],
             imagery: instrumentImagery.tokens,
+            replayStation: replay.station,
             terrain: terrain,
             starMap: starMap,
             unseen: unseen,
@@ -460,6 +482,7 @@ final class Session {
             baseLayer = base
         }
         instrumentImagery.set(scene.imagery)
+        replay.station = scene.replayStation
         terrain = scene.terrain
         starMap = scene.starMap
         pixelRatio = scene.pixelRatio
@@ -661,7 +684,7 @@ final class Session {
     /// the other, unless reduced motion cuts.
     private func setProjection(_ projection: GlobeProjection, animated: Bool) {
         self.projection = projection
-        globe.setProjection(projection, animated: animated && !Platform.reducesMotion)
+        globe.setProjection(projection, animated: animated && !GlobeRenderer.reducesMotion)
     }
 
     /// The globe button (`Focus.goHome`).
@@ -689,7 +712,7 @@ final class Session {
     }
 
     /// Shows `text` for a few seconds; nothing for nil.
-    private func show(_ text: String?) {
+    func show(_ text: String?) {
         guard let text else {
             return
         }
@@ -785,13 +808,79 @@ final class Session {
         perform(focus.stopTracking(animated: animated))
     }
 
+    // MARK: Overpass replay
+
+    /// Plays from the plan's time at its speed, the camera watching its satellite pass over
+    /// its station as `camera` says: an overpass replay (ADR 0023).
+    func replay(_ plan: OverpassReplay.Plan, camera: ReplayCamera) {
+        clock.scrub(to: plan.time.rounded(.down))
+        clock.setMultiplier(plan.multiplier)
+        clock.setPlaying(true)
+        aimReplay(satellite: plan.satellite, centre: plan.centre, camera: camera)
+    }
+
+    /// Points the camera at a replay as `camera` says, at the clock as it is. Tracking the
+    /// satellite chases its swath while its layer is on; the sky view keeps its camera.
+    func aimReplay(satellite: String, centre: GroundPoint, camera: ReplayCamera) {
+        globe.stopBroadcast()
+        guard observer == nil else {
+            return
+        }
+        let motion = !GlobeRenderer.reducesMotion
+        let id = catalog.loadedEntry(named: satellite)?.id
+        switch camera {
+        case .tracking:
+            if let id, tracked != .satellite(id) {
+                follow(.satellite(id), animated: true)
+            }
+        case .nadir, .broadcast:
+            if tracked != nil {
+                perform(focus.stopTracking(animated: false))
+            }
+            if camera == .broadcast, let id {
+                globe.startBroadcast(satellite: id, station: centre, fallbackHeight: Self.replayHeight, animated: motion)
+            } else {
+                globe.flyOver(latitude: centre.latitude, longitude: centre.longitude, height: Self.replayHeight, animated: motion)
+            }
+        }
+    }
+
+    /// Metres above the station the nadir camera looks down from.
+    private static let replayHeight = 5_000_000.0
+
+    /// Keeps the view a replay starts from, for its end; one kept already stays, through
+    /// the replay's steps.
+    func keepViewBeforeReplay() {
+        if observer == nil, viewBeforeReplay == nil {
+            viewBeforeReplay = globe.currentView()
+        }
+    }
+
+    /// Ends a replay's camera: the broadcast stops, and with `returnView` tracking stops
+    /// too and the camera flies back to the view the replay started from. A replay opened
+    /// from a link started from none, so the camera stays.
+    func endReplayCamera(returnView: Bool) {
+        globe.stopBroadcast()
+        let view = viewBeforeReplay
+        viewBeforeReplay = nil
+        guard returnView, observer == nil else {
+            return
+        }
+        if tracked != nil {
+            perform(focus.stopTracking(animated: false))
+        }
+        if let view {
+            globe.fly(to: view, animated: !GlobeRenderer.reducesMotion)
+        }
+    }
+
     /// Does what a change of focus asks of the renderer, and keeps the followed
     /// satellite active. Reduced motion cuts every flight.
     private func perform(_ commands: [Focus.Command]) {
         if catalog.tracked != focus.trackedSatellite {
             catalog.setTracked(focus.trackedSatellite)
         }
-        let motion = !Platform.reducesMotion
+        let motion = !GlobeRenderer.reducesMotion
         for command in commands {
             switch command {
             case .track(let target, let animated):
@@ -849,6 +938,9 @@ final class Session {
     private func watchInstrumentImagery() async {
         for await (catalog, _) in Observations({ (self.catalog.catalog, self.instrumentImagery.tokens) }) {
             instrumentImagery.resolve(catalog.entries.values)
+            granuleImagery.set(instrumentImagery.granuleLayers)
+            // Tracking a satellite whose recorded swath is on chases it.
+            globe.chasing = Set(instrumentImagery.granuleLayers.compactMap(\.owner))
         }
     }
 

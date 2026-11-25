@@ -115,18 +115,7 @@ struct DrawnFrame {
         let inverse = viewProjection.inverse
         let far = inverse * SIMD4(ndc.x, ndc.y, 0.5, 1)
         let direction = normalize(SIMD3(far.x, far.y, far.z) / far.w)
-        // In a frame where the ellipsoid is the unit sphere.
-        let origin = eye / ellipsoidRadii
-        let scaled = direction / ellipsoidRadii
-        let a = dot(scaled, scaled)
-        let b = 2 * dot(origin, scaled)
-        let c = dot(origin, origin) - 1
-        let discriminant = b * b - 4 * a * c
-        guard discriminant >= 0 else {
-            return nil
-        }
-        let t = (-b - discriminant.squareRoot()) / (2 * a)
-        guard t > 0 else {
+        guard let t = distanceToEllipsoid(from: eye, along: direction) else {
             return nil
         }
         let place = geodetic(eye + t * direction)

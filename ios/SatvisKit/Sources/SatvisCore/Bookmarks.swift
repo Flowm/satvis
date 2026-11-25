@@ -173,15 +173,7 @@ public enum Bookmarks {
 
     /// "just now", "5 min ago", "3 h ago", "2 d ago".
     public static func timeAgo(_ at: Double, now: Double) -> String {
-        let minutes = ((now - at) / 60_000).rounded(.down)
-        if minutes < 1 {
-            return "just now"
-        }
-        if minutes < 60 {
-            return "\(Int(minutes)) min ago"
-        }
-        let hours = (minutes / 60).rounded(.down)
-        return hours < 24 ? "\(Int(hours)) h ago" : "\(Int((hours / 24).rounded(.down))) d ago"
+        Formats.timeAgo(at, now: now)
     }
 
     /// The globe's projections by their `scene` value.

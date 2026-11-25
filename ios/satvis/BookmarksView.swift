@@ -212,7 +212,7 @@ struct BookmarksView: View {
                 actions(bookmark)
             } label: {
                 Image(systemName: "ellipsis")
-                    .font(.footnote.weight(.bold))
+                    .font(.panelNote.weight(.bold))
                     .foregroundStyle(.white)
                     .frame(width: 28, height: 28)
                     .background(.black.opacity(0.73), in: .circle)
@@ -314,11 +314,11 @@ struct BookmarkCard: View {
                     }
                 }
             Text(bookmark.name)
-                .font(.subheadline.weight(.semibold))
+                .font(.panelLabel.weight(.semibold))
                 .lineLimit(2)
                 .padding(.horizontal, 8)
             BookmarkFacts(summary: summary)
-                .font(.caption)
+                .font(.panelCaption)
                 .padding(.horizontal, 8)
         }
         .padding(.bottom, 8)
@@ -340,7 +340,7 @@ struct BookmarkCard: View {
 
     private func badge(_ text: String, color: Color) -> some View {
         Text(text)
-            .font(.caption2)
+            .font(.panelCaption2)
             .foregroundStyle(color)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)

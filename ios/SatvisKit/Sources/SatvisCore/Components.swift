@@ -15,6 +15,9 @@ public struct SatelliteComponents: OptionSet, Sendable, Hashable {
     /// For the satellites a model manifest gives a model (ADR 0007).
     public static let model = SatelliteComponents(rawValue: 1 << 6)
     public static let groundStationLink = SatelliteComponents(rawValue: 1 << 7)
+    /// The instrument's scan line, a thin fan from the satellite across the track to its
+    /// swath's edges, which a granule is sensed behind (ADR 0023).
+    public static let groundTrackFan = SatelliteComponents(rawValue: 1 << 8)
 
     /// Past these many active satellites the web app switches a component off,
     /// once, on the crossing (`COMPONENT_BUDGETS`): labels stop being readable,
@@ -27,7 +30,8 @@ public struct SatelliteComponents: OptionSet, Sendable, Hashable {
 
     /// The web app's names, as its `elements` url parameter and presets use them.
     public static let named: [(String, SatelliteComponents)] = [
-        ("Point", .point), ("Label", .label), ("Orbit", .orbit), ("Orbit track", .orbitTrack), ("Ground track", .groundTrack), ("Sensor cone", .sensorCone), ("3D model", .model),
+        ("Point", .point), ("Label", .label), ("Orbit", .orbit), ("Orbit track", .orbitTrack), ("Ground track", .groundTrack), ("Ground track fan", .groundTrackFan),
+        ("Sensor cone", .sensorCone), ("3D model", .model),
         ("Ground station link", .groundStationLink),
     ]
 

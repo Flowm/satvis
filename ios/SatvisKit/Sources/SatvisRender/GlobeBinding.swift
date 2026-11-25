@@ -16,11 +16,13 @@ protocol Globe: AnyObject {
     var cameraFrame: CameraFrame { get set }
     var components: SatelliteComponents { get set }
     var passthrough: CameraLens? { get set }
+    var chasing: Set<String> { get set }
     func setImagery(_ layer: BaseLayer, site: URL)
     func setInstrumentImagery(_ overlays: [ImageryOverlay])
     func setTerrain(_ enabled: Bool)
     func setStations(_ stations: [StationMarker])
     func setLinks(_ links: [StationLink])
+    func setGranules(_ granules: [GranuleDrawing], fans: Set<String>)
     func prepare(_ satellites: [PointSatellite], labelled: Bool) async -> Prepared
     func setSatellites(_ prepared: Prepared)
     func setStarMap(faces: [Data])
@@ -30,6 +32,10 @@ protocol Globe: AnyObject {
     func stopTracking(animated: Bool)
     func flyHome(animated: Bool)
     func setProjection(_ projection: GlobeProjection, animated: Bool)
+    func startBroadcast(satellite: String, station: GroundPoint, fallback: CameraView, animated: Bool)
+    func stopBroadcast()
+    func currentView() -> CameraView?
+    func fly(to view: CameraView, animated: Bool)
 }
 
 extension GlobeRenderer: Globe {}
@@ -49,6 +55,8 @@ public final class GlobeBinding {
         case sky(SkyCamera)
         /// Following what has this id.
         case tracking(String)
+        /// On the free camera, flown to this view.
+        case view(CameraView)
     }
 
     /// The globe attached last; nil until the renderer has compiled its shaders.
@@ -107,6 +115,16 @@ public final class GlobeBinding {
     public var links: [StationLink] = [] {
         didSet { globe?.setLinks(links) }
     }
+    /// Satellites (`PointSatellite.id`) whose own granule layer is on: tracking one
+    /// chases its swath, from behind and above it, looking down at 50° at the ground
+    /// under it (ADR 0023). When the tracked satellite joins or leaves them, it is
+    /// tracked again, into the chase or out of it.
+    public var chasing: Set<String> = [] {
+        didSet { globe?.chasing = chasing }
+    }
+    /// The granules replayed behind the clock, and the satellites whose ground track
+    /// fan is drawn with the component off (`GlobeRenderer.setGranules`).
+    private var granules: (list: [GranuleDrawing], fans: Set<String>) = ([], [])
     /// What of each satellite is drawn.
     public var components: SatelliteComponents = [.point, .label] {
         didSet { globe?.components = components }
@@ -150,14 +168,17 @@ public final class GlobeBinding {
         globe.setProjection(projection, animated: false)
         globe.setStations(stations)
         globe.onGPUFault = onGPUFault
+        globe.chasing = chasing
         switch camera {
         case .sky(let sky): globe.enterSky(sky, animated: false)
         case .tracking(let id): globe.track(id, animated: false)
+        case .view(let view): globe.fly(to: view, animated: false)
         case nil: break
         }
         globe.passthrough = passthrough
         globe.setLinks(links)
         globe.components = components
+        globe.setGranules(granules.list, fans: granules.fans)
         Task { await handSatellites(to: globe) }
         if let starMap {
             globe.setStarMap(faces: starMap)
@@ -168,6 +189,12 @@ public final class GlobeBinding {
     public func setImagery(_ layer: BaseLayer, site: URL) {
         imagery = (layer, site)
         globe?.setImagery(layer, site: site)
+    }
+
+    /// The granules to draw (`GlobeRenderer.setGranules`).
+    public func setGranules(_ granules: [GranuleDrawing], fans: Set<String>) {
+        self.granules = (granules, fans)
+        globe?.setGranules(granules, fans: fans)
     }
 
     /// The satellites to draw, packed off the main thread first, and the
@@ -241,5 +268,41 @@ public final class GlobeBinding {
     public func flyHome(animated: Bool) {
         camera = nil
         globe?.flyHome(animated: animated)
+    }
+
+    /// Straight down on a place, in degrees, north up, from `height` metres above
+    /// the ellipsoid, letting go of what is followed and ending any broadcast:
+    /// `animated` flies there over two seconds, eased by smootherstep, else the
+    /// camera cuts. Not in the sky view.
+    public func flyOver(latitude: Double, longitude: Double, height: Double, animated: Bool) {
+        fly(to: .over(latitude: latitude, longitude: longitude, height: height), animated: animated)
+    }
+
+    /// The broadcast camera of an overpass replay (`GlobeRenderer.startBroadcast`):
+    /// held beyond `station` on its side of the ground track, 1,800 km up, turning
+    /// each frame to keep the satellite with this id in view. Where it cannot start,
+    /// the camera looks straight down on the station from `fallbackHeight` metres,
+    /// as a renderer arriving later starts.
+    public func startBroadcast(satellite: String, station: GroundPoint, fallbackHeight: Double, animated: Bool) {
+        let fallback = CameraView.over(latitude: station.latitude, longitude: station.longitude, height: fallbackHeight)
+        camera = .view(fallback)
+        globe?.startBroadcast(satellite: satellite, station: station, fallback: fallback, animated: animated)
+    }
+
+    /// Ends the broadcast (`GlobeRenderer.stopBroadcast`).
+    public func stopBroadcast() {
+        globe?.stopBroadcast()
+    }
+
+    /// The camera's view now, on the globe or the map, to fly back to with
+    /// `fly(to:)`; nil before the renderer has arrived.
+    public func currentView() -> CameraView? {
+        globe?.currentView()
+    }
+
+    /// Flies back to a view `currentView` gave (`GlobeRenderer.fly(to:)`).
+    public func fly(to view: CameraView, animated: Bool) {
+        camera = .view(view)
+        globe?.fly(to: view, animated: animated)
     }
 }

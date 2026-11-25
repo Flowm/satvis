@@ -15,7 +15,7 @@
     <span class="browser-badge">{{ formatInteger(row.activeCount) }}/{{ formatInteger(row.count) }}</span>
   </div>
 
-  <div v-else class="browser-row browser-row--sat">
+  <div v-else class="browser-row browser-row--sat" :class="{ 'browser-row--stacked': stacked && row.groupsLabel }">
     <input class="browser-checkbox panelCheckbox" type="checkbox" :checked="row.checked" :aria-label="`Toggle ${row.name}`" @click.stop="emit('toggle-sat', row.name)" />
     <span class="browser-label browser-label--sat" @click="emit('toggle-sat', row.name)">{{ row.name }}</span>
     <span class="browser-orbit" :style="{ color: ORBIT_CLASS_COLOR[row.orbitClass] }" :title="`${row.orbitClass} — the colour this satellite's point is drawn in`">{{
@@ -36,7 +36,8 @@ import type { BrowserRow } from "@/composables/useSatelliteBrowser";
 import { ORBIT_CLASS_COLOR } from "@/config/orbitClass";
 import { formatInteger } from "@/modules/util/formats";
 
-const props = defineProps<{ row: BrowserRow }>();
+/** `stacked` puts a search result's tags under its name, for a phone's width. */
+const props = defineProps<{ row: BrowserRow; stacked?: boolean }>();
 const emit = defineEmits<{
   "toggle-group": [tag: string];
   "toggle-sat": [name: string];
@@ -160,5 +161,41 @@ watch(() => (props.row.kind === "group" ? props.row.state : undefined), syncInde
   color: #8a9797;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* As tall as STACKED_ROW_HEIGHT in SatelliteBrowser.vue, which lays the list out. */
+.browser-row--stacked {
+  display: grid;
+  grid-template-areas:
+    "check label orbit satnum info"
+    "check groups groups groups info";
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  column-gap: 6px;
+  align-content: center;
+  height: 42px;
+}
+
+.browser-row--stacked .browser-checkbox {
+  grid-area: check;
+}
+
+.browser-row--stacked .browser-label {
+  grid-area: label;
+}
+
+.browser-row--stacked .browser-orbit {
+  grid-area: orbit;
+}
+
+.browser-row--stacked .browser-satnum {
+  grid-area: satnum;
+}
+
+.browser-row--stacked .browser-groups {
+  grid-area: groups;
+}
+
+.browser-row--stacked .browser-info {
+  grid-area: info;
 }
 </style>

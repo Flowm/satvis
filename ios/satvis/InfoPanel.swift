@@ -18,6 +18,15 @@ struct InfoPanel: View {
     @State private var previews: [ImageryLayer: ImageryPreviewSource] = [:]
     /// The cards' width, the tab row's, in points.
     @State private var cardsWidth = 0.0
+    /// The newest pass of each of the satellite's granule layers.
+    @State private var latestPasses = LatestPasses()
+    /// What its granule layers recorded over each station.
+    @State private var recorded = RecordedOverpasses()
+    /// Compact on a phone, where the subtitle has a line of its own under the bar's
+    /// buttons: beside them it was cut to "#27424 · LEO (SSO)…".
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    private var subtitleApart: Bool { sizeClass == .compact }
 
     private var propagator: SGP4Propagator? { try? SGP4Propagator(entry.record.meanElements) }
 
@@ -47,9 +56,11 @@ struct InfoPanel: View {
                             instrumentList(instruments)
                         case .imagery:
                             ImageryCards(
-                                layers: imagery, previews: previews, columns: ImageryCards.columns(width: cardsWidth), drawn: session.instrumentImagery)
+                                layers: imagery, previews: previews, columns: ImageryCards.columns(width: cardsWidth), session: session, satellite: entry.id,
+                                latest: latestPasses)
                         default:
-                            PassesSections(subject: .satellite(entry), clock: session.clock, passes: session.passes)
+                            PassesSections(
+                                subject: .satellite(entry), clock: session.clock, passes: session.passes, recorded: recorded, replay: session.replay)
                         }
                     }
                     .raisedRows()
@@ -59,6 +70,13 @@ struct InfoPanel: View {
                 // A tab opens at its top, as the web app's, whose tab bodies are of their own.
                 .id(shownTab)
                 .tabBar {
+                    if subtitleApart {
+                        subheading(propagator)
+                            .font(.panelNote)
+                            .lineLimit(1)
+                            .accessibilityHidden(true)
+                            .padding(.bottom, 10)
+                    }
                     // The web app's notice, amber as the deck's way back to rest.
                     TimelineView(.periodic(from: .now, by: 1)) { _ in
                         if let propagator,
@@ -66,7 +84,7 @@ struct InfoPanel: View {
                                 epochMilliseconds: epochMilliseconds(julianDate: propagator.epochJulianDate), time: session.clock.now())
                         {
                             Label(notice, systemImage: "exclamationmark.triangle")
-                                .font(.footnote)
+                                .font(.panelNote)
                                 .foregroundStyle(Color.panelAmber)
                                 .accessibilityHint("Only the latest element set is kept, so positions far from its epoch drift by kilometres to thousands of kilometres.")
                                 .padding(.horizontal, 16)
@@ -84,6 +102,12 @@ struct InfoPanel: View {
             }
             .panelList()
             .alertNotice(session.alerts)
+            .task(id: entry.id) {
+                await latestPasses.follow(imagery.compactMap { layer in layer.imagery.granuleLayer.map { (layer.imagery.key, $0) } })
+            }
+            .task(id: RecordedOverpasses.pairs(satellites: [entry], stations: session.passes.stations).map(\.key)) {
+                await recorded.follow(RecordedOverpasses.pairs(satellites: [entry], stations: session.passes.stations))
+            }
             // Synchronously, so that no frame shows the last satellite's state on this one.
             .onChange(of: entry.id, initial: true) {
                 unfoldedInstruments = []
@@ -96,6 +120,7 @@ struct InfoPanel: View {
                     title(propagator)
                 } actions: {
                     AlertButton(subject: .satellite(entry.id), satellites: [entry], passes: session.passes, alerts: session.alerts)
+                    ReplayLatestButton(session: session, recorded: recorded)
                     TrackButton(session: session, target: .satellite(entry.id))
                     Button("Close", systemImage: "xmark") { session.select(nil) }
                 }
@@ -113,6 +138,11 @@ struct InfoPanel: View {
                     // The spacer goes with Track, which the sky view lacks.
                     if session.observer == nil {
                         ToolbarSpacer(.fixed, placement: .primaryAction)
+                        if recorded.latest != nil {
+                            ToolbarItem(placement: .primaryAction) {
+                                ReplayLatestButton(session: session, recorded: recorded)
+                            }
+                        }
                         ToolbarItem(placement: .primaryAction) {
                             TrackButton(session: session, target: .satellite(entry.id))
                         }
@@ -130,12 +160,14 @@ struct InfoPanel: View {
     private func title(_ propagator: SGP4Propagator?) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(entry.name)
-                .font(.headline)
+                .font(.panelHeadline)
                 // The buttons leave the title less room than the system title had.
                 .minimumScaleFactor(0.8)
-            subheading(propagator)
+            if !subtitleApart {
+                subheading(propagator)
+            }
         }
-        .font(.footnote)
+        .font(.panelNote)
         .lineLimit(1)
         .leadingTitle()
         .accessibilityElement(children: .ignore)
@@ -196,7 +228,7 @@ struct InfoPanel: View {
                         Text("\(links.count) sites")
                             .foregroundStyle(.secondary)
                         Image(systemName: "chevron.up.chevron.down")
-                            .font(.footnote.weight(.semibold))
+                            .font(.panelNote.weight(.semibold))
                             .foregroundStyle(.tertiary)
                     }
                     .contentShape(.rect)
@@ -228,7 +260,7 @@ struct InfoPanel: View {
         } footer: {
             // CC BY 4.0 asks for the credit where the data is shown.
             Link(Credit.instruments.text, destination: Credit.instruments.link!)
-                .font(.footnote)
+                .font(.panelNote)
         }
     }
 
@@ -361,6 +393,21 @@ extension View {
     }
 }
 
+/// Replays the newest overpass the panel's Passes table records by day, with its granules.
+private struct ReplayLatestButton: View {
+    let session: Session
+    let recorded: RecordedOverpasses
+
+    var body: some View {
+        if session.observer == nil, let latest = recorded.latest {
+            Button("Replay the last imaged overpass", systemImage: "clock.arrow.circlepath") {
+                session.replay.replay(latest, among: recorded.recorded)
+            }
+            .help("Replay the last imaged overpass: \(latest.satellite) over \(latest.station)")
+        }
+    }
+}
+
 /// A panel's Track, or Stop tracking while it is followed: the camera flies there,
 /// or back. None in the sky view, which follows nothing: the web app hides Track there.
 private struct TrackButton: View {
@@ -436,6 +483,14 @@ struct StationPanel: View {
     @AppStorage("infoPanelTab") private var tab = InfoTab.orbit
     @State private var renaming = false
     @State private var draftName = ""
+    /// What the active satellites' granule layers recorded over it.
+    @State private var recorded = RecordedOverpasses()
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    /// The active satellites' granule layers over this station.
+    private var recordedPairs: [RecordedOverpasses.Pair] {
+        RecordedOverpasses.pairs(satellites: session.catalog.activeEntries, stations: [station])
+    }
 
     private static let tabs: [InfoTab] = [.passes, .location]
 
@@ -452,7 +507,9 @@ struct StationPanel: View {
                             FactRow(label: "Longitude", value: "\(Formats.fixed(station.longitude, 2))°")
                         }
                     default:
-                        PassesSections(subject: .station(station, session.catalog.activeEntries), clock: session.clock, passes: session.passes)
+                        PassesSections(
+                            subject: .station(station, session.catalog.activeEntries), clock: session.clock, passes: session.passes, recorded: recorded,
+                            replay: session.replay)
                     }
                 }
                 .raisedRows()
@@ -463,10 +520,27 @@ struct StationPanel: View {
             }
             .panelList()
             .alertNotice(session.alerts)
+            .task(id: recordedPairs.map(\.key)) {
+                await recorded.follow(recordedPairs)
+            }
+            // A replay the globe menu asked for, once this table has listed what this
+            // station records: the panel's state outlives a change of station.
+            .onChange(of: session.replay.latestRequest == station.id && recorded.isSettled(for: recordedPairs), initial: true) { _, ready in
+                guard ready else {
+                    return
+                }
+                session.replay.latestRequest = nil
+                if let latest = recorded.latest {
+                    session.replay.replay(latest, among: recorded.recorded)
+                } else {
+                    session.show("Nothing to replay: no overpass by day recorded in the last 30 days.")
+                }
+            }
             #if os(macOS)
                 .cardHeader {
                     title
                 } actions: {
+                    ReplayLatestButton(session: session, recorded: recorded)
                     stationActions
                     skyActions
                     Button("Close", systemImage: "xmark") { session.select(nil) }
@@ -478,13 +552,32 @@ struct StationPanel: View {
                     ToolbarItem(placement: .title) {
                         title
                     }
-                    // By what they do: the station itself, where to look from, and away.
-                    ToolbarItemGroup(placement: .primaryAction) {
-                        stationActions
-                    }
-                    ToolbarSpacer(.fixed, placement: .primaryAction)
-                    ToolbarItemGroup(placement: .primaryAction) {
-                        skyActions
+                    if sizeClass == .compact {
+                        // A phone's bar fits the name beside three buttons: six left it none.
+                        ToolbarItemGroup(placement: .primaryAction) {
+                            if !session.passes.isVisiting(station.id) {
+                                alertButton
+                            }
+                            Menu("More", systemImage: "ellipsis") {
+                                if session.passes.isVisiting(station.id) {
+                                    saveButton
+                                } else {
+                                    renameButton
+                                }
+                                ReplayLatestButton(session: session, recorded: recorded)
+                                skyActions
+                            }
+                        }
+                    } else {
+                        // By what they do: the station itself, where to look from, and away.
+                        ToolbarItemGroup(placement: .primaryAction) {
+                            stationActions
+                        }
+                        ToolbarSpacer(.fixed, placement: .primaryAction)
+                        ToolbarItemGroup(placement: .primaryAction) {
+                            ReplayLatestButton(session: session, recorded: recorded)
+                            skyActions
+                        }
                     }
                     ToolbarSpacer(.fixed, placement: .primaryAction)
                     ToolbarItem(placement: .primaryAction) {
@@ -507,7 +600,7 @@ struct StationPanel: View {
     /// The station's name.
     private var title: some View {
         Text(station.displayName)
-            .font(.headline)
+            .font(.panelHeadline)
             .lineLimit(1)
             .leadingTitle()
     }
@@ -516,14 +609,26 @@ struct StationPanel: View {
     /// alerts and names are for the user's own, which persist.
     @ViewBuilder private var stationActions: some View {
         if session.passes.isVisiting(station.id) {
-            Button("Save station", systemImage: "plus.circle") { session.passes.save(station.id) }
+            saveButton
         } else {
-            Button("Rename", systemImage: "pencil") {
-                draftName = station.name ?? ""
-                renaming = true
-            }
-            AlertButton(subject: .station(station.id), satellites: session.catalog.activeEntries, passes: session.passes, alerts: session.alerts)
+            renameButton
+            alertButton
         }
+    }
+
+    private var saveButton: some View {
+        Button("Save station", systemImage: "plus.circle") { session.passes.save(station.id) }
+    }
+
+    private var renameButton: some View {
+        Button("Rename", systemImage: "pencil") {
+            draftName = station.name ?? ""
+            renaming = true
+        }
+    }
+
+    private var alertButton: some View {
+        AlertButton(subject: .station(station.id), satellites: session.catalog.activeEntries, passes: session.passes, alerts: session.alerts)
     }
 
     /// Where to look from.
@@ -599,7 +704,7 @@ private struct ElementSetSection: View {
             Section("Element set") {
                 FactRow(label: "Epoch", value: "\(epoch) UTC")
                 Text(lines)
-                    .font(.caption.monospaced())
+                    .font(.panelCaption.monospaced())
                     .textSelection(.enabled)
             }
         case .omm(let epoch, let rows):
@@ -607,7 +712,7 @@ private struct ElementSetSection: View {
                 FactRow(label: "Epoch", value: "\(epoch) UTC")
                 ForEach(rows, id: \.label) { row in
                     FactRow(label: row.label, value: row.value)
-                        .font(.caption.monospaced())
+                        .font(.panelCaption.monospaced())
                 }
             }
         }

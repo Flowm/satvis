@@ -1,4 +1,5 @@
 import SatvisCore
+import SatvisRender
 import SwiftUI
 
 /// The bottom controls, as the web app's clock deck: a control row over a scale
@@ -15,6 +16,8 @@ struct ClockDeck<Accessory: View>: View {
     let passes: PassModel
     /// The selected satellite, by catalog id.
     let satellite: String?
+    /// When the granule layer on has granules (ADR 0023).
+    let sensed: [Overpass]
     @ViewBuilder let accessory: Accessory
     @State private var isOpen = false
     @State private var onLadder = false
@@ -36,7 +39,7 @@ struct ClockDeck<Accessory: View>: View {
                     if onLadder {
                         Ladder(clock: clock)
                     } else {
-                        TimelineScale(clock: clock, passes: passes, satellite: satellite)
+                        TimelineScale(clock: clock, passes: passes, satellite: satellite, sensed: sensed)
                     }
                 }
                 .frame(height: Metrics.scaleHeight)
@@ -116,14 +119,14 @@ struct ClockDeck<Accessory: View>: View {
                 if isOpen {
                     // Before the reset, so it holds still as the reset comes and goes.
                     chip(
-                        onLadder ? "Show timeline" : "Set playback speed", symbol: onLadder ? "clock" : "gauge.with.dots.needle.67percent",
+                        onLadder ? "Show timeline" : "Set playback speed", image: onLadder ? Image(systemName: "clock") : Image(.lucideGauge),
                         fill: .white.opacity(onLadder ? 0.18 : 0.08), tint: Color.panelInk
                     ) {
                         onLadder.toggle()
                     }
                     if resettable {
                         // The ladder follows the speed it puts back.
-                        chip("Back to now", symbol: "arrow.counterclockwise", fill: Color.panelAmber.opacity(0.12), tint: Color.panelAmber) {
+                        chip("Back to now", image: Image(systemName: "arrow.counterclockwise"), fill: Color.panelAmber.opacity(0.12), tint: Color.panelAmber) {
                             clock.goLive()
                         }
                     }
@@ -135,10 +138,15 @@ struct ClockDeck<Accessory: View>: View {
         .padding(.top, Metrics.rowHeight - Metrics.playBox)
     }
 
-    private func chip(_ title: String, symbol: String, fill: Color, tint: Color, action: @escaping () -> Void) -> some View {
+    /// A round button beside the clock; the speed's is the web app's Lucide gauge, as the
+    /// menu's Graphics.
+    private func chip(_ title: String, image: Image, fill: Color, tint: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 14, weight: .medium))
+            image
+                .resizable()
+                .scaledToFit()
+                .fontWeight(.medium)
+                .frame(width: 15, height: 15)
                 .foregroundStyle(tint)
                 .frame(width: Metrics.chipDisc, height: Metrics.chipDisc)
                 .background(fill, in: .circle)
@@ -244,6 +252,7 @@ private struct TimelineScale: View {
     let clock: ViewerClock
     let passes: PassModel
     let satellite: String?
+    let sensed: [Overpass]
     @State private var dragStart: Double?
     @State private var flick: Task<Void, Never>?
 
@@ -272,6 +281,16 @@ private struct TimelineScale: View {
                     context.fill(Path(mark), with: .color(.timelineHigh.opacity(0.15)))
                     context.fill(Path(CGRect(x: mark.minX, y: 0, width: 1, height: size.height)), with: .color(.timelineHigh.opacity(0.4)))
                     context.fill(Path(CGRect(x: mark.maxX - 1, y: 0, width: 1, height: size.height)), with: .color(.timelineHigh.opacity(0.4)))
+                }
+                // Where the granule layer on has granules, in the granule fill's yellow: a band
+                // along the top, so the passes stay readable under it. Nearer live than about
+                // three hours, it has none yet.
+                for span in sensed where span.end >= centre - half && span.start <= centre + half {
+                    let left = max(0, (span.start - centre) / Self.msPerPoint + size.width / 2)
+                    let right = min(size.width, (span.end - centre) / Self.msPerPoint + size.width / 2)
+                    context.fill(
+                        Path(roundedRect: CGRect(x: left, y: 0, width: max(2, right - left), height: 4), cornerRadius: 2),
+                        with: .color(Color(red: granuleYellow.x, green: granuleYellow.y, blue: granuleYellow.z).opacity(0.8)))
                 }
                 var at = ((centre - half) / Self.minor).rounded(.down) * Self.minor
                 while at <= centre + half {

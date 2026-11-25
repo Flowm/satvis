@@ -67,7 +67,9 @@
       </div>
 
       <!-- The tab row shows even with one tab: pressing it folds the body.
-           `min-h-8` reserves the height of a badged trigger, so the row does not grow when the pass count arrives. -->
+           `min-h-8` reserves the height of a badged trigger, so the row does not grow when the pass count arrives.
+           Too narrow a row scrolls rather than cutting the labels to "Space…", as on a phone. A scroller clips its
+           border, where the indicator sits, so the bottom line is an inset shadow and the indicator sits above it. -->
       <UTabs
         v-model="activeTab"
         :items="tabs"
@@ -75,8 +77,9 @@
         size="sm"
         :ui="{
           root: 'gap-0',
-          list: 'px-2 border-y border-neutral-600',
-          trigger: 'min-h-8',
+          list: 'px-2 border-t border-b-0 border-neutral-600 shadow-[inset_0_-1px_var(--color-neutral-600)] overflow-x-auto overflow-y-hidden [scrollbar-width:none]',
+          indicator: 'bottom-0',
+          trigger: 'min-h-8 shrink-0',
           content: collapsed ? 'hidden' : 'px-3 pb-3 info-body',
         }"
       >
@@ -406,7 +409,14 @@ const ongoingFraction = computed(() => {
   }
   return Math.min(1, Math.max(0, (nowMs.value - pass.start) / (pass.end - pass.start)));
 });
-const nextPassSubject = computed(() => (nextPass.value ? (nextPass.value.groundStationName ?? nextPass.value.name) : ""));
+/** The other side of the pass from the panel's subject, as the iOS app's headline: a station's names the satellite. */
+const nextPassSubject = computed(() => {
+  const pass = nextPass.value;
+  if (!pass) {
+    return "";
+  }
+  return (selection.value?.kind === "groundstation" ? pass.name : pass.groundStationName) ?? "";
+});
 
 /** A station's passes are too dense for a timeline; see PassTimeline.vue. */
 const showTimeline = computed(() => selection.value?.kind === "satellite");

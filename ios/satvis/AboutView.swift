@@ -60,22 +60,28 @@ struct AboutView: View {
                 // The default preset's, as the about page shows them: on another preset's
                 // route they would open another preset, and the Bookmarks sheet has its own.
                 if Bookmarks.path(preset: session.catalog.presetName) == "/", !session.featured.isEmpty {
-                    Section("See it in action") {
+                    Section {
                         // The top inset keeps the picture's corners out of the card's larger ones.
                         FeaturedCarousel(session: session) { dismiss() }
                             .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 16, trailing: 0))
                             .listRowBackground(Color.clear)
+                    } header: {
+                        AboutHeading("See it in action")
                     }
                 }
-                Section("What it does") {
+                Section {
                     ForEach(Array(Self.features.enumerated()), id: \.offset) { _, feature in
                         row(feature.text, icon: feature.icon)
                     }
+                } header: {
+                    AboutHeading("What it does")
                 }
-                Section("Where the data comes from") {
+                Section {
                     Text(
                         "Element sets come from CelesTrak through satvis.space, refreshed several times a day. The app keeps the last ones it fetched, so it works offline once it has been online. Positions and passes are worked out on the device, with David Vallado's reference SGP4, held to the website's results. What each satellite is (its country, operator, manufacturer, bus, mass and size) comes from Jonathan McDowell's GCAT: data from J. McDowell, planet4589.org, under CC BY 4.0."
                     )
+                } header: {
+                    AboutHeading("Where the data comes from")
                 }
                 Section {
                     Link(destination: URL(string: "https://satvis.space/")!) { row("satvis.space", icon: .lucideGlobe) }
@@ -131,7 +137,7 @@ struct AboutView: View {
                 Text("Satvis")
                     .font(.title2.bold())
                 Text("3D satellite tracker and pass predictor")
-                    .font(.subheadline)
+                    .font(.panelLabel)
                     .foregroundStyle(.secondary)
             }
         }
@@ -277,10 +283,10 @@ private struct FeaturedSlide: View, Equatable {
                     .clipShape(.rect(cornerRadius: 12))
                     .padding(.bottom, 6)
                 Text(bookmark.name)
-                    .font(.headline)
+                    .font(.panelHeadline)
                     .foregroundStyle(Color.panelAccent)
                 BookmarkFacts(summary: summary)
-                    .font(.subheadline)
+                    .font(.panelLabel)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(.rect)
@@ -291,5 +297,22 @@ private struct FeaturedSlide: View, Equatable {
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.bookmark == rhs.bookmark && lhs.summary == rhs.summary && lhs.picture == rhs.picture
+    }
+}
+
+/// A section's title, bold in the cyan, as the web app's about page heads its sections.
+private struct AboutHeading: View {
+    let title: LocalizedStringKey
+
+    init(_ title: LocalizedStringKey) {
+        self.title = title
+    }
+
+    var body: some View {
+        Text(title)
+            .font(.panelTitle.bold())
+            .foregroundStyle(Color.panelAccent)
+            .textCase(nil)
+            .accessibilityAddTraits(.isHeader)
     }
 }

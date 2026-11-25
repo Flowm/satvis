@@ -38,6 +38,8 @@ extension Color {
     #else
         static let systemGray2 = Color(red: 0x63 / 255, green: 0x63 / 255, blue: 0x66 / 255)
     #endif
+    /// A row lit on a card: the web app's `--panel-raised-hover`, `#3a3a3c`.
+    static let panelRaisedHover = Color(red: 0x3A / 255, green: 0x3A / 255, blue: 0x3C / 255)
     /// What is chosen, and a tab's count: the web app's `#ffffff1f`.
     static let panelSelected = Color.white.opacity(0x1F / 255)
     /// "Not where it rests", as on the web: the clock deck's reset, a stale element set.
@@ -133,7 +135,7 @@ extension View {
     func panelSegmented() -> some View {
         pickerStyle(.segmented)
             .labelsHidden()
-            .background(Color.panelRaised, in: .capsule)
+            .background(Color.panelRaised, in: PanelMetrics.segmentShape)
     }
 
     /// A scroll view that bounces only where it scrolls, and keeps `height` at what
@@ -209,7 +211,7 @@ struct PanelButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         // The folded column: one row.
         let side = square ? PanelMetrics.row * scale : PanelMetrics.row
-        let radius: CGFloat = square ? 16 : 12
+        let radius: CGFloat = square ? PanelMetrics.radius : 12
         configuration.label
             .padding(.horizontal, square ? 0 : 12)
             .frame(minWidth: side, minHeight: side)
@@ -239,14 +241,26 @@ private struct PanelButtonSurface: ViewModifier {
 }
 
 /// The size scale, shared with the web app (src/css/main.css, `--toolbar-row` and on):
-/// in points at the default text size, which Dynamic Type scales the rows by. The text
-/// is a size under the system's body, as the web app's on a touch screen: the
-/// subheadline's 15 for a row's name, the callout's 16 for a panel's title, the
-/// footnote's 13 for a note and the caption's 12 for a section's heading.
+/// in points at the default text size, which Dynamic Type scales the rows by. A finger
+/// gets the web app's touch sizes, a pointer on a Mac its mouse sizes.
 enum PanelMetrics {
-    /// A row, a button, and the folded menu column: the fingertip Apple's Human
-    /// Interface Guidelines ask for.
-    static let row: CGFloat = 44
+    #if os(macOS)
+        /// A row, a button, and the folded menu column: the web app's for a mouse.
+        static let row: CGFloat = 32
+        /// A panel's corners, a card's and the info card's: the web app's 16 of 44, at 32.
+        static let radius: CGFloat = 12
+        /// A segmented control's track and thumb: the web app's rounded rectangle, as
+        /// AppKit's own control is.
+        static let segmentShape = AnyShape(.rect(cornerRadius: 6))
+    #else
+        /// A row, a button, and the folded menu column: the fingertip Apple's Human
+        /// Interface Guidelines ask for.
+        static let row: CGFloat = 44
+        /// A panel's corners, a card's and the info card's.
+        static let radius: CGFloat = 16
+        /// A segmented control's track and thumb: iOS's capsule.
+        static let segmentShape = AnyShape(.capsule)
+    #endif
     /// Between the menu column and its panel, and between the corner's buttons.
     static let gap: CGFloat = 8
     /// From the safe area's edge to the menu column and the corner's buttons: the
@@ -258,6 +272,31 @@ enum PanelMetrics {
     static func underTopRow(scale: CGFloat) -> CGFloat {
         edge + row * scale + gap
     }
-    /// A panel's corners, a card's and the info card's.
-    static let radius: CGFloat = 16
+}
+
+// The text sizes, shared with the web app (`--text-label` and on). On a phone and an
+// iPad a size under the system's body, as the web app's on a touch screen; on a Mac,
+// whose text styles run 3 to 4 points smaller, the web app's mouse sizes.
+extension Font {
+    #if os(macOS)
+        /// A row's name: the web app's 14 px.
+        static let panelLabel = Font.system(size: 14)
+        /// A panel's title: 15 px.
+        static let panelTitle = Font.system(size: 15)
+        /// A note under a setting: 12 px.
+        static let panelNote = Font.system(size: 12)
+        /// A section's heading, a badge, a table's figures: 12 px.
+        static let panelCaption = Font.system(size: 12)
+        /// The smallest: a count, a unit.
+        static let panelCaption2 = Font.system(size: 11)
+        /// The info panel's name and a card's heading.
+        static let panelHeadline = Font.system(size: 15, weight: .semibold)
+    #else
+        static let panelLabel = Font.subheadline
+        static let panelTitle = Font.callout
+        static let panelNote = Font.footnote
+        static let panelCaption = Font.caption
+        static let panelCaption2 = Font.caption2
+        static let panelHeadline = Font.headline
+    #endif
 }

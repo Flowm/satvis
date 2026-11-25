@@ -266,9 +266,14 @@ what a satellite records as it flies.
   expected. The granules fill in behind it, so they keep to it.
 - **A replay costs a CMR query an hour of clock time**, a probe per granule, and the
   tiles of up to nine granule layers at once.
-- **The native app draws no granule layer.** It reads the entry as GIBS imagery with a
-  6-minute period, one granule a frame, until it learns `granules`. It leaves out a `cmr`
-  entry, which has neither a viewer link nor tiles.
+- **The native app draws granule layers too** (2026-11-24), from the same entry, CMR and
+  the Data Store, with its replay bar, cameras, recorded passes and sensed spans. Its globe
+  is a baked surface, so it fills granules in its globe shader from their outlines rather
+  than as ground primitives, and keeps every granule's picture, at most 1,024 pixels
+  across, where the web app draws a passed GIBS granule from its tiles. As it keeps the
+  picture, it asks again for one that failed three times, up to five rounds 20 s apart:
+  GIBS's WMS answered about two requests in three with a MapServer error page on
+  2026-11-24, for minutes on end.
 - **The Map panel lists the layer under the LEO satellites**, as any other: shown from
   there it follows the clock as here, without the replay's clock and camera.
 
@@ -321,5 +326,3 @@ what a satellite records as it flies.
   with. The `Client-Id` names the app.
 - **The Data Store's fair usage**: it throttles, but its limits are on a portal page that
   would not load (2026-11-22).
-- **The native app**, which would read the same entry and CMR, and draw a granule's
-  frame into its baked surface as it draws any layer.

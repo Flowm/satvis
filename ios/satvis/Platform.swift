@@ -4,15 +4,6 @@ import SwiftUI
 
 /// What the app asks of the system where an iPhone and a Mac answer it apart.
 enum Platform {
-    /// Whether the user asked for less motion.
-    static var reducesMotion: Bool {
-        #if os(iOS)
-            UIAccessibility.isReduceMotionEnabled
-        #else
-            NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        #endif
-    }
-
     /// The device's model, "iPhone18,1" or "Mac16,7": `utsname` names only the
     /// processor on a Mac.
     static var modelIdentifier: String {

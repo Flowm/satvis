@@ -11,6 +11,7 @@ import { storeToRefs } from "pinia";
 import { computed, markRaw, ref, shallowRef, watch, type Ref, type ShallowRef } from "vue";
 
 import type { PreviewCentre } from "@/config/instrumentImagery";
+import { isPhoneWidth } from "@/config/layout";
 import { SKY_MODE } from "@/config/viewModes";
 import type { CesiumController } from "@/modules/CesiumController";
 import type { GroundStationEntity } from "@/modules/GroundStationEntity";
@@ -242,6 +243,10 @@ export function useSelectedEntity(instance: CesiumController) {
     }
     useSatStore().setObserverStation(sel.gs.index);
     useCesiumStore().enterSkyView();
+    // On a phone the panel would cover the sky it opened.
+    if (isPhoneWidth()) {
+      deselect();
+    }
   }
 
   function toggleTrack(): void {

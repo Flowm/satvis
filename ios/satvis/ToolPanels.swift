@@ -26,10 +26,12 @@ enum ToolPanel: Hashable {
     /// Its card's width, or what the corner's buttons leave where that is less, as
     /// on a phone. Locations' is wider: a station's latitude and longitude stand
     /// side by side, and on a 402 pt phone the 282 pt left fits -122.2727. The
-    /// satellite browser's is the web app's.
+    /// satellite browser's and the Map panel's are the web app's: a satellite imagery
+    /// row holds the name and its layers' buttons side by side.
     var cardWidth: CGFloat {
         switch self {
         case .locations, .satellites: 320
+        case .map: 300
         // Three bookmark cards to a row.
         case .bookmarks: 520
         default: 260
@@ -168,7 +170,7 @@ struct ToolMenu<Tools: View>: View {
         // As wide as its widest name, every row across all of it.
         .fixedSize()
         .labelStyle(ToolLabelStyle())
-        .clipShape(.rect(cornerRadius: 16))
+        .clipShape(.rect(cornerRadius: PanelMetrics.radius))
         .panel()
         .animation(.snappy(duration: 0.2), value: isOpen)
     }
@@ -234,7 +236,7 @@ private struct ToolLabel: View {
                 .frame(width: PanelMetrics.row * scale)
             if !folded {
                 configuration.title
-                    .font(.subheadline)
+                    .font(.panelLabel)
                     .lineLimit(1)
             }
         }
@@ -288,7 +290,7 @@ struct ToolPanelView<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text(panel.title)
-                    .font(.callout.weight(.semibold))
+                    .font(.panelTitle.weight(.semibold))
                 Spacer(minLength: 8)
                 Button("Close", systemImage: "xmark", action: onClose)
                     .titleRowButton(side: PanelMetrics.row * scale)
@@ -329,8 +331,8 @@ struct ToolPanelView<Content: View>: View {
         VStack(alignment: .leading, spacing: 16) {
             content
         }
-        .font(.subheadline)
-        .toggleStyle(CircleToggleStyle())
+        .font(.panelLabel)
+        .toggleStyle(MarkToggleStyle())
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -349,7 +351,7 @@ struct PanelSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(.caption.weight(.semibold))
+                .font(.panelCaption.weight(.semibold))
                 .foregroundStyle(.secondary)
             content
         }
@@ -438,31 +440,68 @@ struct PanelRowStyle: ButtonStyle {
     }
 }
 
-/// iOS's selection circle, empty or filled with a tick: one mark for a switch and a
-/// choice alike, as the web app gives both one language.
-private struct SelectionCircle: View {
+/// A switch's mark: iOS's selection circle, empty or filled with a tick, and on a
+/// Mac its own checkbox's square, as the web app's.
+private struct CheckMark: View {
     let isOn: Bool
 
     var body: some View {
-        Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-            .font(.body)
-            .symbolRenderingMode(.palette)
-            .foregroundStyle(isOn ? Color.panelSurface : .white.opacity(0.35), Color.panelAccent)
-            .accessibilityHidden(true)
+        #if os(macOS)
+            RoundedRectangle(cornerRadius: 4)
+                .fill(isOn ? Color.panelAccent : .clear)
+                .strokeBorder(isOn ? Color.panelAccent : .white.opacity(0.35), lineWidth: 1.5)
+                .overlay {
+                    if isOn {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(Color.panelSurface)
+                    }
+                }
+                .frame(width: 16, height: 16)
+                .accessibilityHidden(true)
+        #else
+            Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                .font(.body)
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(isOn ? Color.panelSurface : .white.opacity(0.35), Color.panelAccent)
+                .accessibilityHidden(true)
+        #endif
     }
 }
 
-/// A switch as a card's row, led by the selection circle; still a switch to
-/// VoiceOver and to the UI tests.
-private struct CircleToggleStyle: ToggleStyle {
+/// A choice's mark, the web app's radio button: a ring, filled with a dot once chosen.
+private struct RadioMark: View {
+    let isOn: Bool
+    @ScaledMetric(relativeTo: .body) private var side = PanelMetrics.row < 44 ? 16.0 : 20.0
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(isOn ? Color.panelAccent : .clear)
+                .strokeBorder(isOn ? Color.panelAccent : .white.opacity(0.35), lineWidth: 1.5)
+            if isOn {
+                Circle()
+                    .fill(Color.panelSurface)
+                    .frame(width: side * 0.375, height: side * 0.375)
+            }
+        }
+        .frame(width: side, height: side)
+        .accessibilityHidden(true)
+    }
+}
+
+/// A switch as a card's row, led by its mark, its name dimmed while off, as the web
+/// app's; still a switch to VoiceOver and to the UI tests.
+private struct MarkToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button {
             configuration.isOn.toggle()
         } label: {
             PanelRow {
-                SelectionCircle(isOn: configuration.isOn)
+                CheckMark(isOn: configuration.isOn)
             } title: {
                 configuration.label
+                    .foregroundStyle(configuration.isOn ? .primary : .secondary)
             }
         }
         .buttonStyle(PanelRowStyle())
@@ -476,8 +515,8 @@ private struct CircleToggleStyle: ToggleStyle {
     }
 }
 
-/// One of several, a row each with the chosen one's circle filled: the web app's
-/// radio buttons, where the names are long.
+/// One of several, a row each with the chosen one's radio button filled and its name
+/// lit: the web app's radio buttons, where the names are long.
 private struct Choices<Value: Hashable>: View {
     @Binding var selection: Value
     let options: [(String, Value)]
@@ -489,9 +528,10 @@ private struct Choices<Value: Hashable>: View {
                     selection = value
                 } label: {
                     PanelRow {
-                        SelectionCircle(isOn: selection == value)
+                        RadioMark(isOn: selection == value)
                     } title: {
                         Text(name)
+                            .foregroundStyle(selection == value ? .primary : .secondary)
                     }
                 }
                 .buttonStyle(PanelRowStyle())
@@ -532,7 +572,7 @@ struct MapPanel: View {
         PanelSection("Basemap") {
             Choices(selection: $session.baseLayer, options: BaseLayer.allCases.map { ($0.title, $0) })
         }
-        SatelliteImagerySection(catalog: session.catalog, imagery: session.instrumentImagery, onShow: onShow)
+        SatelliteImagerySection(catalog: session.catalog, imagery: session.instrumentImagery, clock: session.clock, onShow: onShow)
         // The web app's names for the two.
         PanelSection("Terrain") {
             Segments(title: "Terrain", selection: $session.terrain, options: [("None", false), ("Re:Earth", true)])
@@ -550,15 +590,17 @@ struct MapPanel: View {
     }
 }
 
-/// The Map panel's satellite imagery, the web app's MapImageryLayers (ADR 0021): the
+/// The Map panel's satellite imagery, the web app's MapImageryLayers (ADR 0021, 0024): the
 /// layers the loaded records carry that have not stopped, in groups by orbit, one group
 /// open at a time. The list is read off the records, so the panel's first showing loads
 /// every group, as the satellite browser does.
 private struct SatelliteImagerySection: View {
     let catalog: CatalogModel
     let imagery: InstrumentImagery
+    let clock: ViewerClock
     let onShow: (CatalogEntry) -> Void
-    @State private var isLoading = false
+    /// Whether `loadAll` has returned, loaded or not.
+    @State private var loaded = false
     /// The info panel's tab, the Imagery tab once a row's button is pressed.
     @AppStorage("infoPanelTab") private var tab = InfoTab.orbit
 
@@ -566,13 +608,12 @@ private struct SatelliteImagerySection: View {
         // Worked out here, where only the catalog is read, so that a switch flipped in the
         // list does not go through every record again.
         SatelliteImageryList(
-            listings: SatelliteDetails.imageryListings(catalog.catalog.entries.values.map(\.record)), imagery: imagery, isLoading: isLoading,
-            onShow: show
+            listings: SatelliteDetails.imageryListings(catalog.catalog.entries.values.map(\.record)), imagery: imagery, clock: clock,
+            isLoading: !loaded && !catalog.isAllLoaded, onShow: show
         )
         .task {
-            isLoading = true
             await catalog.loadAll()
-            isLoading = false
+            loaded = true
         }
     }
 
@@ -588,25 +629,40 @@ private struct SatelliteImagerySection: View {
     }
 }
 
-/// The satellite imagery's groups and switches.
+/// The satellite imagery's groups, rows and buttons.
 private struct SatelliteImageryList: View {
     let listings: [Listing]
     let imagery: InstrumentImagery
+    let clock: ViewerClock
     let isLoading: Bool
     let onShow: (Listing.Satellite) -> Void
     /// The group the user opened, or `.some(nil)` for none; nil until they choose, when
     /// the first group with a layer on is open.
     @State private var chosen: Listing.Group??
+    /// The newest pass of each passes layer of the open group, by token.
+    @State private var latest = LatestPasses()
+    @ScaledMetric(relativeTo: .body) private var iconSide = 20.0
 
     typealias Listing = SatelliteDetails.ImageryListing
 
     var body: some View {
+        // The groups wait for every group, so that no header or row moves as the rest arrive.
+        let listings = isLoading ? [] : listings
         let listed = Set(listings.map(\.token))
-        let groups = Listing.Group.allCases.compactMap { key -> (key: Listing.Group, layers: [Listing], shown: Int)? in
+        let groups = Listing.Group.allCases.compactMap { key -> (key: Listing.Group, rows: [SatelliteDetails.ImageryRow], shown: Int)? in
             let layers = listings.filter { $0.group == key }
-            return layers.isEmpty ? nil : (key, layers, layers.filter { imagery.isShown($0.token) }.count)
+            return layers.isEmpty ? nil : (key, SatelliteDetails.imageryRows(layers), layers.filter { imagery.isShown($0.token) }.count)
         }
         let open = chosen ?? groups.first { $0.shown > 0 }?.key
+        // A composite's is no one satellite's own.
+        let passes = (groups.first { $0.key == open }?.rows ?? []).flatMap { row in
+            row.cells.compactMap { cell -> (key: String, layer: SatelliteDetails.GranuleLayer)? in
+                guard cell.listing.type == .passes, case .satellite = cell.listing.kind, let layer = cell.listing.imagery.granuleLayer else {
+                    return nil
+                }
+                return (cell.listing.token, layer)
+            }
+        }
         // Before the list arrives, or while its record has not loaded, so that a layer on
         // the globe can still be taken off.
         let unlisted = imagery.tokens.filter { !listed.contains($0) }
@@ -621,7 +677,7 @@ private struct SatelliteImageryList: View {
             }
             if groups.isEmpty {
                 Text(isLoading ? "Loading the imagery list…" : "No satellite has imagery.")
-                    .font(.footnote)
+                    .font(.panelNote)
                     .foregroundStyle(.secondary)
             } else {
                 PanelCard {
@@ -630,20 +686,26 @@ private struct SatelliteImageryList: View {
                             chosen = .some(open == group.key ? nil : group.key)
                         } label: {
                             PanelRow {
-                                Image(systemName: Self.icon(group.key))
-                                    .foregroundStyle(.secondary)
+                                Image(Self.icon(group.key))
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: iconSide, height: iconSide)
                             } title: {
-                                HStack(spacing: 4) {
+                                HStack(spacing: 6) {
                                     Text(Self.title(group.key))
                                         .lineLimit(2)
                                     Spacer(minLength: 0)
-                                    Text(group.shown > 0 ? "\(group.shown) on" : "\(group.layers.count)")
-                                        .font(.footnote)
-                                        .foregroundStyle(group.shown > 0 ? Color.panelAccent : .secondary)
+                                    // The web app's count badge while a layer is on.
+                                    Text(group.shown > 0 ? "\(group.shown) on" : "\(group.rows.count)")
+                                        .font(.panelNote.weight(group.shown > 0 ? .semibold : .regular))
+                                        .foregroundStyle(group.shown > 0 ? .primary : .secondary)
                                         .monospacedDigit()
+                                        .padding(.horizontal, group.shown > 0 ? 7 : 0)
+                                        .padding(.vertical, 1)
+                                        .background(group.shown > 0 ? Color.panelSelected : .clear, in: .capsule)
                                         .fixedSize()
                                     Image(systemName: open == group.key ? "chevron.up" : "chevron.down")
-                                        .font(.caption.weight(.semibold))
+                                        .font(.panelCaption.weight(.semibold))
                                         .foregroundStyle(.tertiary)
                                         .fixedSize()
                                 }
@@ -651,86 +713,65 @@ private struct SatelliteImageryList: View {
                         }
                         .buttonStyle(PanelRowStyle())
                         .accessibilityLabel(Self.title(group.key))
-                        .accessibilityValue(group.shown > 0 ? "\(group.shown) on" : group.layers.count == 1 ? "1 layer" : "\(group.layers.count) layers")
+                        .accessibilityValue(group.shown > 0 ? "\(group.shown) on" : group.rows.count == 1 ? "1 satellite" : "\(group.rows.count) satellites")
                         .accessibilityHint(open == group.key ? "Hides its layers" : "Shows its layers")
                         if open == group.key {
-                            ForEach(group.layers, id: \.key) { layer in
-                                row(layer, open: open)
+                            ForEach(group.rows) { row in
+                                self.row(row, open: open)
                             }
                         }
                     }
                 }
             }
         }
-    }
-
-    /// A layer's switch: the satellite, "METEOSAT-12", not "METEOSAT-12 (MTG-I1)", its
-    /// instrument, and what the picture is, short; a composite's
-    /// name and cadence in their place. Then the button that opens the satellite's
-    /// Imagery tab, or a composite's menu of its satellites.
-    private func row(_ layer: Listing, open: Listing.Group?) -> some View {
-        let (name, aside, spoken): (String, String?, String) =
-            switch layer.kind {
-            case .satellite(let satellite, let instrument):
-                (satellite.name.replacing(/\s*\(.*\)$/, with: ""), instrument, "\(satellite.name) \(instrument) \(layer.imagery.label)")
-            case .composite(let name, _, let cadence): (name, cadence, layer.imagery.label)
-            }
-        return HStack(spacing: 0) {
-            Toggle(isOn: shown(layer.token, open: open)) {
-                let detail = HStack(spacing: 5) {
-                    if let aside {
-                        Text(aside)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    Text(layer.product)
-                        .font(.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 1)
-                        .background(Color.panelSelected, in: .capsule)
-                }
-                .fixedSize()
-                // One line where it fits; on a panel as narrow as a phone's, the instrument
-                // and the picture under the name, as the web app's rows wrap there.
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 5) {
-                        Text(name)
-                            .fixedSize()
-                        Spacer(minLength: 4)
-                        detail
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(name)
-                            .truncationMode(.tail)
-                        detail
-                    }
-                    .padding(.vertical, 6)
-                }
-                // Ahead of the row's own spacer, which would take half the width the name needs.
-                .layoutPriority(1)
-            }
-            .accessibilityLabel(spoken)
-            imageryButton(layer)
+        .task(id: passes.map(\.key)) {
+            await latest.follow(passes)
         }
     }
 
-    /// Opens the Imagery tab of the layer's satellite, or a composite's menu of them.
-    @ViewBuilder private func imageryButton(_ layer: Listing) -> some View {
-        let mark = Image(systemName: "photo")
-            .foregroundStyle(.secondary)
-            .frame(width: 40)
-            .frame(maxHeight: .infinity)
-            .contentShape(.rect)
-        switch layer.kind {
-        case .satellite(let satellite, _):
-            Button {
-                onShow(satellite)
-            } label: {
-                mark
+    /// A satellite or composite, "METEOSAT-12", not "METEOSAT-12 (MTG-I1)", and a button a
+    /// layer; a satellite's second layer of a type only while it is on.
+    private func row(_ row: SatelliteDetails.ImageryRow, open: Listing.Group?) -> some View {
+        let isOn = row.cells.contains { imagery.isShown($0.listing.token) }
+        let buttons = HStack(spacing: 6) {
+            ForEach(row.cells.filter { !$0.extra || imagery.isShown($0.listing.token) }, id: \.listing.key) { cell in
+                typeButton(row, cell, open: open)
             }
-            .buttonStyle(PanelRowStyle())
-            .accessibilityLabel("Show the imagery of \(satellite.name)")
-        case .composite(let name, let satellites, _):
+        }
+        .fixedSize()
+        return VStack(alignment: .leading, spacing: 4) {
+            // The buttons right-aligned beside the name, as the web app's, or under it
+            // where they do not fit, still right-aligned.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    name(row).fixedSize()
+                    Spacer(minLength: 0)
+                    buttons
+                }
+                VStack(alignment: .trailing, spacing: 4) {
+                    name(row).frame(maxWidth: .infinity, alignment: .leading)
+                    buttons
+                }
+            }
+            .foregroundStyle(isOn ? .primary : .secondary)
+            ForEach(row.cells.filter { $0.listing.type == .passes && imagery.isShown($0.listing.token) }, id: \.listing.key) { cell in
+                PassNotice(latest: latest, key: cell.listing.token, clock: clock)
+            }
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 10)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, minHeight: PanelMetrics.row, alignment: .leading)
+        // A row with a layer on raised, as the web app's.
+        .background(isOn ? Color.panelRaisedHover : .clear)
+    }
+
+    /// The row's name: a satellite's opens its Imagery tab, a composite's a menu of its satellites.
+    @ViewBuilder private func name(_ row: SatelliteDetails.ImageryRow) -> some View {
+        if row.isComposite {
+            let satellites = Dictionary(
+                row.cells.flatMap { cell -> [Listing.Satellite] in if case .composite(let satellites) = cell.listing.kind { satellites } else { [] } }.map { ($0.id, $0) }
+            ) { first, _ in first }.values.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             Menu {
                 Section("Show the imagery of") {
                     ForEach(satellites, id: \.id) { satellite in
@@ -740,12 +781,66 @@ private struct SatelliteImageryList: View {
                     }
                 }
             } label: {
-                mark
+                Text(row.name).frame(minHeight: 28)
             }
             .menuStyle(.button)
-            .buttonStyle(PanelRowStyle())
-            .accessibilityLabel("Show the imagery of a satellite of the \(name)")
+            .buttonStyle(.plain)
+            .accessibilityLabel("Show the imagery of a satellite of the \(row.name.lowercased())")
+        } else if case .satellite(let satellite, _) = row.cells.first?.listing.kind {
+            Button {
+                onShow(satellite)
+            } label: {
+                Text(row.name.replacing(/\s*\(.*\)$/, with: "")).frame(minHeight: 28)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Show the imagery of \(row.name)")
         }
+    }
+
+    /// A row's button for one layer, named by its type, which shows or hides it.
+    private func typeButton(_ row: SatelliteDetails.ImageryRow, _ cell: SatelliteDetails.ImageryRow.Cell, open: Listing.Group?) -> some View {
+        let layer = cell.listing
+        let isShown = imagery.isShown(layer.token)
+        // Every minute, for the newest pass's age in the tooltip, as ADR 0024 has it said again.
+        return TimelineView(.everyMinute) { _ in
+            Button {
+                shown(layer.token, open: open).wrappedValue = !isShown
+            } label: {
+                Label {
+                    Text(cell.name)
+                } icon: {
+                    Image(layer.type.image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: iconSide * 0.7, height: iconSide * 0.7)
+                }
+                .labelStyle(TypeButtonLabelStyle())
+                .font(.panelCaption)
+                .padding(.horizontal, 8)
+                .frame(minHeight: 26)
+                .foregroundStyle(isShown ? Color.panelInk : .secondary)
+                .background(isShown ? Color.panelAccent.opacity(0.22) : .clear, in: .capsule)
+                .overlay {
+                    Capsule().strokeBorder(isShown ? Color.panelAccent : Color.white.opacity(0.12))
+                }
+                .contentShape(.capsule)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(row.isComposite ? "\(row.name), \(cell.name)" : "\(layer.type.title) of \(row.name)\(cell.extra ? " \(cell.name)" : "")")
+            .accessibilityValue(isShown ? "On" : "Off")
+            .accessibilityAddTraits(isShown ? [.isSelected] : [])
+            .accessibilityHint(tooltip(layer))
+            .help(tooltip(layer))
+        }
+    }
+
+    /// What the layer is, as its card says it, and for passes how old the newest is, once known.
+    private func tooltip(_ layer: Listing) -> String {
+        let newest = layer.type == .passes ? latest.latest[layer.token]?.pictured.start : nil
+        return [
+            layer.type.title, layer.words.picture, layer.words.cropped, layer.words.updates,
+            newest.map { "Newest pass \(Formats.timeAgo($0, now: Date.now.timeIntervalSince1970 * 1000))" },
+        ].compactMap(\.self).joined(separator: "\n")
     }
 
     /// Whether the layer `token` names is on the globe, and a switch's way to set it,
@@ -768,11 +863,35 @@ private struct SatelliteImageryList: View {
         }
     }
 
-    /// A group's mark.
-    private static func icon(_ group: Listing.Group) -> String {
+    /// A group's mark, the web app's.
+    private static func icon(_ group: Listing.Group) -> ImageResource {
         switch group {
-        case .geo: "globe.europe.africa"
-        case .leo: "circle.dashed"
+        case .geo: .lucideEarth
+        case .leo: .lucideOrbit
+        }
+    }
+}
+
+extension SatelliteDetails.ImageryType {
+    /// Its icon, the web app's (`IMAGERY_TYPES`, src/config/instrumentImagery.ts).
+    var image: ImageResource {
+        switch self {
+        case .passes: .lucideRoute
+        case .daily: .lucideCalendarDays
+        case .orbits: .lucideLayers
+        case .live: .lucideEarth
+        case .mosaic: .lucideGlobe
+        case .scenes: .lucideImages
+        }
+    }
+}
+
+/// A type button's icon close beside its name.
+private struct TypeButtonLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 4) {
+            configuration.icon
+            configuration.title
         }
     }
 }
@@ -979,7 +1098,7 @@ struct Note: View {
 
     var body: some View {
         Text(text)
-            .font(.footnote)
+            .font(.panelNote)
             .foregroundStyle(.secondary)
     }
 }

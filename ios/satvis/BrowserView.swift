@@ -66,7 +66,7 @@ struct BrowserPanel: View {
                 .onGeometryChange(for: CGFloat.self, of: \.size.height) { searchHeight = $0 }
             BrowserList(catalog: catalog, query: query, onShow: onShow)
                 // The panels' text size: at the sheet's, a name wrapped in 320 points.
-                .font(.subheadline)
+                .font(.panelLabel)
                 .scrollContentBackground(.hidden)
                 .contentMargins(.horizontal, 12, for: .scrollContent)
                 .contentMargins(.vertical, 0, for: .scrollContent)
@@ -81,7 +81,7 @@ struct BrowserPanel: View {
                 ActiveCount(catalog: catalog)
                 Spacer(minLength: 8)
                 ClearAllButton(catalog: catalog)
-                    .font(.subheadline)
+                    .font(.panelLabel)
                     .buttonStyle(.borderless)
                     // The panel's ink otherwise, which outranks the role's red.
                     .foregroundStyle(.red)
@@ -231,7 +231,7 @@ private struct ActiveCount: View {
     var body: some View {
         let groupsOn = catalog.tags.filter { catalog.activation.enabledTags.contains($0) }.count
         Text("^[\(groupsOn) group](inflect: true) · ^[\(catalog.activeEntries.count) satellite](inflect: true) active")
-            .font(.footnote)
+            .font(.panelNote)
             .foregroundStyle(.secondary)
     }
 }
@@ -291,7 +291,7 @@ private struct TagRow: View {
             Text(tag)
             Spacer()
             Text("\(active)/\(total)")
-                .font(.caption.monospacedDigit())
+                .font(.panelCaption.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
     }
@@ -333,16 +333,16 @@ private struct SatelliteRow: View {
                 Text(entry.name)
                 if showsTags {
                     Text(entry.tags.alphabetical().joined(separator: ", "))
-                        .font(.caption)
+                        .font(.panelCaption)
                         .foregroundStyle(.secondary)
                 }
             }
             Spacer()
             Text(entry.record.orbitClass.rawValue)
-                .font(.caption.bold())
+                .font(.panelCaption.bold())
                 .foregroundStyle(Color(orbitClass: entry.record.orbitClass))
             Text(entry.satnum)
-                .font(.caption.monospacedDigit())
+                .font(.panelCaption.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
         .contentShape(.rect)

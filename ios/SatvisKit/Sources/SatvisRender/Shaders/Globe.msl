@@ -38,8 +38,7 @@ constant float groundAtmosphereLightIntensity = 10.0;
 
 /// Relative to the tile's centre (CesiumJS's RTC): `centre` is the centre's
 /// offset from the eye, worked out in double precision on the CPU.
-vertex GlobeOut globeVertex(uint vid [[vertex_id]], const device GlobeVertex *vertices [[buffer(0)]], constant FrameUniforms &frame [[buffer(1)]],
-                            constant float3 &centre [[buffer(2)]]) {
+inline GlobeOut globeVertexOut(uint vid, const device GlobeVertex *vertices, constant FrameUniforms &frame, float3 centre) {
     GlobeVertex v = vertices[vid];
     GlobeOut out;
     float3 cameraToPosition = centre + v.offset;
@@ -55,11 +54,16 @@ vertex GlobeOut globeVertex(uint vid [[vertex_id]], const device GlobeVertex *ve
     return out;
 }
 
-fragment float4 globeFragment(GlobeOut in [[stage_in]], constant FrameUniforms &frame [[buffer(1)]], texture2d<float> imagery [[texture(0)]],
-                              texturecube<float> overlay [[texture(1)]],
-                              sampler imagerySampler [[sampler(0)]], constant int &overlayShown [[buffer(2)]]) {
-    float3 color = gammaCorrect(imagery.sample(imagerySampler, in.uv).rgb);
-    float3 normal = normalize(in.normal);
+vertex GlobeOut globeVertex(uint vid [[vertex_id]], const device GlobeVertex *vertices [[buffer(0)]], constant FrameUniforms &frame [[buffer(1)]],
+                            constant float3 &centre [[buffer(2)]]) {
+    return globeVertexOut(vid, vertices, frame, centre);
+}
+
+/// The surface's linear `color` at a point of a tile, lit and seen through the
+/// ground atmosphere, with the ground tracks over it.
+inline float3 globeShade(float3 color, float3 positionWC, float3 normal, float3 rayleighColor, float3 mieColor, float opacity, constant FrameUniforms &frame,
+                         texturecube<float> overlay, sampler imagerySampler, int overlayShown) {
+    normal = normalize(normal);
     float3 light = frame.sunDirection;
 
     float fade = clamp((frame.cameraDistance - lightingFadeOutDistance) / (lightingFadeInDistance - lightingFadeOutDistance), 0.0, 1.0);
@@ -67,8 +71,8 @@ fragment float4 globeFragment(GlobeOut in [[stage_in]], constant FrameUniforms &
     diffuseIntensity = mix(1.0, diffuseIntensity, fade);
     float3 finalColor = color * diffuseIntensity;
 
-    float3 viewDirection = normalize(in.positionWC - frame.cameraPosition);
-    float4 groundAtmosphereColor = computeAtmosphereColor(viewDirection, light, in.rayleighColor, in.mieColor, in.opacity, groundAtmosphereLightIntensity);
+    float3 viewDirection = normalize(positionWC - frame.cameraPosition);
+    float4 groundAtmosphereColor = computeAtmosphereColor(viewDirection, light, rayleighColor, mieColor, opacity, groundAtmosphereLightIntensity);
     float transmittance = 0.5 + clamp(1.0 - groundAtmosphereColor.a, 0.0, 1.0);
     float3 finalAtmosphereColor = finalColor + groundAtmosphereColor.rgb * transmittance;
 
@@ -76,7 +80,7 @@ fragment float4 globeFragment(GlobeOut in [[stage_in]], constant FrameUniforms &
     // `fadeOutDist` the in distance (GlobeSurfaceTileProvider's u_nightFadeDistance):
     // fully sunlit up close, fading to dark by 5π/2 Earth radii.
     float sunlitAtmosphereIntensity = clamp((frame.cameraDistance - nightFadeInDistance) / (nightFadeOutDistance - nightFadeInDistance), 0.05, 1.0);
-    float darken = clamp(dot(normalize(in.positionWC), light), 0.0, 1.0);
+    float darken = clamp(dot(normalize(positionWC), light), 0.0, 1.0);
     float3 darkenedGroundAtmosphereColor = mix(groundAtmosphereColor.rgb, finalAtmosphereColor, darken);
     finalAtmosphereColor = mix(darkenedGroundAtmosphereColor, finalAtmosphereColor, sunlitAtmosphereIntensity);
     finalAtmosphereColor = saturation(finalAtmosphereColor, 1.6);
@@ -87,8 +91,15 @@ fragment float4 globeFragment(GlobeOut in [[stage_in]], constant FrameUniforms &
     // ground primitive: Color.DARKRED, as opaque as the corridors over this point
     // add up to.
     if (overlayShown != 0) {
-        float coverage = overlay.sample(imagerySampler, normalize(in.positionWC)).r;
+        float coverage = overlay.sample(imagerySampler, normalize(positionWC)).r;
         result = mix(result, gammaCorrect(float3(139.0 / 255.0, 0.0, 0.0)), coverage);
     }
-    return float4(result, 1.0);
+    return result;
+}
+
+fragment float4 globeFragment(GlobeOut in [[stage_in]], constant FrameUniforms &frame [[buffer(1)]], texture2d<float> imagery [[texture(0)]],
+                              texturecube<float> overlay [[texture(1)]],
+                              sampler imagerySampler [[sampler(0)]], constant int &overlayShown [[buffer(2)]]) {
+    float3 color = gammaCorrect(imagery.sample(imagerySampler, in.uv).rgb);
+    return float4(globeShade(color, in.positionWC, in.normal, in.rayleighColor, in.mieColor, in.opacity, frame, overlay, imagerySampler, overlayShown), 1.0);
 }

@@ -12,6 +12,8 @@ struct FramePlan {
     /// Where each satellite's stencil sits this frame, and how wide its 3D model
     /// is drawn (`PointFrame`); nil with no satellite to draw.
     var pointFrames: MTLBuffer?
+    /// The granules over the ground; nil with none to draw.
+    var granules: GranuleFrame?
 }
 
 /// The scene pass of one frame, into the HDR image: the globe, the sky, the
@@ -46,6 +48,8 @@ struct ScenePass {
     private static let skyRingDistance = 1.1 * 1.025 * 6_378_137.0
     /// Mirrors `coneSides` in Shaders/Footprints.msl.
     static let coneSides = 48
+    /// Mirrors `fanSegments` in Shaders/Granules.msl.
+    static let fanSegments = 32
     /// What `setVertexBytes` takes, 4 KB, in the larger of the two instances.
     private static let maximumInlineInstances = 4096 / MemoryLayout<LinkInstance>.stride
 
@@ -58,6 +62,8 @@ struct ScenePass {
     let stations: [StationMarker]
     let links: [StationLink]
     let components: SatelliteComponents
+    /// The ground track fans (`GranuleFills.fans`).
+    let fans: (buffer: MTLBuffer?, count: Int)
     let cameraMode: CameraMode
     /// Whether the camera's picture is behind the scene, which then leaves the sky
     /// clear and the ground in depth alone.
@@ -94,7 +100,7 @@ struct ScenePass {
             encoder.endEncoding()
             return
         }
-        drawGlobe(encoder, tiles: plan.surfaceTiles, eye: plan.drawn.eye)
+        drawGlobe(encoder, tiles: plan.surfaceTiles, eye: plan.drawn.eye, granules: plan.granules)
         drawModels(encoder, plan.placements, frame: plan.uniforms, viewProjection: plan.drawn.viewProjection, blended: false)
         // Behind the globe and the models, drawn after them so that only the
         // sky they leave is shaded: half the screen and more, close up.
@@ -126,7 +132,7 @@ struct ScenePass {
     /// app's 2D draws none. The map writes no depth; the models and what is drawn
     /// at a satellite's height test it, each against the others.
     private func drawMap(_ encoder: MTLRenderCommandEncoder, _ plan: FramePlan, map: MapCamera) {
-        drawMapTiles(encoder, plan.surfaceTiles, map: map, aspectRatio: plan.drawn.size.x / plan.drawn.size.y)
+        drawMapTiles(encoder, plan.surfaceTiles, map: map, aspectRatio: plan.drawn.size.x / plan.drawn.size.y, granules: plan.granules)
         drawModels(encoder, plan.placements, frame: plan.uniforms, viewProjection: plan.drawn.viewProjection, blended: false)
         drawModels(encoder, plan.placements, frame: plan.uniforms, viewProjection: plan.drawn.viewProjection, blended: true)
         drawStations(encoder, eye: plan.drawn.eye, now: plan.drawn.time, map: map)
@@ -136,8 +142,8 @@ struct ScenePass {
 
     /// The map's tiles, each placed by its corner from the view's centre, worked
     /// out in double precision, once for each copy of the map the view shows it
-    /// in, with the ground tracks of `overlay`. Writing no depth.
-    private func drawMapTiles(_ encoder: MTLRenderCommandEncoder, _ tiles: [Surface.Tile], map: MapCamera, aspectRatio: Double) {
+    /// in, with the ground tracks of `overlay` and the granules. Writing no depth.
+    private func drawMapTiles(_ encoder: MTLRenderCommandEncoder, _ tiles: [Surface.Tile], map: MapCamera, aspectRatio: Double, granules: GranuleFrame?) {
         guard !tiles.isEmpty else {
             return
         }
@@ -148,21 +154,66 @@ struct ScenePass {
         encoder.setFragmentSamplerState(pipelines.tileSampler, index: 0)
         var overlayShown = Int32(overlay.hasCoverage ? 1 : 0)
         encoder.setFragmentBytes(&overlayShown, length: MemoryLayout<Int32>.size, index: 2)
-        for tile in tiles {
-            let (corner, size) = map.rectangle(of: tile.bounds)
-            for copy in Surface.mapCopies(west: corner.x, width: size.x, map: map, aspectRatio: aspectRatio) {
-                var placed = MapTile(
-                    corner: SIMD2<Float>(corner + SIMD2(Double(copy) * MapCamera.mapWidth, 0)), size: SIMD2<Float>(size), centre: SIMD3<Float>(tile.centre))
-                encoder.setVertexBytes(&placed, length: MemoryLayout<MapTile>.stride, index: 2)
-                encoder.setVertexBuffer(tile.vertices, offset: 0, index: 0)
-                encoder.setFragmentTexture(tile.texture, index: 0)
-                encoder.drawIndexedPrimitives(type: .triangle, indexCount: surface.indexCount, indexType: .uint32, indexBuffer: surface.indexBuffer, indexBufferOffset: 0)
-            }
+        let (plain, underGranules) = Self.splitByGranules(tiles, granules: granules)
+        for tile in plain {
+            drawMapTile(encoder, tile, map: map, aspectRatio: aspectRatio)
+        }
+        guard let granules, !underGranules.isEmpty else {
+            return
+        }
+        encoder.setRenderPipelineState(pipelines.mapTileGranulePipeline)
+        Self.bind(granules, to: encoder)
+        for (tile, over) in underGranules {
+            over.withUnsafeBytes { encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 3) }
+            drawMapTile(encoder, tile, map: map, aspectRatio: aspectRatio)
         }
     }
 
-    /// The globe's tiles, each placed by its centre from the eye, writing depth.
-    private func drawGlobe(_ encoder: MTLRenderCommandEncoder, tiles: [Surface.Tile], eye: SIMD3<Double>) {
+    /// The tiles with no granule over them, and those with some, with the granules'
+    /// list (`GranuleFrame.granules(over:)`).
+    private static func splitByGranules(_ tiles: [Surface.Tile], granules: GranuleFrame?) -> (plain: [Surface.Tile], under: [(Surface.Tile, [UInt32])]) {
+        guard let granules else {
+            return (tiles, [])
+        }
+        var plain: [Surface.Tile] = []
+        var under: [(Surface.Tile, [UInt32])] = []
+        for tile in tiles {
+            let over = granules.granules(over: tile)
+            if over.isEmpty {
+                plain.append(tile)
+            } else {
+                under.append((tile, over))
+            }
+        }
+        return (plain, under)
+    }
+
+    /// The granules' shapes, corners and pictures, for the tile fragments.
+    private static func bind(_ granules: GranuleFrame, to encoder: MTLRenderCommandEncoder) {
+        encoder.setFragmentBuffer(granules.shapes, offset: 0, index: 4)
+        encoder.setFragmentBuffer(granules.corners, offset: 0, index: 5)
+        encoder.setFragmentBuffer(granules.pictures, offset: 0, index: 6)
+        if !granules.textures.isEmpty {
+            encoder.useResources(granules.textures, usage: .read, stages: .fragment)
+        }
+    }
+
+    /// A map tile, once for each copy of the map the view shows it in.
+    private func drawMapTile(_ encoder: MTLRenderCommandEncoder, _ tile: Surface.Tile, map: MapCamera, aspectRatio: Double) {
+        let (corner, size) = map.rectangle(of: tile.bounds)
+        for copy in Surface.mapCopies(west: corner.x, width: size.x, map: map, aspectRatio: aspectRatio) {
+            var placed = MapTile(
+                corner: SIMD2<Float>(corner + SIMD2(Double(copy) * MapCamera.mapWidth, 0)), size: SIMD2<Float>(size), centre: SIMD3<Float>(tile.centre))
+            encoder.setVertexBytes(&placed, length: MemoryLayout<MapTile>.stride, index: 2)
+            encoder.setVertexBuffer(tile.vertices, offset: 0, index: 0)
+            encoder.setFragmentTexture(tile.texture, index: 0)
+            encoder.drawIndexedPrimitives(type: .triangle, indexCount: surface.indexCount, indexType: .uint32, indexBuffer: surface.indexBuffer, indexBufferOffset: 0)
+        }
+    }
+
+    /// The globe's tiles, each placed by its centre from the eye, writing depth, those
+    /// under granules with them.
+    private func drawGlobe(_ encoder: MTLRenderCommandEncoder, tiles: [Surface.Tile], eye: SIMD3<Double>, granules: GranuleFrame?) {
         guard !tiles.isEmpty else {
             return
         }
@@ -175,12 +226,26 @@ struct ScenePass {
         encoder.setFragmentSamplerState(pipelines.tileSampler, index: 0)
         var overlayShown = Int32(overlay.hasCoverage ? 1 : 0)
         encoder.setFragmentBytes(&overlayShown, length: MemoryLayout<Int32>.size, index: 2)
-        for tile in tiles {
+        func draw(_ tile: Surface.Tile) {
             var centre = SIMD3<Float>(tile.centre - eye)
             encoder.setVertexBytes(&centre, length: MemoryLayout<SIMD3<Float>>.stride, index: 2)
             encoder.setVertexBuffer(surface.vertices(tile), offset: 0, index: 0)
             encoder.setFragmentTexture(tile.texture, index: 0)
             encoder.drawIndexedPrimitives(type: .triangle, indexCount: surface.indexCount, indexType: .uint32, indexBuffer: surface.indexBuffer, indexBufferOffset: 0)
+        }
+        // Under the camera's picture the ground is depth alone.
+        let (plain, underGranules) = Self.splitByGranules(tiles, granules: showsCamera ? nil : granules)
+        for tile in plain {
+            draw(tile)
+        }
+        guard let granules, !underGranules.isEmpty else {
+            return
+        }
+        encoder.setRenderPipelineState(pipelines.globeGranulePipeline)
+        Self.bind(granules, to: encoder)
+        for (tile, over) in underGranules {
+            over.withUnsafeBytes { encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 3) }
+            draw(tile)
         }
     }
 
@@ -252,6 +317,15 @@ struct ScenePass {
             encoder.setDepthStencilState(pipelines.noDepth)
             encoder.setRenderPipelineState(pipelines.coneRimPipeline)
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6 * Self.coneSides, instanceCount: cones.count)
+            encoder.setDepthStencilState(pipelines.depthTest)
+        }
+        if !onMap, let fanBuffer = fans.buffer, fans.count > 0 {
+            encoder.setVertexBuffer(fanBuffer, offset: 0, index: 4)
+            encoder.setRenderPipelineState(pipelines.fanPipeline)
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 2 * 3 * Self.fanSegments, instanceCount: fans.count)
+            encoder.setDepthStencilState(pipelines.noDepth)
+            encoder.setRenderPipelineState(pipelines.fanLinePipeline)
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6 * Self.fanSegments, instanceCount: fans.count)
             encoder.setDepthStencilState(pipelines.depthTest)
         }
         if components.contains(.label), let labels = points.prepared?.labels {

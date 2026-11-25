@@ -42,4 +42,7 @@ test("the ISS lists its passes over my location, and a pass can be jumped to", a
   await expect(panel.locator(".head__name")).toHaveText("Munich");
   await expect(panel.getByRole("tab", { name: /Passes/ })).toHaveAttribute("aria-selected", "true");
   await expect(rows.first()).toBeVisible();
+  // The headline names the satellite: the station is the panel's title.
+  await expect(panel.locator(".hero__label")).toHaveText(/^\s*(Overhead now|Next pass)\s*· \S/);
+  await expect(panel.locator(".hero__label")).not.toContainText("Munich");
 });

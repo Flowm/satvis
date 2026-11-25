@@ -6,6 +6,17 @@ import os
 
 nonisolated private let log = Logger(subsystem: "org.frcy.app.satvis", category: "imagery")
 
+/// A granule layer on the globe (ADR 0023), and the satellite whose own layer it is: none
+/// for a composite's.
+struct DrawnGranuleLayer: Equatable {
+    var layer: SatelliteDetails.GranuleLayer
+    /// The satellite's catalog entry.
+    var owner: String?
+    /// Its name, and the instrument the layer is of.
+    var satellite: String?
+    var instrument: String?
+}
+
 /// The instrument imagery drawn on the globe (ADR 0020), each layer by its token,
 /// `provider:layer`, as a link names it, drawn from the entry of whichever loaded record
 /// carries it, at the clock's frame: the web app's `instrumentImagery` and its frame
@@ -20,6 +31,8 @@ final class InstrumentImagery {
     /// panel to name one it does not list, as one that stopped: the web app's
     /// `instrumentImageryLabels`.
     private(set) var labels: [String: String] = [:]
+    /// The drawn granule layers (ADR 0023), in drawn order.
+    private(set) var granuleLayers: [DrawnGranuleLayer] = []
     @ObservationIgnored private var layers: [String: SatelliteDetails.ImageryPreview] = [:]
     @ObservationIgnored private var frames: [String: Frames] = [:]
     @ObservationIgnored private var drawn: [ImageryOverlay] = []
@@ -51,6 +64,13 @@ final class InstrumentImagery {
     /// How soon a service that could not list its frames is asked again.
     private static let retry: TimeInterval = 60
 
+    /// The providers of the drawn layers the map credits for their tiles: not a granule
+    /// layer's, whose pictures are credited while they show.
+    var tiledProviders: [SatelliteDetails.ImageryPreview.Provider] {
+        let granules = Set(granuleLayers.map(\.layer.token))
+        return tokens.filter { !granules.contains($0) }.compactMap { SatelliteDetails.ImageryPreview.Provider(rawValue: String($0.prefix { $0 != ":" })) }
+    }
+
     /// Whether the layer `token` names is drawn.
     func isShown(_ token: String) -> Bool {
         tokens.contains(token)
@@ -74,16 +94,27 @@ final class InstrumentImagery {
     func resolve(_ entries: some Sequence<CatalogEntry>) {
         let wanted = Set(tokens)
         var found: [String: SatelliteDetails.Imagery] = [:]
+        let entries = Array(entries)
         if !wanted.isEmpty {
             for entry in entries where entry.record.metadata["imagery"] != nil {
                 for layer in SatelliteDetails.drawableImagery(entry.record) {
-                    if let token = layer.preview?.token, wanted.contains(token), found[token] == nil {
+                    if let token = layer.token, wanted.contains(token), found[token] == nil {
                         found[token] = layer
                     }
                 }
             }
         }
-        layers = found.compactMapValues(\.preview)
+        layers = found.compactMapValues(\.tiles)
+        let granules = tokens.compactMap { token -> DrawnGranuleLayer? in
+            guard let layer = found[token]?.granuleLayer else {
+                return nil
+            }
+            let owner = SatelliteDetails.granuleLayerOwner(entries.lazy.map(\.record), token: token)
+            return DrawnGranuleLayer(layer: layer, owner: owner.map { Catalog.id(of: $0.record) }, satellite: owner?.record.name, instrument: owner?.instrument)
+        }
+        if granules != granuleLayers {
+            granuleLayers = granules
+        }
         let named = found.mapValues(\.label)
         if named != labels {
             labels = named

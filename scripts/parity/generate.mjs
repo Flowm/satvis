@@ -384,7 +384,7 @@ try {
   const { CAMERA_MODES } = await runner.import("/src/config/viewModes.ts");
   const { STAR_MAPS } = await runner.import("/src/config/starMaps.ts");
   const vocabulary = {
-    components: ["Point", "Label", "Orbit", "Orbit track", "Ground track", "Sensor cone", "3D model", "Ground station link"],
+    components: ["Point", "Label", "Orbit", "Orbit track", "Ground track", "Ground track fan", "Sensor cone", "3D model", "Ground station link"],
     layers: ["NaturalEarth", "VersaTiles", "BlackMarble"],
     terrain: ["None", "ReEarth"],
     // Whole, Tycho1K included: the app draws it as DeepStar1K, and a link keeps it.
@@ -521,6 +521,8 @@ try {
     { name: "track", kind: kinds.plainString },
     { name: "overpass", kind: kinds.overpass },
     { name: "layers", kind: kinds.layers },
+    { name: "imagery", kind: kinds.stringList },
+    { name: "replay", kind: kinds.plainString },
     { name: "terrain", kind: codec.enumString(vocabulary.terrain) },
     { name: "stars", kind: codec.enumString(vocabulary.stars) },
     { name: "scene", kind: codec.enumString(vocabulary.scenes) },
@@ -539,6 +541,8 @@ try {
     track: "",
     overpass: "elevation",
     layers: ["NaturalEarth"],
+    imagery: [],
+    replay: "",
     terrain: "None",
     stars: "Tycho1K",
     scene: "3D",
@@ -583,6 +587,10 @@ try {
     ["demo", "tags=GNSS"],
     ["demo", "tags=Weather&overpass=elevation&layers=NaturalEarth"],
     ["demo", "elements=Point,Label"],
+    [
+      "default",
+      "sats=NOAA+20+(JPSS-1)&imagery=gibs:VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule&replay=Munich&time=2026-11-20T09:49Z&elements=Point,Label,Ground+track+fan",
+    ],
   ];
   // What analytics may see of a link: ground stations to the whole degree.
   const { sanitizePostHogUrl } = await runner.import("/src/modules/util/posthogPrivacy.ts");
@@ -681,7 +689,8 @@ try {
   // against the default preset's defaults and the demo preset's, for the default
   // preset's featured bookmarks among others.
   const bookmarks = await runner.import("/src/modules/util/bookmarks.ts");
-  const { timeAgo } = await runner.import("/src/modules/util/formats.ts");
+  const formats = await runner.import("/src/modules/util/formats.ts");
+  const { timeAgo } = formats;
   const corePresets = parseYaml(fs.readFileSync(path.join(repoRoot, "worker/src/config/satvis.core.yaml"), "utf8")).presets;
   const featured = corePresets.find(({ name }) => name === "default").featured ?? [];
   const BOOKMARK_NOW = "2026-10-08T12:00:00Z";
@@ -1000,6 +1009,333 @@ try {
     }),
   };
 
+  // Instrument imagery (ADR 0019 to 0024): every entry of the imagery manifest as a record
+  // carries it, read as the Imagery tab and the globe read it, and the Map panel's rows of them.
+  const { imageryBySatellite } = await runner.import("/worker/src/gp/imagery.ts");
+  const manifest = parseYaml(fs.readFileSync(path.join(repoRoot, "worker/src/config/satvis.imagery.yaml"), "utf8"));
+  const satelliteNames = new Map([
+    ...manifest.satellites.map(({ noradId, name }) => [noradId, name]),
+    ...manifest.composites.flatMap(({ satellites }) => satellites.map(({ noradId, name }) => [noradId, name])),
+  ]);
+  const imagerySatellites = [...imageryBySatellite(manifest, "satvis.imagery.yaml")].map(([noradId, entries]) => {
+    const names = [...new Set(entries.map((entry) => entry.instrument))];
+    const info = entityInfo.getSatelliteInfo(new Orbit(parsed[0].name, records[0]), "LEO", { instruments: names.map((name) => ({ name })), imagery: entries });
+    // A satellite with a geostationary imager's live view is in the GEO group.
+    const orbitClass = instrumentImagery.readImageryList(entries).some((entry) => entry.type === "live") ? "GEO" : "LEO";
+    return { noradId, name: satelliteNames.get(noradId), orbitClass, entries, instruments: info.instruments.map(({ name, imagery }) => ({ name, imagery })) };
+  });
+  const imageryListed = instrumentImagery.imageryLayers(
+    imagerySatellites.map(({ noradId, name, orbitClass, entries }) => ({ name, satnum: String(noradId), orbitClass, metadata: { imagery: entries } })),
+  );
+  const imageryRowsByGroup = Object.fromEntries(
+    instrumentImagery.IMAGERY_GROUPS.map((group) => [
+      group,
+      instrumentImagery.imageryRows(imageryListed.filter((layer) => layer.group === group)).map((row) => ({
+        key: row.key,
+        name: row.name,
+        composite: row.composite === true,
+        cells: row.cells.map(({ layer, name, extra }) => ({ key: layer.key, name, extra })),
+      })),
+    ]),
+  );
+  const imagery = {
+    satellites: imagerySatellites,
+    layers: imageryListed.map((layer) => ({
+      key: layer.key,
+      kind: layer.kind,
+      token: layer.token,
+      group: layer.group,
+      type: layer.type,
+      name: layer.kind === "satellite" ? layer.satellite : undefined,
+      satellites: layer.kind === "composite" ? layer.satellites : undefined,
+    })),
+    rows: imageryRowsByGroup,
+  };
+
+  // Granules (ADR 0023): CMR's and the Data Store's answers read, the catalogues' addresses,
+  // overpasses, the sun and the polar projections, the pictures' addresses, and where the
+  // clock is among replays.
+  const cmrGranules = await runner.import("/src/modules/util/cmrGranules.ts");
+  const eumetsatGranules = await runner.import("/src/modules/util/eumetsatGranules.ts");
+  const granuleDay = await runner.import("/src/modules/util/granuleDay.ts");
+  const polar = await runner.import("/src/modules/util/polarStereographic.ts");
+  const granulePictures = await runner.import("/src/modules/granulePictures.ts");
+  const { eumetViewCredit } = await runner.import("/src/modules/EumetViewImagery.ts");
+  const { GIBS_CREDIT } = await runner.import("/src/modules/GibsImagery.ts");
+  const granuleLayers = await runner.import("/src/modules/GranuleLayers.ts");
+  const overpassReplay = await runner.import("/src/modules/overpassReplay.ts");
+  const passImagery = await runner.import("/src/modules/passImagery.ts");
+  const MINUTE_MS = 60 * 1000;
+  const cmrEntry = (start, dayNight, polygons = [["14.218523 38.306084 18.426548 66.22702 39.330738 63.761784 34.278229 30.160732 14.218523 38.306084"]]) => ({
+    collection_concept_id: "C2208781576-LANCEMODIS",
+    time_start: new Date(Date.parse(start)).toISOString(),
+    time_end: new Date(Date.parse(start) + 6 * MINUTE_MS).toISOString(),
+    day_night_flag: dayNight,
+    polygons,
+  });
+  const cmrEntries = [
+    cmrEntry("2026-11-20T09:54:00Z", "DAY"),
+    cmrEntry("2026-11-20T09:54:00Z", "BOTH"),
+    cmrEntry("2026-11-20T09:54:00Z", "NIGHT"),
+    cmrEntry("2026-11-20T09:54:00Z", "UNSPECIFIED"),
+    cmrEntry("2026-11-20T21:54:00Z", "UNSPECIFIED"),
+    cmrEntry("2026-11-19T19:00:00Z", "UNSPECIFIED", [
+      ["-52.09473 170.92676 -55.43262 180 -42.13379 180 -52.09473 170.92676"],
+      [
+        "-19.97949 -169.02441 -32.27832 -174.1543 -42.13379 -180 -55.43262 -180 -59.09082 -162.30371 -59.95508 -142.99414 -45.34473 -143.42871 -25.74902 -141.63477 -23.50293 -155.42871 -19.97949 -169.02441",
+      ],
+    ]),
+    cmrEntry("2026-11-19T19:10:00Z", "UNSPECIFIED", [["-90 -180 -90 0 -90 180 -55.4 180 -67.6 101.4 -85.4 4.7 -69.5 -140.4 -55.4 -180 -90 -180"]]),
+    { ...cmrEntry("2026-11-20T09:54:00Z", "DAY"), polygons: [["1 2 3"]] },
+    { ...cmrEntry("2026-11-20T09:54:00Z", "DAY"), time_start: "yesterday" },
+    { ...cmrEntry("2026-11-20T09:54:00Z", "DAY"), polygons: undefined },
+    null,
+  ].map((entry) => ({ entry, granule: cmrGranules.parseGranule(entry) ?? null }));
+  const { SPLIT: splitGeometry } = await runner.import("/src/modules/util/eumetsatGranules.fixtures.ts");
+  const dataStoreFeature = (start, geometry, end = new Date(Date.parse(start) + 3 * MINUTE_MS).toISOString()) => ({
+    type: "Feature",
+    geometry,
+    properties: { date: `${start}/${end}` },
+  });
+  const dataStoreFeatures = [
+    dataStoreFeature("2026-11-20T21:55:48Z", splitGeometry),
+    dataStoreFeature("2026-11-20T10:00:00.123456Z", {
+      type: "Polygon",
+      coordinates: [
+        [
+          [10, 40],
+          [20, 40],
+          [20, 50],
+          [10, 50],
+          [10, 40],
+        ],
+      ],
+    }),
+    dataStoreFeature("2026-11-20T21:55:48Z", { type: "Point", coordinates: [0, 0] }),
+    { properties: { date: "yesterday" }, geometry: splitGeometry },
+  ].map((feature) => ({ feature, granule: eumetsatGranules.parseDataStoreGranule(feature) ?? null }));
+  const queries = [
+    { collections: ["C2208781576-LANCEMODIS", "C2105084593-LAADS"], start: Date.parse("2026-11-20T08:00:00Z"), end: Date.parse("2026-11-20T12:00:00Z") },
+    {
+      collections: ["C2021957657-LPCLOUD"],
+      platform: "LANDSAT-8",
+      start: Date.parse("2026-10-21T00:00:00Z"),
+      end: Date.parse("2026-11-20T00:00:00.500Z"),
+      point: { latitude: 48.1351, longitude: 11.582 },
+    },
+    { collections: ["C2208781576-LANCEMODIS"], start: Date.parse("2026-08-22T00:00:00Z"), end: Date.parse("2026-11-20T00:00:00Z"), newest: 36 },
+  ];
+  const dataStoreQueries = [
+    { collections: ["EO:EUM:DAT:0409"], platform: "Sentinel-3A", start: Date.parse("2026-11-19T00:00:00Z"), end: Date.parse("2026-11-20T00:00:00Z") },
+    {
+      collections: ["EO:EUM:DAT:0409"],
+      platform: "Sentinel-3B",
+      start: Date.parse("2026-10-21T00:00:00Z"),
+      end: Date.parse("2026-11-20T00:00:00Z"),
+      point: { latitude: -33.9249, longitude: 18.4241 },
+    },
+    { collections: ["EO:EUM:DAT:0409"], start: 0, end: Date.parse("2026-11-20T00:00:00Z"), newest: 36 },
+  ];
+  const sampleGranule = (start, minutes, outline, day = true) => ({
+    start: Date.parse(start),
+    end: Date.parse(start) + minutes * MINUTE_MS,
+    day,
+    outline: outline.map(([latitude, longitude]) => ({ latitude, longitude })),
+  });
+  const sampleGranules = [
+    sampleGranule("2026-11-20T09:54:00Z", 6, [
+      [14.2, 38.3],
+      [18.4, 66.2],
+      [39.3, 63.8],
+      [34.3, 30.2],
+      [14.2, 38.3],
+    ]),
+    sampleGranule("2026-11-20T10:00:00Z", 6, [
+      [34.3, 30.2],
+      [39.3, 63.8],
+      [60.1, 70.4],
+      [52.5, 20.1],
+      [34.3, 30.2],
+    ]),
+    sampleGranule(
+      "2026-11-20T10:06:59Z",
+      6,
+      [
+        [52.5, 20.1],
+        [60.1, 70.4],
+        [80.2, 120.4],
+        [70.3, -10.2],
+        [52.5, 20.1],
+      ],
+      false,
+    ),
+    sampleGranule("2026-11-20T11:40:00Z", 6, [
+      [-10, 175],
+      [-12, -175],
+      [10, -172],
+      [12, 178],
+      [-10, 175],
+    ]),
+    sampleGranule("2026-11-20T11:46:30Z", 1, [
+      [1.5, 10.25],
+      [1.5, 11.65],
+      [2.9, 11.65],
+      [2.9, 10.25],
+      [1.5, 10.25],
+    ]),
+  ];
+  const sunInstants = ["2026-11-20T09:54:00Z", "2026-06-21T12:00:00Z", "2026-03-20T00:00:00Z"];
+  const sunPoints = [
+    [0, 0],
+    [48.1, 11.6],
+    [-33.9, 18.4],
+    [78.2, 15.6],
+    [-77.8, 166.7],
+  ];
+  const granulePicturesCases = [
+    [{ provider: "gibs", layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule", frame: "granule" }, "EPSG:4326"],
+    [{ provider: "gibs", layer: "MODIS_Terra_CorrectedReflectance_TrueColor", frame: "day" }, "EPSG:4326"],
+    [{ provider: "eumetview", layer: "copernicus:sentinel3a_olci_l1_rgb_fullres", frame: 25 * MINUTE_MS }, "EPSG:3995"],
+  ].map(([pictures, srs]) => {
+    const start = Date.parse("2026-11-20T23:58:30.250Z");
+    const bounds = { west: -10.1234, south: 20.5, east: 12.25, north: 41.0005 };
+    return { pictures, start, bounds, width: 1024, height: 600, srs, url: instrumentImagery.granulePictureUrl(pictures, start, bounds, 1024, 600, srs) };
+  });
+  const granulePreviews = granulePicturesCases.map(({ pictures, start }) => {
+    const preview = { provider: pictures.provider, layer: pictures.layer, format: "jpeg", daily: pictures.frame === "day", pictures, granule: start };
+    const centre = { latitude: 63.4, longitude: 170 };
+    return {
+      preview,
+      centre,
+      halfWidthDeg: 20,
+      nowMs: Date.parse("2026-11-22T03:00:00Z"),
+      url: instrumentImagery.imageryPreviewUrl(preview, instrumentImagery.previewBounds(centre, 20), new Date("2026-11-22T03:00:00Z")),
+    };
+  });
+  // Steps of a replay, over two stations, and the clock before, at and after each.
+  const steps = [
+    { start: Date.parse("2026-11-18T10:00:00Z"), end: Date.parse("2026-11-18T10:12:00Z"), on: true },
+    { start: Date.parse("2026-11-19T09:40:00Z"), end: Date.parse("2026-11-19T09:52:00Z"), on: false },
+    { start: Date.parse("2026-11-19T09:40:00Z"), end: Date.parse("2026-11-19T09:52:00Z"), on: true },
+    { start: Date.parse("2026-11-20T11:00:00Z"), end: Date.parse("2026-11-20T11:06:00Z"), on: true },
+  ];
+  const placeTimes = [
+    Date.parse("2026-11-17T00:00:00Z"),
+    ...steps.flatMap(({ start, end }) => [start - 6 * MINUTE_MS, start - 5 * MINUTE_MS, start - 4 * MINUTE_MS, end, end + 10 * MINUTE_MS, end + 10 * MINUTE_MS + 1]),
+    Date.parse("2026-11-21T00:00:00Z"),
+  ];
+  const replayPlaces = placeTimes.map((time) => {
+    const place = overpassReplay.replayPlace(
+      steps,
+      time,
+      (item) => overpassReplay.stationReplay(item, { latitude: 0, longitude: 0 }, "X"),
+      (item) => item.on,
+    );
+    const index = (item) => (item === undefined ? null : steps.indexOf(item));
+    return { time, current: index(place.current), previous: index(place.previous), next: index(place.next) };
+  });
+  const granules = {
+    cmrEntries,
+    dataStoreFeatures,
+    searchUrls: queries.map((query) => ({ query, url: cmrGranules.granuleSearchUrl(query) })),
+    dataStoreUrls: dataStoreQueries.flatMap((query) => [0, 2].map((page) => ({ query, page, url: eumetsatGranules.dataStoreSearchUrl(query, page) }))),
+    samples: sampleGranules.map((granule) => ({
+      granule,
+      key: cmrGranules.granuleKey(granule),
+      extent: cmrGranules.granuleExtent(granule),
+      centre: overpassReplay.granuleCentre(granule),
+      probe: granulePictures.probeBounds(granule),
+      // The native app keeps every picture.
+      plateCarree: granuleLayers.plateCarreeCut(cmrGranules.granuleExtent(granule), true),
+      polar: granuleLayers.polarCut(granule),
+    })),
+    overpasses: cmrGranules
+      .groupOverpasses(sampleGranules)
+      .map((overpass) => ({ start: overpass.start, end: overpass.end, count: overpass.granules.length, day: overpassReplay.isDayOverpass(overpass) })),
+    sun: sunInstants.flatMap((instant) =>
+      sunPoints.map(([latitude, longitude]) => ({ instant, point: { latitude, longitude }, elevation: granuleDay.sunElevation({ latitude, longitude }, Date.parse(instant)) })),
+    ),
+    polar: [polar.ARCTIC, polar.ANTARCTIC].map((projection) => ({
+      projection,
+      radiusScale: polar.radiusScale(projection),
+      points: sunPoints.map(([latitude, longitude]) => ({
+        point: { latitude, longitude },
+        projected: polar.toPolar(projection, { latitude: projection.pole * Math.abs(latitude), longitude }),
+      })),
+    })),
+    pictureUrls: granulePicturesCases,
+    previews: granulePreviews,
+    replayPlaces: { steps, places: replayPlaces },
+    leadMs: overpassReplay.REPLAY_LEAD_MS,
+    afterOverpassMs: overpassReplay.AFTER_OVERPASS_MS,
+    // As GranuleLayers.ts credits a fill's picture.
+    pictureCredits: [
+      { provider: "gibs", layer: "VIIRS_NOAA20_CorrectedReflectance_TrueColor_Granule" },
+      { provider: "eumetview", layer: "copernicus:olci_l1_rgb_fulres" },
+      { provider: "eumetview", layer: "eps:metop_avhrr_rgb" },
+      { provider: "eumetview", layer: "msg_fes:rgb_naturalcolor" },
+      { provider: "eumetview", layer: "mtg_fd:rgb_truecolour" },
+      { provider: "eumetview", layer: "other:layer" },
+    ].map((pictures) => ({ ...pictures, year: 2026, credit: pictures.provider === "gibs" ? GIBS_CREDIT : eumetViewCredit(pictures.layer, 2026) })),
+  };
+  const passImageryCases = [
+    [true, true, undefined],
+    [true, true, [true, true]],
+    [true, true, [true, false]],
+    [true, true, [false, false]],
+    [true, false, [true]],
+    [false, true, [true]],
+  ].map(([day, pictured, pixels]) => {
+    const layer = { token: "gibs:L", provider: "gibs", layer: "L", granules: ["C1-X"], ...(pictured && { pictures: { provider: "gibs", layer: "L", frame: "granule" } }) };
+    const entry = { pair: "p", satellite: "S", station: "T", layer, overpass: { start: 0, end: 1, granules: [] }, day };
+    return { day, pictured, pixels: pixels ?? null, imagery: passImagery.passImagery(entry, pixels) };
+  });
+  // A satellite S over stations T and U, and X over T, in minutes from 2026-11-20T00:00Z.
+  const tableT0 = Date.parse("2026-11-20T00:00:00Z");
+  const minutes = (value) => tableT0 + value * MINUTE_MS;
+  const tablePasses = [
+    ["S", "T", 0, 10],
+    ["S", "T", 100, 110],
+    ["S", "T", 300, 310],
+    ["S", "U", 0, 10],
+  ].map(([name, groundStationName, start, end]) => ({ name, groundStationName, start: minutes(start), end: minutes(end) }));
+  const tableRecorded = [
+    ["S", "T", 1, 9, true],
+    ["S", "T", 101, 108, true],
+    ["S", "T", 99, 105, true],
+    ["S", "T", -200, -190, false],
+    ["S", "T", -100, -90, true],
+    ["S", "T", 500, 510, true],
+    ["S", "U", 2, 8, true],
+    ["X", "T", -50, -40, true],
+    ["X", "T", -50, -40, true],
+  ].map(([satellite, station, start, end, day], index) => ({
+    pair: `${satellite}|${station}|${index}`,
+    satellite,
+    station,
+    layer: { token: "gibs:L", provider: "gibs", layer: "L", granules: ["C1-X"] },
+    overpass: { start: minutes(start), end: minutes(end), granules: [] },
+    day,
+  }));
+  const passTableCases = [false, true].map((showPast) => {
+    const rows = tablePasses.map((pass, index) => ({ key: `pass-${index}`, startMs: pass.start }));
+    const table = passImagery.passTable(rows, tablePasses, tableRecorded, { nowMs: minutes(200), showPast, subject: "station" });
+    return {
+      showPast,
+      rows: table.map((row) => ({
+        pass: row.key.startsWith("pass-") ? Number(row.key.slice(5)) : null,
+        recorded: row.recorded === undefined ? null : tableRecorded.indexOf(row.recorded),
+      })),
+    };
+  });
+  const formatCases = {
+    agesInWords: [0, 59 * 60_000, 3_600_000, 2 * 3_600_000, 23 * 3_600_000 + 59 * 60_000, 24 * 3_600_000, 50 * 3_600_000].map((ago) => ({
+      ago,
+      text: formats.timeAgoInWords(bookmarkNow - ago, bookmarkNow),
+    })),
+    dates: ["2026-06-19", "2026-11-02T00:00:00Z", "2002-07-04"].map((iso) => ({ iso, text: formats.formatDate(iso) })),
+  };
+
   const output = {
     generatedBy: "scripts/parity/generate.mjs",
     parsed,
@@ -1024,6 +1360,11 @@ try {
     // Each case is [lodSets index, diameter, current level, level].
     modelLevels: { hysteresis: MODEL_LEVEL_HYSTERESIS, lodSets: LOD_SETS, cases: modelLevels },
     links: { vocabulary, presets: PRESETS, defaults: globalDefaults, fieldKinds, cases: links, sanitized, pixelRatioLadders },
+    imagery,
+    granules,
+    passImagery: passImageryCases,
+    passTable: { passes: tablePasses, recorded: tableRecorded, nowMs: minutes(200), cases: passTableCases },
+    imageryFormats: formatCases,
   };
   fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
   fs.writeFileSync(trackingFramesPath, `${JSON.stringify({ generatedBy: "scripts/parity/generate.mjs", frames: trackingFrames }, null, 2)}\n`);

@@ -6,6 +6,9 @@
  */
 export const PHONE_WIDTH = 640;
 
+/** Whether the window is known to be a phone's. A hidden tab can report a width of 0. */
+export const isPhoneWidth = (): boolean => window.innerWidth > 0 && window.innerWidth < PHONE_WIDTH;
+
 /**
  * Milliseconds a still finger on the globe holds before its menu opens: iOS's long press.
  * Cesium's own default is 1.5 s.

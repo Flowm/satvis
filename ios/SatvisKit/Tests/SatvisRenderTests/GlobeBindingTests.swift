@@ -35,6 +35,13 @@ private final class RecordingGlobe: Globe {
     var passthrough: CameraLens? {
         didSet { calls.append("passthrough \(passthrough.map { "\($0.tanHalfLongSide)" } ?? "-")") }
     }
+    var chasing: Set<String> = [] {
+        didSet {
+            if chasing != oldValue {
+                calls.append("chasing \(chasing.sorted())")
+            }
+        }
+    }
     func setImagery(_ layer: BaseLayer, site: URL) { calls.append("imagery \(layer.rawValue)") }
     func setInstrumentImagery(_ overlays: [ImageryOverlay]) {
         if !overlays.isEmpty {
@@ -44,6 +51,11 @@ private final class RecordingGlobe: Globe {
     func setTerrain(_ enabled: Bool) { calls.append("terrain \(enabled)") }
     func setStations(_ stations: [StationMarker]) { calls.append("stations \(stations.map(\.id))") }
     func setLinks(_ links: [StationLink]) { calls.append("links \(links.map(\.satellite))") }
+    func setGranules(_ granules: [GranuleDrawing], fans: Set<String>) {
+        if !granules.isEmpty || !fans.isEmpty {
+            calls.append("granules \(granules.map(\.id)) \(fans.sorted())")
+        }
+    }
     func prepare(_ satellites: [PointSatellite], labelled: Bool) async -> Int {
         packed += 1
         calls.append("prepare \(packed)")
@@ -57,6 +69,12 @@ private final class RecordingGlobe: Globe {
     func stopTracking(animated: Bool) { calls.append("stopTracking \(animated)") }
     func flyHome(animated: Bool) { calls.append("flyHome \(animated)") }
     func setProjection(_ projection: GlobeProjection, animated: Bool) { calls.append("projection \(projection.rawValue) \(animated)") }
+    func startBroadcast(satellite: String, station: GroundPoint, fallback: CameraView, animated: Bool) {
+        calls.append("startBroadcast \(satellite) \(Int((fallback.globe.latitude * 180 / .pi).rounded())) \(animated)")
+    }
+    func stopBroadcast() { calls.append("stopBroadcast") }
+    func currentView() -> CameraView? { .over(latitude: 1, longitude: 2, height: 3_000_000) }
+    func fly(to view: CameraView, animated: Bool) { calls.append("fly \(Int((view.globe.latitude * 180 / .pi).rounded())) \(animated)") }
 }
 
 @MainActor
@@ -147,6 +165,76 @@ private final class RecordingGlobe: Globe {
 
         await binding.setSatellites([], components: [.point, .model]) {}
         #expect(globe.calls == ["prepare 1", "components \(SatelliteComponents([.point, .model]).rawValue)", "satellites 1"])
+    }
+
+    // The granules set before the renderer compiled its shaders reach it, and once
+    // attached each set goes straight through, to a second renderer as it is now.
+    @Test func replaysTheGranules() async {
+        let binding = GlobeBinding()
+        let outline = [(0.0, 0.0), (1, 0), (1, 1), (0, 0)].map { GroundPoint(latitude: $0.0, longitude: $0.1) }
+        let granule = GranuleDrawing(id: "g", satellite: "43013", start: 0, end: 360_000, outline: outline, state: .waiting)
+        binding.setGranules([granule], fans: ["43013"])
+        let first = RecordingGlobe()
+        binding.attach(globe: first)
+        #expect(first.calls.contains("granules [\"g\"] [\"43013\"]"))
+        #expect(Self.told("components \(binding.components.rawValue)", before: "granules [\"g\"] [\"43013\"]", on: first))
+
+        first.calls = []
+        binding.setGranules([], fans: ["43013"])
+        #expect(first.calls == ["granules [] [\"43013\"]"])
+        let second = RecordingGlobe()
+        binding.attach(globe: second)
+        #expect(second.calls.contains("granules [] [\"43013\"]"))
+    }
+
+    // The chased satellites set before the renderer arrived reach it before the
+    // camera tracks one, so the track starts in the chase; once attached each
+    // change goes straight through, and a second renderer gets them as they are.
+    @Test func replaysTheChasedSatellites() async {
+        let binding = GlobeBinding()
+        binding.chasing = ["43013"]
+        binding.track("43013", animated: true)
+        let first = RecordingGlobe()
+        binding.attach(globe: first)
+        #expect(Self.told("chasing [\"43013\"]", before: "track 43013 false", on: first))
+
+        first.calls = []
+        binding.chasing = []
+        #expect(first.calls == ["chasing []"])
+        binding.chasing = ["25544", "43013"]
+        let second = RecordingGlobe()
+        binding.attach(globe: second)
+        #expect(second.calls.contains("chasing [\"25544\", \"43013\"]"))
+    }
+
+    // A replay's camera: the view flown to is where a later renderer starts, a
+    // broadcast only starts on a renderer, one asked for before it starts over the
+    // station, and taking it over lets go of what was tracked.
+    @Test func replaysTheViewFlownTo() async throws {
+        let binding = GlobeBinding()
+        #expect(binding.currentView() == nil)
+        binding.startBroadcast(satellite: "43013", station: GroundPoint(latitude: 30, longitude: 11), fallbackHeight: 5_000_000, animated: true)
+        let early = RecordingGlobe()
+        binding.attach(globe: early)
+        #expect(early.calls.contains("fly 30 false"))
+        binding.flyOver(latitude: 48, longitude: 11, height: 5_000_000, animated: true)
+        let first = RecordingGlobe()
+        binding.attach(globe: first)
+        #expect(first.calls.contains("fly 48 false"))
+
+        binding.track("25544", animated: false)
+        first.calls = []
+        binding.startBroadcast(satellite: "43013", station: GroundPoint(latitude: 48, longitude: 11), fallbackHeight: 5_000_000, animated: true)
+        binding.stopBroadcast()
+        #expect(first.calls == ["startBroadcast 43013 48 true", "stopBroadcast"])
+        let view = try #require(binding.currentView())
+        let second = RecordingGlobe()
+        binding.attach(globe: second)
+        #expect(!second.calls.contains { $0.hasPrefix("track") })
+        #expect(second.calls.contains("fly 48 false"))
+
+        binding.fly(to: view, animated: true)
+        #expect(second.calls.last == "fly 1 true")
     }
 
     // A new renderer gets the state as it is now: the camera where the last

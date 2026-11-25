@@ -184,7 +184,7 @@ import Testing
             ])
         #expect(listings[0].imagery.detail == "every 10 min")
         #expect(listings[0].kind == .satellite(.init(id: Catalog.id(of: goes), name: "GOES 19"), instrument: "ABI"))
-        #expect(listings[0].product == "GeoColor")
+        #expect(listings[0].type == .live)
         #expect(listings[0].imagery.href == "https://worldview.earthdata.nasa.gov/?l=GOES-East_ABI_GeoColor")
 
         let once = SatelliteDetails.imageryListings([
@@ -232,10 +232,11 @@ import Testing
         let listings = SatelliteDetails.imageryListings([goes19, meteosat, goes19])
         let satellite = { (record: GPRecord) in SatelliteDetails.ImageryListing.Satellite(id: Catalog.id(of: record), name: record.name) }
         #expect(listings.map(\.key) == ["georing:mosaic", "eumetview:mumi:wideareacoverage_rgb_natural", "60133:gibs:GOES-East_ABI_GeoColor"])
-        #expect(listings.map(\.product) == ["Day/Night", "Natural", "GeoColor"])
+        #expect(listings.map { SatelliteDetails.shortImageryLabel($0.label) } == ["Day/Night", "Natural", "GeoColor"])
         #expect(listings.map(\.imagery.detail) == ["hourly, last 7 days", "every 3 h since 2022", "every 10 min, last 90 days"])
-        #expect(listings[0].kind == .composite(name: "GeoRing", satellites: [satellite(goes19)], cadence: "hourly"))
-        #expect(listings[1].kind == .composite(name: "GeoRing", satellites: [satellite(goes19), satellite(meteosat)], cadence: "3-hourly"))
+        #expect(listings[0].kind == .composite(satellites: [satellite(goes19)]))
+        #expect(listings[1].kind == .composite(satellites: [satellite(goes19), satellite(meteosat)]))
+        #expect(listings.map(\.name) == ["World mosaic", "World mosaic", "GOES 19"])
         // No viewer: satvis, which makes it, links to its repository.
         #expect(listings[0].imagery.href == "https://github.com/Flowm/georing-mosaic" && listings[0].imagery.viewer == "satvis")
 
@@ -243,7 +244,7 @@ import Testing
             record("A", "1", [with(ring, ["label": .string("Natural colour"), "instrument": .string("X")])]),
             record("B", "2", [with(ring, ["label": .string("Natural colour"), "instrument": .string("Y")])]),
         ])
-        #expect(untitled.map(\.name) == [SatelliteDetails.composite])
+        #expect(untitled.map(\.name) == ["World mosaic"])
     }
 
     // instrumentImagery.test.ts's shortImageryLabel cases.
@@ -274,21 +275,21 @@ import Testing
             entry("MODIS", "elsewhere", "a", "A"),
             entry("ASTER", "gibs", "a", "Of an instrument it does not carry"),
         ])
-        let imagery = SatelliteDetails.instruments(record).map(\.imagery)
+        let imagery = SatelliteDetails.instruments(record).map { $0.imagery.map { [$0.key, $0.label, $0.detail, $0.viewer, $0.href] } }
         #expect(
             imagery == [
                 [
-                    .init(
-                        key: "gibs:MODIS_Terra_CorrectedReflectance_TrueColor", label: "True colour", detail: "daily since 2000", viewer: "NASA Worldview",
-                        href: "https://worldview.earthdata.nasa.gov/?l=MODIS_Terra_CorrectedReflectance_TrueColor"),
-                    .init(
-                        key: "eumetview:msg_fes:rgb natural", label: "Natural colour", detail: nil, viewer: "EUMETView",
-                        href: "https://view.eumetsat.int/productviewer?v=msg_fes:rgb%20natural"),
+                    [
+                        "gibs:MODIS_Terra_CorrectedReflectance_TrueColor", "True colour", "daily since 2000", "NASA Worldview",
+                        "https://worldview.earthdata.nasa.gov/?l=MODIS_Terra_CorrectedReflectance_TrueColor",
+                    ],
+                    ["eumetview:msg_fes:rgb natural", "Natural colour", nil, "EUMETView", "https://view.eumetsat.int/productviewer?v=msg_fes:rgb%20natural"],
                 ],
                 [
-                    .init(
-                        key: "gibs:MISR_AM1_Ellipsoid_Radiance_RGB_AN", label: "True colour, camera An", detail: "daily, 2017–2022", viewer: "NASA Worldview",
-                        href: "https://worldview.earthdata.nasa.gov/?l=MISR_AM1_Ellipsoid_Radiance_RGB_AN&t=2022-10-12")
+                    [
+                        "gibs:MISR_AM1_Ellipsoid_Radiance_RGB_AN", "True colour, camera An", "daily, 2017–2022", "NASA Worldview",
+                        "https://worldview.earthdata.nasa.gov/?l=MISR_AM1_Ellipsoid_Radiance_RGB_AN&t=2022-10-12",
+                    ]
                 ],
                 [],
             ])
@@ -311,8 +312,8 @@ import Testing
                 ]) { $1 }),
         ])
         #expect(
-            SatelliteDetails.instruments(record)[0].imagery == [
-                .init(key: "gibs:a", label: "A", detail: nil, viewer: "NASA Worldview", href: "https://worldview.earthdata.nasa.gov/?l=a")
+            SatelliteDetails.instruments(record)[0].imagery.map { [$0.key, $0.label, $0.detail, $0.viewer, $0.href] } == [
+                ["gibs:a", "A", nil, "NASA Worldview", "https://worldview.earthdata.nasa.gov/?l=a"]
             ])
         record.metadata["imagery"] = .string("gibs")
         #expect(SatelliteDetails.instruments(record)[0].imagery.isEmpty)

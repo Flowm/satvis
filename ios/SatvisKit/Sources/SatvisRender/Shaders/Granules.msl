@@ -1,0 +1,390 @@
+// Granules replayed behind the clock (ADR 0023, Granules.swift), drawn by the tiles
+// they lie over: a fill behind the scan line of the satellite that sensed one, and
+// once passed its outline. A picture fills the surface before it is lit, as the web
+// app shades its fill as the globe shades its tiles; a tint and an outline are laid
+// over the lit surface, unlit, as Cesium draws a ground primitive. And the ground
+// track fan, from a satellite across the track to its swath's edges.
+
+// Mirrors GranuleShape in Granules.swift.
+struct GranuleShape {
+    float4 centre;
+    float4 east;
+    float4 north;
+    float4 scan;
+    float4 bounds;
+    float4 tint;
+    float4 outline;
+    int picture;
+    uint cornerStart;
+    uint cornerCount;
+    uint padding;
+};
+
+constant int granulePictureSlots = 64;
+
+/// The frame's pictures, by their resource ids.
+struct GranulePictures {
+    array<texture2d<float>, granulePictureSlots> textures;
+};
+
+// WGS84's 1 - e², from geocentric to geodetic latitude on the surface, and its e.
+constant float polarRatioSquared = 0.99330562000986;
+constant float wgs84Eccentricity = 0.0818191908426215;
+
+/// Where the ground in direction `n` lies in a granule's picture: by its longitude
+/// and latitude, or by its polar stereographic projection (`PolarProjection.project`).
+inline float2 granulePicturePlace(float3 n, GranuleShape shape) {
+    float longitude = atan2(n.y, n.x);
+    float latitude = atan2(n.z, polarRatioSquared * length(n.xy));
+    float4 bounds = shape.bounds;
+    float pole = shape.east.w;
+    float2 at;
+    if (pole != 0.0) {
+        float poleward = pole * latitude;
+        float sine = wgs84Eccentricity * sin(poleward);
+        float radius = shape.north.w * tan(M_PI_4_F - poleward / 2.0) / pow((1.0 - sine) / (1.0 + sine), wgs84Eccentricity / 2.0);
+        at = float2(radius * sin(longitude), -pole * radius * cos(longitude));
+    } else {
+        // A box across the antimeridian runs past 180° east.
+        if (longitude < bounds.x) {
+            longitude += 2.0 * M_PI_F;
+        } else if (longitude > bounds.z) {
+            longitude -= 2.0 * M_PI_F;
+        }
+        at = float2(longitude, latitude);
+    }
+    // The picture's top row is its north.
+    return float2((at.x - bounds.x) / (bounds.z - bounds.x), (bounds.w - at.y) / (bounds.w - bounds.y));
+}
+
+/// The over operator on premultiplied colours, `top` given straight.
+inline float4 over(float4 under, float3 top, float alpha) {
+    return float4(top * alpha + under.rgb * (1.0 - alpha), alpha + under.a * (1.0 - alpha));
+}
+
+/// The granules `list` names over the ground at `p`, direction `n` from the Earth's
+/// centre, which moves by `dndx` and `dndy` a pixel across and down: a picture
+/// replaces the linear `surface`, and the tints and outlines gather, premultiplied,
+/// in `tint` and `line`, the newest over the older.
+inline void granuleLayers(float3 p, float3 n, float3 dndx, float3 dndy, float pixelScale, constant uint *list, const device GranuleShape *shapes,
+                          const device float2 *corners, constant GranulePictures &pictures, sampler pictureSampler, thread float3 &surface,
+                          thread float4 &tint, thread float4 &line) {
+    uint count = list[0];
+    for (uint i = 0; i < count; ++i) {
+        GranuleShape shape = shapes[list[i + 1]];
+        float c = dot(n, shape.centre.xyz);
+        if (c < shape.centre.w) {
+            continue;
+        }
+        // On the gnomonic plane, and how far it moves there a pixel across and down.
+        float3 east = shape.east.xyz;
+        float3 north = shape.north.xyz;
+        float2 g = float2(dot(n, east), dot(n, north)) / c;
+        float2 gx = (float2(dot(dndx, east), dot(dndx, north)) - g * dot(dndx, shape.centre.xyz)) / c;
+        float2 gy = (float2(dot(dndy, east), dot(dndy, north)) - g * dot(dndy, shape.centre.xyz)) / c;
+        bool inside = false;
+        float nearest = 1e30;
+        for (uint k = 0; k < shape.cornerCount; ++k) {
+            float2 a = corners[shape.cornerStart + k];
+            float2 b = corners[shape.cornerStart + (k + 1 == shape.cornerCount ? 0 : k + 1)];
+            if ((a.y > g.y) != (b.y > g.y) && g.x < (b.x - a.x) * (g.y - a.y) / (b.y - a.y) + a.x) {
+                inside = !inside;
+            }
+            float2 ab = b - a;
+            float t = clamp(dot(g - a, ab) / max(dot(ab, ab), 1e-20), 0.0, 1.0);
+            float2 offset = g - (a + t * ab);
+            float distance = length(offset);
+            float2 direction = distance > 0.0 ? offset / distance : normalize(float2(-ab.y, ab.x));
+            // Pixels, by how fast the distance grows across the screen.
+            nearest = min(nearest, distance / max(length(float2(dot(gx, direction), dot(gy, direction))), 1e-12));
+        }
+        // Two points wide.
+        if (shape.outline.a > 0.0) {
+            float coverage = clamp(pixelScale + 0.5 - nearest, 0.0, 1.0);
+            if (coverage > 0.0) {
+                line = over(line, gammaCorrect(shape.outline.rgb), shape.outline.a * coverage);
+            }
+        }
+        bool swept = all(shape.scan.xyz == 0.0) || dot(p, shape.scan.xyz) <= shape.scan.w;
+        if (!inside || !swept) {
+            continue;
+        }
+        if (shape.picture >= 0) {
+            // In a loop no two pixels share, so the mip level is found from the
+            // places a pixel over, not from the hardware's derivatives.
+            float2 uv = granulePicturePlace(n, shape);
+            float2 uvx = granulePicturePlace(n + dndx, shape) - uv;
+            float2 uvy = granulePicturePlace(n + dndy, shape) - uv;
+            uvx = abs(uvx.x) > 0.25 ? float2(0.0, uvx.y) : uvx;
+            uvy = abs(uvy.x) > 0.25 ? float2(0.0, uvy.y) : uvy;
+            if (any(uv < 0.0) || any(uv > 1.0)) {
+                continue;
+            }
+            float4 texel = pictures.textures[shape.picture].sample(pictureSampler, uv, gradient2d(uvx, uvy));
+            // Black is where the picture has no pixels: no fill, as on the web.
+            if (max(texel.r, max(texel.g, texel.b)) <= 0.02) {
+                continue;
+            }
+            surface = gammaCorrect(texel.rgb);
+            // Opaque, it hides the older granules' tints.
+            tint = float4(0.0);
+        } else if (shape.tint.a > 0.0) {
+            tint = over(tint, gammaCorrect(shape.tint.rgb), shape.tint.a);
+        }
+    }
+}
+
+// What a globe tile's vertex hands a fragment under granules: GlobeOut's, and where it
+// is from the eye, whose derivatives keep their precision close up where the Earth-fixed
+// position's, in metres from the centre, step by half a metre.
+struct GlobeGranuleOut {
+    float4 position [[position]];
+    float3 positionWC;
+    float3 relative;
+    float3 normal;
+    float2 uv;
+    float3 rayleighColor;
+    float3 mieColor;
+    float opacity;
+};
+
+vertex GlobeGranuleOut globeGranuleVertex(uint vid [[vertex_id]], const device GlobeVertex *vertices [[buffer(0)]], constant FrameUniforms &frame [[buffer(1)]],
+                                          constant float3 &centre [[buffer(2)]]) {
+    GlobeOut base = globeVertexOut(vid, vertices, frame, centre);
+    GlobeGranuleOut out;
+    out.position = base.position;
+    out.positionWC = base.positionWC;
+    out.relative = centre + vertices[vid].offset;
+    out.normal = base.normal;
+    out.uv = base.uv;
+    out.rayleighColor = base.rayleighColor;
+    out.mieColor = base.mieColor;
+    out.opacity = base.opacity;
+    return out;
+}
+
+/// `globeFragment` with the granules over the tile (`GranuleFrame.granules(over:)`).
+fragment float4 globeGranuleFragment(GlobeGranuleOut in [[stage_in]], constant FrameUniforms &frame [[buffer(1)]], texture2d<float> imagery [[texture(0)]],
+                                     texturecube<float> overlay [[texture(1)]], sampler imagerySampler [[sampler(0)]],
+                                     constant int &overlayShown [[buffer(2)]], constant uint *tileGranules [[buffer(3)]],
+                                     const device GranuleShape *shapes [[buffer(4)]], const device float2 *corners [[buffer(5)]],
+                                     constant GranulePictures &pictures [[buffer(6)]]) {
+    float3 n = normalize(in.positionWC);
+    float radius = length(in.positionWC);
+    float3 dx = dfdx(in.relative);
+    float3 dy = dfdy(in.relative);
+    float3 dndx = (dx - n * dot(n, dx)) / radius;
+    float3 dndy = (dy - n * dot(n, dy)) / radius;
+    float3 color = gammaCorrect(imagery.sample(imagerySampler, in.uv).rgb);
+    float4 tint = float4(0.0);
+    float4 line = float4(0.0);
+    granuleLayers(in.positionWC, n, dndx, dndy, frame.pixelScale, tileGranules, shapes, corners, pictures, imagerySampler, color, tint, line);
+    float3 result = globeShade(color, in.positionWC, in.normal, in.rayleighColor, in.mieColor, in.opacity, frame, overlay, imagerySampler, overlayShown);
+    result = tint.rgb + result * (1.0 - tint.a);
+    result = line.rgb + result * (1.0 - line.a);
+    return float4(result, 1.0);
+}
+
+/// `mapGlobeFragment` with the granules over the tile.
+fragment float4 mapGlobeGranuleFragment(MapGlobeOut in [[stage_in]], constant FrameUniforms &frame [[buffer(1)]], texture2d<float> imagery [[texture(0)]],
+                                        texturecube<float> overlay [[texture(1)]], sampler imagerySampler [[sampler(0)]],
+                                        constant int &overlayShown [[buffer(2)]], constant uint *tileGranules [[buffer(3)]],
+                                        const device GranuleShape *shapes [[buffer(4)]], const device float2 *corners [[buffer(5)]],
+                                        constant GranulePictures &pictures [[buffer(6)]]) {
+    float3 n = normalize(in.positionWC);
+    float3 dndx = dfdx(n);
+    float3 dndy = dfdy(n);
+    float3 color = gammaCorrect(imagery.sample(imagerySampler, in.uv).rgb);
+    float4 tint = float4(0.0);
+    float4 line = float4(0.0);
+    granuleLayers(in.positionWC, n, dndx, dndy, frame.pixelScale, tileGranules, shapes, corners, pictures, imagerySampler, color, tint, line);
+    float3 result = mapShade(color, in.positionWC, in.normal, frame, overlay, imagerySampler, overlayShown);
+    result = tint.rgb + result * (1.0 - tint.a);
+    result = line.rgb + result * (1.0 - line.a);
+    return float4(result, 1.0);
+}
+
+// Mirrors FanInstance in Granules.swift.
+struct FanInstance {
+    uint satellite;
+    float starboardKm;
+    float portKm;
+};
+
+constant int fanSegments = 32;
+/// Radians: half the fan's width along the track, enough to see it edge-on
+/// (FAN_ALONG_HALF_ANGLE on the web).
+constant float fanAlongHalfAngle = 0.3 * M_PI_F / 180.0;
+
+/// How fast a satellite moves this frame, by the derivative of the Lagrange basis
+/// `satellitePosition` interpolates with: in metres a step, for its direction.
+inline float3 satelliteVelocity(uint index, const device packed_float3 *samples, const device PointInstance *instances, const device PointFrame *frames) {
+    float u = frames[index].offset;
+    float d[6] = {u, u - 1.0, u - 2.0, u - 3.0, u - 4.0, u - 5.0};
+    const float denominators[6] = {-120.0, 24.0, -12.0, 12.0, -24.0, 120.0};
+    uint start = instances[index].sampleStart + frames[index].stencilStart;
+    float3 first = float3(samples[start]);
+    float3 velocity = float3(0.0);
+    // The basis's derivatives sum to 0, so the samples are taken from the first, where a
+    // float keeps their differences to a decimetre.
+    for (int k = 1; k < 6; ++k) {
+        float sum = 0.0;
+        for (int m = 0; m < 6; ++m) {
+            if (m == k) {
+                continue;
+            }
+            float product = 1.0;
+            for (int j = 0; j < 6; ++j) {
+                if (j != k && j != m) {
+                    product *= d[j];
+                }
+            }
+            sum += product;
+        }
+        velocity += (float3(samples[start + k]) - first) * (sum / denominators[k]);
+    }
+    return velocity;
+}
+
+/// The fan at a satellite, as `FanAxes` finds it: down its geodetic normal,
+/// starboard level across its track, ahead along it; the angles off nadir to its
+/// swath's edges, and how far its sides reach.
+struct FanFrame {
+    float3 apex;
+    float3 relative;
+    float3 down;
+    float3 starboard;
+    float3 ahead;
+    float portAngle;
+    float starboardAngle;
+    float reach;
+};
+
+inline bool fanFrame(FanInstance fan, const device packed_float3 *samples, const device PointInstance *instances, const device PointFrame *frames,
+                     constant FrameUniforms &frame, thread FanFrame &axes) {
+    if (!satellitePosition(fan.satellite, samples, instances, frames, frame, axes.apex, axes.relative)) {
+        return false;
+    }
+    float3 p = axes.apex;
+    // Bowring's geodetic latitude and height, as `mapPosition`.
+    const float a = ellipsoidRadii.x;
+    const float b = ellipsoidRadii.z;
+    const float e2 = 6.69437999014e-3;
+    const float ep2 = 6.73949674228e-3;
+    float horizontal = length(p.xy);
+    float theta = atan2(p.z * a, horizontal * b);
+    float s = sin(theta), c = cos(theta);
+    float latitude = atan2(p.z + ep2 * b * s * s * s, horizontal - e2 * a * c * c * c);
+    float longitude = atan2(p.y, p.x);
+    float sinLatitude = sin(latitude);
+    float height = horizontal * cos(latitude) + p.z * sinLatitude - a * sqrt(1.0 - e2 * sinLatitude * sinLatitude);
+    float3 up = float3(cos(latitude) * cos(longitude), cos(latitude) * sin(longitude), sinLatitude);
+    float3 starboard = cross(satelliteVelocity(fan.satellite, samples, instances, frames), up);
+    if (length(starboard) <= 0.0) {
+        return false;
+    }
+    axes.down = -up;
+    axes.starboard = normalize(starboard);
+    axes.ahead = cross(axes.starboard, axes.down);
+    float earthRadius = length(p - up * height);
+    float central = max(fan.starboardKm, fan.portKm) * 1000.0 / earthRadius;
+    float orbitRadius = earthRadius + height;
+    axes.reach = 1.2 * sqrt(earthRadius * earthRadius + orbitRadius * orbitRadius - 2.0 * earthRadius * orbitRadius * cos(central));
+    // `FanAxes.nadirAngle`.
+    float port = fan.portKm * 1000.0 / earthRadius;
+    float starboardCentral = fan.starboardKm * 1000.0 / earthRadius;
+    axes.portAngle = atan2(earthRadius * sin(port), orbitRadius - earthRadius * cos(port));
+    axes.starboardAngle = atan2(earthRadius * sin(starboardCentral), orbitRadius - earthRadius * cos(starboardCentral));
+    return true;
+}
+
+/// From the apex at `t` across the fan, port edge 0 to starboard edge 1, tilted
+/// `along` radians ahead: to the ground, or as far as the fan reaches.
+inline float3 fanEdge(FanFrame axes, float t, float along, thread bool &grounded) {
+    float angle = mix(-axes.portAngle, axes.starboardAngle, t);
+    float3 direction = normalize((cos(angle) * axes.down + sin(angle) * axes.starboard) * cos(along) + axes.ahead * sin(along));
+    float reach = distanceToGround(axes.apex, direction, axes.reach);
+    grounded = reach < axes.reach;
+    return direction * reach;
+}
+
+struct FanOut {
+    float4 position [[position]];
+};
+
+/// Two thin sheets from the satellite to where the fan meets the ground, tilted ahead
+/// and behind, as the web app's rectangular sensor is seen from either side.
+vertex FanOut fanVertex(uint vid [[vertex_id]], uint iid [[instance_id]], const device packed_float3 *samples [[buffer(0)]],
+                        constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
+                        const device PointFrame *frames [[buffer(3)]], const device FanInstance *fans [[buffer(4)]]) {
+    FanOut out;
+    FanFrame axes;
+    if (!fanFrame(fans[iid], samples, instances, frames, frame, axes)) {
+        out.position = float4(0.0, 0.0, -2.0, 1.0);
+        return out;
+    }
+    uint sheet = vid / (3 * fanSegments);
+    uint segment = (vid / 3) % fanSegments;
+    uint corner = vid % 3;
+    bool grounded;
+    float along = sheet == 0 ? fanAlongHalfAngle : -fanAlongHalfAngle;
+    float3 position = corner == 0 ? axes.relative : axes.relative + fanEdge(axes, float(segment + corner - 1) / float(fanSegments), along, grounded);
+    out.position = frame.viewProjection * float4(position, 1.0);
+    return out;
+}
+
+fragment float4 fanFragment(FanOut in [[stage_in]]) {
+    // The ground track's Color.DARKRED at 25 %, as the fan is its edge at the satellite.
+    return float4(gammaCorrect(float3(139.0 / 255.0, 0.0, 0.0)), 0.25);
+}
+
+/// Where the fan meets the ground, three pixels wide, hidden beyond the horizon: the scan
+/// line a granule fills in behind. The web app's `intersectionWidth` of 2 lets 2 to 4
+/// drawing-buffer pixels of the sheet through, measured 3 on a phone; two points, six
+/// pixels there, stood out twice as thick.
+vertex RimOut fanLineVertex(uint vid [[vertex_id]], uint iid [[instance_id]], const device packed_float3 *samples [[buffer(0)]],
+                            constant FrameUniforms &frame [[buffer(1)]], const device PointInstance *instances [[buffer(2)]],
+                            const device PointFrame *frames [[buffer(3)]], const device FanInstance *fans [[buffer(4)]]) {
+    RimOut out;
+    out.position = float4(0.0, 0.0, -2.0, 1.0);
+    out.visible = 0.0;
+    FanFrame axes;
+    if (!fanFrame(fans[iid], samples, instances, frames, frame, axes)) {
+        return out;
+    }
+    int k = int(vid / 6);
+    uint corner = vid % 6;
+    bool groundedA, groundedB;
+    float3 a = fanEdge(axes, float(k) / float(fanSegments), 0.0, groundedA);
+    float3 b = fanEdge(axes, float(k + 1) / float(fanSegments), 0.0, groundedB);
+    if (!groundedA || !groundedB) {
+        return out;
+    }
+    // Two triangles a segment: a−, b−, b+ and a−, b+, a+.
+    bool atB = corner == 1 || corner == 2 || corner == 4;
+    float3 point = axes.apex + (atB ? b : a);
+    float4 clipA = frame.viewProjection * float4(axes.relative + a, 1.0);
+    float4 clipB = frame.viewProjection * float4(axes.relative + b, 1.0);
+    if (clipA.w <= 0.0 || clipB.w <= 0.0) {
+        return out;
+    }
+    float2 toScreen = frame.viewportSize * 0.5;
+    float2 direction = (clipB.xy / clipB.w - clipA.xy / clipA.w) * toScreen;
+    direction = length(direction) > 0.0 ? normalize(direction) : float2(1.0, 0.0);
+    float2 normal = float2(-direction.y, direction.x);
+    float side = (corner == 0 || corner == 1 || corner == 3) ? -1.0 : 1.0;
+    float4 clip = atB ? clipB : clipA;
+    clip.xy += normal * side * 1.5 / toScreen * clip.w;
+    out.position = clip;
+    float3 surfaceNormal = point / (ellipsoidRadii * ellipsoidRadii);
+    out.visible = dot(surfaceNormal, frame.cameraPosition - point) > 0.0 ? 1.0 : 0.0;
+    return out;
+}
+
+fragment float4 fanLineFragment(RimOut in [[stage_in]]) {
+    if (in.visible < 0.5) {
+        discard_fragment();
+    }
+    // #ff4433 at 90 %: the ribbon's red brightened, which stands out on cloud.
+    return float4(gammaCorrect(float3(1.0, 0x44 / 255.0, 0x33 / 255.0)), 0.9);
+}

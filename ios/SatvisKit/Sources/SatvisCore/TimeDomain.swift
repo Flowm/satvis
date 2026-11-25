@@ -68,7 +68,7 @@ public enum TimeDomain {
     }
 
     /// `Date.parse` of an ISO 8601 date or UTC time, in milliseconds.
-    private static func instant(_ text: String) -> Double? {
+    static func instant(_ text: String) -> Double? {
         let strategies: [Date.ISO8601FormatStyle] = [.iso8601, .iso8601.year().month().day(), Date.ISO8601FormatStyle(includingFractionalSeconds: true)]
         for strategy in strategies {
             if let date = try? Date(text, strategy: strategy) {
@@ -80,7 +80,7 @@ public enum TimeDomain {
 
     /// An ISO 8601 duration of days, hours, minutes and seconds, in milliseconds; nil
     /// for a zero or another one.
-    private static func duration(_ text: String) -> Double? {
+    static func duration(_ text: String) -> Double? {
         guard let match = text.wholeMatch(of: /P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?/) else {
             return nil
         }

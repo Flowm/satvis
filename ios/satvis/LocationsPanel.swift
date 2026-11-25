@@ -102,7 +102,7 @@ private struct StationRow: View {
                     coordinate("Latitude", text: $latitude, field: .latitude)
                     coordinate("Longitude", text: $longitude, field: .longitude)
                 }
-                .font(.caption.monospacedDigit())
+                .font(.panelCaption.monospacedDigit())
                 .foregroundStyle(.secondary)
             }
             .onGeometryChange(for: Bool.self) {
@@ -120,7 +120,7 @@ private struct StationRow: View {
         .buttonStyle(.borderless)
         .padding(.horizontal, PanelRowMetrics.inset)
         .padding(.vertical, 8)
-        .frame(minHeight: 44)
+        .frame(minHeight: PanelMetrics.row)
         .dropDestination(for: String.self) { items, _ in
             guard let id = items.first.flatMap(UUID.init(uuidString:)), id != station.id else {
                 return false
@@ -150,7 +150,7 @@ private struct StationRow: View {
     private var grip: some View {
         Image(systemName: "line.3.horizontal")
             .foregroundStyle(.secondary)
-            .frame(width: markWidth, height: 44)
+            .frame(width: markWidth, height: PanelMetrics.row)
             .contentShape(.rect)
             .draggable(station.id.uuidString) {
                 Text(verbatim: station.displayName)
@@ -229,7 +229,7 @@ private struct VisitingRow: View {
                         // An unnamed one is shown by its coordinates already.
                         if station.name != nil {
                             Text(verbatim: Formats.coordinates(station.latitude, station.longitude))
-                                .font(.caption.monospacedDigit())
+                                .font(.panelCaption.monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -244,6 +244,6 @@ private struct VisitingRow: View {
         }
         .padding(.horizontal, PanelRowMetrics.inset)
         .padding(.vertical, 8)
-        .frame(minHeight: 44)
+        .frame(minHeight: PanelMetrics.row)
     }
 }

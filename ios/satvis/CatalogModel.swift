@@ -96,11 +96,16 @@ final class CatalogModel {
 
     /// A satellite by name, among the groups loaded, loading every one first.
     func entry(named name: String) async -> CatalogEntry? {
-        if let entry = catalog.entries.values.first(where: { $0.name == name }) {
+        if let entry = loadedEntry(named: name) {
             return entry
         }
         await load(groups)
-        return catalog.entries.values.first { $0.name == name }
+        return loadedEntry(named: name)
+    }
+
+    /// A satellite by name, among the groups loaded.
+    func loadedEntry(named name: String) -> CatalogEntry? {
+        catalog.entries.values.first { $0.name == name }
     }
 
     /// Asks the worker for the index again and takes it up and, `refetching`, asks
@@ -149,6 +154,11 @@ final class CatalogModel {
     /// Every group of the preset, for a search about to start.
     func loadAll() async {
         await load(groups)
+    }
+
+    /// Whether every group of the index is in the catalog.
+    var isAllLoaded: Bool {
+        groups.allSatisfy { catalog.hasGroup($0.name) }
     }
 
     func setTag(_ tag: String, enabled: Bool) async {

@@ -385,7 +385,7 @@ struct ContentView: View {
             if session.isPicking {
                 HStack {
                     Text("Tap the globe to place a ground station")
-                        .font(.subheadline)
+                        .font(.panelLabel)
                     Button("Cancel") { session.setPicking(false) }
                 }
                 .padding(.horizontal, 16)
@@ -407,8 +407,10 @@ struct ContentView: View {
                     BenchmarkPanel(session: session)
                         .padding(.horizontal, 16)
                 }
+                ReplayBar(session: session)
+                    .shown(chrome.showsUI)
                 // Flush with the bottom edge, as on the web.
-                ClockDeck(clock: session.clock, passes: session.passes, satellite: session.selectedSatellite) {
+                ClockDeck(clock: session.clock, passes: session.passes, satellite: session.selectedSatellite, sensed: session.replay.sensed) {
                     // Where the web app has its credit line.
                     OpenStreetMapCredit(isOwed: session.mapCredits.contains(.openStreetMap)) { openSheet = .acknowledgements }
                 }
@@ -714,7 +716,7 @@ private struct OpenStreetMapCredit: View {
                         .frame(maxHeight: .infinity)
                         .contentShape(.rect)
                 }
-                .font(.caption2)
+                .font(.panelCaption2)
                 .foregroundStyle(.white.opacity(0.8))
                 .shadow(color: .black, radius: 2)
                 .padding(.leading, 8)
@@ -745,7 +747,7 @@ struct NoticeBanner: View {
 
     var body: some View {
         Text(text)
-            .font(.subheadline)
+            .font(.panelLabel)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)

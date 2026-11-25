@@ -242,11 +242,11 @@ private struct SkyInstruments: View {
                 // Two lines rather than an ellipsis at the largest text sizes.
                 Text(position.text).lineLimit(2)
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).opacity(0.6)
+                Image(systemName: "chevron.right").font(.panelCaption.weight(.semibold)).opacity(0.6)
             }
         }
         .monospacedDigit()
-        .font(.footnote)
+        .font(.panelNote)
         .foregroundStyle(Color.panelInk)
         .frame(width: min(cardWidth, size.width - 2 * Self.cardGutter - 20), alignment: .leading)
         .padding(.leading, 12)
@@ -264,7 +264,7 @@ private struct SkyInstruments: View {
     private func chip(_ visibility: SatvisCore.Visibility) -> some View {
         let seen = visibility == .visible
         return Text(visibility.label)
-            .font(.caption2)
+            .font(.panelCaption2)
             .foregroundStyle(seen ? Self.lockColor : Color.panelInk)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)

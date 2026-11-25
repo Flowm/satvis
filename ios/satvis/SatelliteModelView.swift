@@ -79,7 +79,7 @@ struct SatelliteModelView: View {
                 EmptyView()
             }
         }
-        .font(.footnote)
+        .font(.panelNote)
         .foregroundStyle(.secondary)
         .overlay(alignment: .topTrailing) {
             if state == .ready {
