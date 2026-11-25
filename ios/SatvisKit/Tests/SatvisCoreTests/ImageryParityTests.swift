@@ -608,4 +608,22 @@ import Testing
         #expect(granules.map(\.start) == [1_795_168_440_000, 1_795_168_800_000, 1_795_169_160_000, 1_795_169_160_000])
         #expect(granules[1].outline[0] == GroundPoint(latitude: 14.3, longitude: 38.4))
     }
+
+    // granulePictures.test.ts's picturesEnd cases.
+    @Test func endsThePicturesWhereTheWebAppDoes() {
+        let gibs = "<Domains><Domain>2024-03-21/2026-11-09/P1D</Domain></Domains>"
+        #expect(GranuleCatalogue.picturesEnd(.gibs, listing: gibs) == TimeDomain.instant("2026-11-10T00:00:00Z"))
+        let capabilities = #"<Dimension name="time" default="current">2020-02-17T03:01:00.000Z/2026-11-22T00:46:00.000Z/PT1H41M</Dimension>"#
+        #expect(GranuleCatalogue.picturesEnd(.eumetview, listing: capabilities) == TimeDomain.instant("2026-11-22T01:46:00Z"))
+        #expect(GranuleCatalogue.picturesEnd(.gibs, listing: "") == nil)
+    }
+
+    // A day GIBS is still imaging has the granules sensed so far: dropping it left the
+    // Passes card a day behind the web app's.
+    @Test func keepsTheDayGIBSIsStillImaging() {
+        let today = (Date().timeIntervalSince1970 * 1000 / 86_400_000).rounded(.down) * 86_400_000
+        let day = String(GranuleCatalogue.isoInstant(today).prefix(10))
+        let gibs = "<Domains><Domain>2024-03-21/\(day)/P1D</Domain></Domains>"
+        #expect(GranuleCatalogue.picturesEnd(.gibs, listing: gibs) == today + 86_400_000)
+    }
 }

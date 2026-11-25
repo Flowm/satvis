@@ -36,8 +36,6 @@ actor GranuleService {
     /// Times a picture is asked for before it counts as missing: GIBS's WMS answers about
     /// one small request in five with an empty exception, and the next one with it.
     nonisolated static let pictureTries = 3
-    /// How far past the newest frame EUMETView's capabilities list its pictures may reach.
-    nonisolated private static let eumetViewGridSlack = hour
 
     /// How far back the newest granule is looked for: as long as GIBS keeps a granule layer's frames.
     nonisolated private static let latestWithin = 90 * day
@@ -274,19 +272,7 @@ actor GranuleService {
         guard let url = ImageryOverlay(layer: preview, frame: nil, bounds: nil).framesURL(), let data = await Self.fetch(url) else {
             return nil
         }
-        let text = String(decoding: data, as: UTF8.self)
-        if pictures.provider == .gibs {
-            guard let domain = text.firstMatch(of: /<Domain>([^<]*)<\/Domain>/) else {
-                return nil
-            }
-            var ranges = TimeDomain.parse(String(domain.1))
-            // A day still being imaged.
-            if let last = ranges.last, Date().timeIntervalSince1970 * 1000 - last.end < 2 * Self.day {
-                ranges = TimeDomain.withoutLatestFrame(ranges)
-            }
-            return ranges.last.map { $0.end + Self.day }
-        }
-        return EumetViewCapabilities(text).ranges.last.map { $0.end + Self.eumetViewGridSlack }
+        return GranuleCatalogue.picturesEnd(pictures.provider, listing: String(decoding: data, as: UTF8.self))
     }
 
     // MARK: Pictures

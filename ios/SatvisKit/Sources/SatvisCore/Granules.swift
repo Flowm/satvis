@@ -423,6 +423,25 @@ public enum GranuleCatalogue {
         let centre = min(180 - half, max(-180 + half, longitude))
         return SatelliteDetails.PreviewBounds(west: centre - half, south: latitude - half, east: centre + half, north: latitude + half)
     }
+
+    // MARK: The pictures' newest frame
+
+    /// How far past the newest frame EUMETView's capabilities list its pictures may reach, in milliseconds.
+    static let eumetViewGridSlack = 3_600_000.0
+
+    /// About when the newest frame of a provider's pictures ends, from the frame list it
+    /// sent: GIBS's `<Domain>` or EUMETView's capabilities; nil where it lists none.
+    /// GIBS's newest day counts while it is still being imaged, as the web app's
+    /// `picturesEnd` takes it: the granules sensed so far have their pixels.
+    public static func picturesEnd(_ provider: SatelliteDetails.GranulePictures.Provider, listing: String) -> Double? {
+        switch provider {
+        case .gibs:
+            let domain = listing.firstMatch(of: /<Domain>([^<]*)<\/Domain>/)
+            return domain.flatMap { TimeDomain.parse(String($0.1)).last }.map { $0.end + 86_400_000 }
+        case .eumetview:
+            return EumetViewCapabilities(listing).ranges.last.map { $0.end + eumetViewGridSlack }
+        }
+    }
 }
 
 /// Where a kept granule picture is cut from its frame, and its pixels: the web app's
