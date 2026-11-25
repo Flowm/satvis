@@ -801,34 +801,37 @@ private struct SatelliteImageryList: View {
     private func typeButton(_ row: SatelliteDetails.ImageryRow, _ cell: SatelliteDetails.ImageryRow.Cell, open: Listing.Group?) -> some View {
         let layer = cell.listing
         let isShown = imagery.isShown(layer.token)
-        return Button {
-            shown(layer.token, open: open).wrappedValue = !isShown
-        } label: {
-            Label {
-                Text(cell.name)
-            } icon: {
-                Image(layer.type.image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: iconSide * 0.7, height: iconSide * 0.7)
+        // Every minute, for the newest pass's age in the tooltip, as ADR 0024 has it said again.
+        return TimelineView(.everyMinute) { _ in
+            Button {
+                shown(layer.token, open: open).wrappedValue = !isShown
+            } label: {
+                Label {
+                    Text(cell.name)
+                } icon: {
+                    Image(layer.type.image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: iconSide * 0.7, height: iconSide * 0.7)
+                }
+                .labelStyle(TypeButtonLabelStyle())
+                .font(.panelCaption)
+                .padding(.horizontal, 8)
+                .frame(minHeight: 26)
+                .foregroundStyle(isShown ? Color.panelInk : .secondary)
+                .background(isShown ? Color.panelAccent.opacity(0.22) : .clear, in: .capsule)
+                .overlay {
+                    Capsule().strokeBorder(isShown ? Color.panelAccent : Color.white.opacity(0.12))
+                }
+                .contentShape(.capsule)
             }
-            .labelStyle(TypeButtonLabelStyle())
-            .font(.panelCaption)
-            .padding(.horizontal, 8)
-            .frame(minHeight: 26)
-            .foregroundStyle(isShown ? Color.panelInk : .secondary)
-            .background(isShown ? Color.panelAccent.opacity(0.22) : .clear, in: .capsule)
-            .overlay {
-                Capsule().strokeBorder(isShown ? Color.panelAccent : Color.white.opacity(0.12))
-            }
-            .contentShape(.capsule)
+            .buttonStyle(.plain)
+            .accessibilityLabel(row.isComposite ? "\(row.name), \(cell.name)" : "\(layer.type.title) of \(row.name)\(cell.extra ? " \(cell.name)" : "")")
+            .accessibilityValue(isShown ? "On" : "Off")
+            .accessibilityAddTraits(isShown ? [.isSelected] : [])
+            .accessibilityHint(tooltip(layer))
+            .help(tooltip(layer))
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(row.isComposite ? "\(row.name), \(cell.name)" : "\(layer.type.title) of \(row.name)\(cell.extra ? " \(cell.name)" : "")")
-        .accessibilityValue(isShown ? "On" : "Off")
-        .accessibilityAddTraits(isShown ? [.isSelected] : [])
-        .accessibilityHint(tooltip(layer))
-        .help(tooltip(layer))
     }
 
     /// What the layer is, as its card says it, and for passes how old the newest is, once known.

@@ -386,8 +386,10 @@ change with it. `../AGENTS.md` has the module map and how to build and test.
 
 - The Mac app is this target built for macOS (ADR 0017): the views are shared,
   laid out as an iPad's, since the Mac's window is given the regular size
-  classes. `Platform.swift` answers what UIKit and AppKit answer apart (reduced
-  motion, the clipboard, the share sheet, images, the device for the benchmark),
+  classes. `Platform.swift` answers what UIKit and AppKit answer apart (the
+  clipboard, the share sheet, images, the device for the benchmark), but reduced
+  motion, which `GlobeRenderer.reducesMotion` answers for the renderer's own
+  flights and the app's,
   and `satvis/macOS/` holds what only the Mac has, such as the stand-ins for the
   compass and camera (`SkyDevices.swift`), whose controls are not shown
   (`Platform.aimsByDevice`).

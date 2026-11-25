@@ -77,6 +77,7 @@ function showInfo(name: string): void {
   emit("show-info", name);
 }
 
+/** A row's height in px: a search result's on a phone, with its tags under its name, is taller. */
 function rowHeight(row: BrowserRow | undefined, stacked: boolean): number {
   return stacked && row?.kind === "sat" && row.groupsLabel ? STACKED_ROW_HEIGHT : ROW_HEIGHT;
 }

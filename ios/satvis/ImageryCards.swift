@@ -133,10 +133,13 @@ private struct ImageryCard: View {
         let token = imagery.token
         let isShown = token.map(drawn.isShown) ?? false
         VStack(alignment: .leading, spacing: 0) {
-            ImageryPicture(
-                label: [imagery.type.title, imagery.words.picture, imagery.words.cropped].compactMap(\.self).joined(separator: ", "),
-                source: preview, mosaic: drawn.mosaic, caption: caption, ended: imagery.words.ended,
-                outlinesOnly: imagery.granuleLayer.map { $0.pictures == nil } ?? false)
+            // Every minute, for the newest pass's age, as ADR 0024 has it said again.
+            TimelineView(.everyMinute) { _ in
+                ImageryPicture(
+                    label: [imagery.type.title, imagery.words.picture, imagery.words.cropped].compactMap(\.self).joined(separator: ", "),
+                    source: preview, mosaic: drawn.mosaic, caption: caption, ended: imagery.words.ended,
+                    outlinesOnly: imagery.granuleLayer.map { $0.pictures == nil } ?? false)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Label {
                     Text(imagery.type.title)
