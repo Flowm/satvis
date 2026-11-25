@@ -275,7 +275,7 @@ import { useGeolocation } from "@/composables/useGeolocation";
 import { useSelectedEntity } from "@/composables/useSelectedEntity";
 import { compassAvailable, useSkyCompass } from "@/composables/useSkyCompass";
 import { SATELLITE_COMPONENTS } from "@/config/components";
-import { PHONE_WIDTH } from "@/config/layout";
+import { isPhoneWidth } from "@/config/layout";
 import { FRAME_RATES, MSAA_RATES, offeredPixelRatio, pixelRatiosFor, pixelRatioValue } from "@/config/rendering";
 import { availableStarMaps, BUILTIN_STAR_MAP, STAR_MAP_LABELS, type StarMapName } from "@/config/starMaps";
 import { type MapGroup, SURFACE_MODEL_LABELS, SURFACE_MODELS, type SurfaceModelName, surfaceEffects, surfaceModelLabel, viewModeNote } from "@/config/surfaceModels";
@@ -322,10 +322,7 @@ const entryButtons: Partial<Record<MenuKey, HTMLButtonElement | null>> = {};
 const hideUIButton = ref<HTMLButtonElement>();
 const showUIButton = ref<HTMLButtonElement>();
 
-/** A known phone width, below which the column stacks over the info panel. A hidden tab can report 0. */
-const isNarrow = (): boolean => window.innerWidth > 0 && window.innerWidth < PHONE_WIDTH;
-
-const menuExpanded = ref(!isNarrow());
+const menuExpanded = ref(!isPhoneWidth());
 /** Whether the Graphics panel shows its scene effects and MSAA; closed on each page load. */
 const graphicsAdvanced = ref(false);
 
@@ -530,7 +527,7 @@ function onPointerUp(event: PointerEvent): void {
   if (!press || press.id !== event.pointerId || Math.hypot(event.clientX - press.x, event.clientY - press.y) > TAP_SLOP_PX || cesiumStore.pickMode) {
     return;
   }
-  const foldColumn = isNarrow() && menuExpanded.value;
+  const foldColumn = isPhoneWidth() && menuExpanded.value;
   if (!anyMenuOpen.value && !foldColumn) {
     return;
   }
@@ -544,7 +541,7 @@ function onPointerUp(event: PointerEvent): void {
 /** Clears the way to the scene a bookmark opened, as a tap on the globe does. */
 function onBookmarkOpened(): void {
   closeMenus();
-  if (isNarrow()) {
+  if (isPhoneWidth()) {
     menuExpanded.value = false;
   }
 }
@@ -598,7 +595,7 @@ async function uncoverInfoPanel(): Promise<void> {
  * beside it, but on a phone, where it covers it at any height.
  */
 function onShowInfo(): void {
-  if (isNarrow()) {
+  if (isPhoneWidth()) {
     catalogOpen.value = false;
   }
   void uncoverInfoPanel();
@@ -620,7 +617,7 @@ const catalogSheet = ref<InstanceType<typeof CatalogSheet> | null>(null);
 /** On a phone the column would cover the sheet's header, so it folds. */
 function openCatalog(): void {
   closeMenus();
-  if (isNarrow()) {
+  if (isPhoneWidth()) {
     menuExpanded.value = false;
   }
   catalogOpen.value = true;
@@ -684,7 +681,7 @@ function closePanel(key: MenuKey) {
 async function hideUI() {
   const focusVisible = !!hideUIButton.value?.matches(":focus-visible");
   closeMenus();
-  if (isNarrow()) {
+  if (isPhoneWidth()) {
     menuExpanded.value = false;
   }
   setUIShown(false);

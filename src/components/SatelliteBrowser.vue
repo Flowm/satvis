@@ -22,7 +22,7 @@
     <div v-else-if="rows.length > 0" ref="scrollEl" class="browser-list" :style="{ height: listHeight }">
       <div class="browser-list-inner" :style="{ height: `${totalSize}px` }">
         <div v-for="virtualRow in virtualRows" :key="virtualRow.row.id" class="browser-list-row" :style="{ transform: `translateY(${virtualRow.start}px)` }">
-          <satellite-browser-row :row="virtualRow.row" @toggle-group="toggleGroup" @toggle-sat="toggleSat" @show-info="showInfo" @toggle-expand="toggleExpand" />
+          <satellite-browser-row :row="virtualRow.row" :stacked="isPhone" @toggle-group="toggleGroup" @toggle-sat="toggleSat" @show-info="showInfo" @toggle-expand="toggleExpand" />
         </div>
       </div>
     </div>
@@ -42,14 +42,26 @@
 
 <script setup lang="ts">
 import { useVirtualizer } from "@tanstack/vue-virtual";
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 
 import { useController } from "@/composables/useController";
 import { type BrowserRow, useSatelliteBrowser } from "@/composables/useSatelliteBrowser";
 import { useSelectedEntity } from "@/composables/useSelectedEntity";
+import { PHONE_WIDTH } from "@/config/layout";
 import { formatInteger } from "@/modules/util/formats";
 
 const ROW_HEIGHT = 28;
+/** A search result on a phone: its tags on a second line, so neither cuts the name short. */
+const STACKED_ROW_HEIGHT = 42;
+
+/** Guarded: jsdom leaves `matchMedia` undefined. */
+const phoneQuery = globalThis.matchMedia?.(`(max-width: ${PHONE_WIDTH - 1}px)`);
+const isPhone = ref(phoneQuery?.matches ?? false);
+const onPhoneChange = (event: MediaQueryListEvent): void => {
+  isPhone.value = event.matches;
+};
+phoneQuery?.addEventListener("change", onPhoneChange);
+onBeforeUnmount(() => phoneQuery?.removeEventListener("change", onPhoneChange));
 
 const controller = useController();
 const { sats } = controller;
@@ -65,16 +77,27 @@ function showInfo(name: string): void {
   emit("show-info", name);
 }
 
-const listHeight = computed(() => `min(${rows.value.length * ROW_HEIGHT}px, 60dvh)`);
+function rowHeight(row: BrowserRow | undefined, stacked: boolean): number {
+  return stacked && row?.kind === "sat" && row.groupsLabel ? STACKED_ROW_HEIGHT : ROW_HEIGHT;
+}
+
+const listHeight = computed(() => `min(${rows.value.reduce((sum, row) => sum + rowHeight(row, isPhone.value), 0)}px, 60dvh)`);
 
 const scrollEl = ref<HTMLElement | null>(null);
 const virtualizer = useVirtualizer(
-  computed(() => ({
-    count: rows.value.length,
-    getScrollElement: () => scrollEl.value,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 8,
-  })),
+  computed(() => {
+    const list = rows.value;
+    const stacked = isPhone.value;
+    return {
+      count: list.length,
+      getScrollElement: () => scrollEl.value,
+      estimateSize: (index: number) => rowHeight(list[index], stacked),
+      // The virtualizer lays out again when `getItemKey` changes, never `estimateSize`, so a
+      // new one with each list or width keeps the offsets in step with the heights.
+      getItemKey: (index: number) => list[index]?.id ?? index,
+      overscan: 8,
+    };
+  }),
 );
 
 /** Drops any item whose row vanished mid-recompute, so the template stays index-safe. */

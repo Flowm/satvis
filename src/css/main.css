@@ -490,16 +490,11 @@ body {
   border-radius: 50%;
 }
 
-.toolbarSwitch input:checked {
-  border-color: var(--panel-accent);
-  background-color: var(--panel-accent);
-}
-
-/* Green, as these lists' native checkboxes were. */
+.toolbarSwitch input:checked,
 .panelCheckbox:checked,
 .panelCheckbox:indeterminate {
-  border-color: var(--panel-green);
-  background-color: var(--panel-green);
+  border-color: var(--panel-accent);
+  background-color: var(--panel-accent);
 }
 
 /* The stroke is --panel-surface, which a data url cannot read. */

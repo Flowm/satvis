@@ -4,7 +4,7 @@ import type { Page } from "@playwright/test";
 
 import { BLOCKED_TERRAIN, canvasBox, openApp, waitForSky } from "../support/app";
 import { expect, test } from "../support/test";
-import { addStationHere, clickEntity, closeMenuPanel, menuSwitch, openMenu, showInfo, skyPlace, toasts } from "../support/ui";
+import { addStationHere, clickEntity, closeMenuPanel, DEVICES, menuSwitch, openMenu, showInfo, skyPlace, toasts } from "../support/ui";
 
 const MUNICH = { latitude: 48.1372, longitude: 11.5756 };
 const TARGET = "METEOSAT-12 (MTG-I1)";
@@ -65,6 +65,8 @@ test("from my station, look up, find a satellite, walk, and stand somewhere else
   await waitForSky(page);
   await expect(page.locator(".sky-hud--settled")).toBeVisible();
   await expectTerrainTried(page);
+  // Beside the sky on a desktop; a phone's closes (below).
+  await expect(panel.locator(".head__name")).toHaveText("Munich");
 
   // The view follows the cursor, so this drag puts the target under the crosshair.
   const target = await skyPosition(page, TARGET);
@@ -162,4 +164,21 @@ test("a link to the sky view keeps its own terrain", async ({ page }) => {
   await waitForSky(page);
   await openMenu(page, "Map");
   await expect(page.locator('input[name="terrain"][value="None"]')).toBeChecked();
+});
+
+test.describe("phone", () => {
+  test.use(DEVICES.phone);
+
+  test("a station's panel closes for the sky it opens, as it would cover it", async ({ page }) => {
+    await openApp(page, "gs=48.1372,11.5756,Munich");
+    await openMenu(page, "Locations");
+    await page.locator(".gsList__row").first().getByRole("button", { name: "Show passes" }).click();
+    const panel = page.locator(".entity-info-panel");
+    await expect(panel.locator(".head__name")).toHaveText("Munich");
+
+    await panel.getByRole("button", { name: "View the sky from this ground station" }).click();
+    await waitForSky(page);
+    await expect(panel).toBeHidden();
+    await expect.poll(() => page.evaluate(() => window.cc!.skyView.observer)).toEqual({ lat: 48.1372, lon: 11.5756 });
+  });
 });
